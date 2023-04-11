@@ -9,7 +9,6 @@
 
 % Import data
 load(dataset_path("DS5_FinePower_PO-1.mat"));
-
 ds = ld;
 
 pwr_all = unique([ld.SG_power_dBm]); % [dBm]
