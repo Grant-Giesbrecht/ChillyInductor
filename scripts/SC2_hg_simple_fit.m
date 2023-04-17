@@ -101,6 +101,12 @@ title(strcat("2nd Harmonic Measurement, ", num2str(pwr), " dBm, 10 GHz"));
 grid on;
 legend("Measured", "Simulated");
 
+displ("Plotted power level: ", pwr, " dBm");
+displ();
+displ("Linear fit (of positive side data):");
+displ("  m  = ", P_pos(1));
+displ("  Y0 = ", P_pos(2));
+
 
 
 
