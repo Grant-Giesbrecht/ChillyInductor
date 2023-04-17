@@ -12,8 +12,8 @@ load(dataset_path("DS1_FOS-1.mat"));
 
 % analysis_freqs = [1, 5, 50].*1e9; % Frequencies to plot [GHz]
 % analysis_freqs = [1, 5, 10, 15].*1e9; % Frequencies to plot [GHz]
-analysis_freqs = [1,2, 3, 4, 5, 10, 15, 20, 30, 40, 50].*1e9; % Frequencies to plot [GHz]
-% analysis_freqs = (1:50).*1e9;
+% analysis_freqs = [1,2, 3, 4, 5, 10, 15, 20, 30, 40, 50].*1e9; % Frequencies to plot [GHz]
+analysis_freqs = (1:50).*1e9;
 
 dp_idx = datapoint_index;
 phase = Pb1a2;
@@ -176,3 +176,6 @@ hold on;
 vlin(mean(sel_qs), "LineStyle", '--', 'Color', c_mean);
 vlin(mean(sel_qs)-std(sel_qs), "LineStyle", ':', 'Color', c_std);
 vlin(mean(sel_qs)+std(sel_qs), "LineStyle", ':', 'Color', c_std);
+xlabel("q Value (A)");
+ylabel("Counts");
+title("Distribution of q Estimates");
