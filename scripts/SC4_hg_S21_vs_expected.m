@@ -63,30 +63,50 @@ for pwr = pwr_all
 
 	% Calculate harmonics over bias sweep
 	[harms, norm, Vdcs] = getHarmonicSweep(ld, c);
+	fund = harms.h1;
 	h2 = harms.h2;
 	Ibias = Vdcs.*iv_conv;
-
-	% Convert VNA's funky units to real units
+	
+	% Convert VNA's funky units to real units (2nd harmonic)
 	a2 = sqrt(cvrt(-10, 'dBm', 'W'));
 	a_SG = sqrt(cvrt(pwr, 'dBm', 'W'));
 	S21 = abs(h2).*a2./a_SG;
 	S21_dB = lin2dB(S21);
-		
+	
+	% Approximate Ipp from fundamental
+	S21_fund = abs(fund).*a2./a_SG;
+	V_port_fund = S21_fund.*a_SG.*sqrt(50);
+	Ipp_fund = V_port_fund./50;
+	
 	% Calculate things to plot
 	V_port2 = S21.*a_SG.*sqrt(50);
 	P_rec = (S21.*a_SG).^2;
-		
-	% Calculate expected voltage
+	
+	% Calculate Ipp from power (this was original method and wrong)
 	w = 2.*3.14159.*f;
-	L0 = 1e-6;
+	j = complex(0, 1);
+	L0 = 1e-6*0.5;
+	L0_guess = 4.5e-9;
+	ZL_est = L0_guess*j*w;
 	Idc = abs(Ibias);
-	Ipp = abs(2/sqrt(2)*sqrt(cvrt(pwr, 'dBm', 'W')/(105+j*10e3)));
+	Ipp_theory = abs( 2/sqrt(2)*sqrt(cvrt(pwr, 'dBm', 'W')/(105+ZL_est)) );
+	
+	% Approximate Ipp from generator voltage
+	Vgen = sqrt(cvrt(pwr, 'dBm', 'W')*200);
+	Ipp_vg = abs(Vgen/(105+ZL_est));
+	
+	% Calculate expected voltage
+% 	Ipp = mean(Ipp_fund);
+% 	Ipp = Ipp_theory;
+	Ipp = Ipp_vg;
 	q = .19;
 	f2w = L0./q.^2.*(Idc*Ipp^2*w);
-	P_est = f2w.^2./50;
+	P_est = f2w.*Ipp;
+	
 	
 	% Calculate attenuation in dB
-	atten = lin2dB(V_port2./f2w);
+	atten = lin2dB(V_port2./f2w.*2);
+% 	atten = lin2dB(P_rec./P_est);
 	
 	figure(3);
 	plot(Ibias, S21_dB, 'Marker', '+', 'LineStyle', ':', 'LineWidth', 1.3, 'Color', CM(idx,:));
@@ -103,6 +123,13 @@ for pwr = pwr_all
 		continue
 	end
 	
+	displ("Ipp Estimates:")
+	displ("  From PWR & Z: |Ipp| = ", Ipp_theory*1e3, " mA");
+	displ("  From Vgen   : |Ipp| = ", Ipp_vg*1e3, " mA");
+	displ("  From Fund.  : min|Ipp| = ", min(abs(Ipp_fund))*1e3, " mA");
+	displ("     ...      : max|Ipp| = ", max(abs(Ipp_fund))*1e3, " mA");
+	displ("     ...      : avg|Ipp| = ", mean(abs(Ipp_fund))*1e3, " mA");
+	
 	figure(5);
 	plot(Ibias, f2w, 'Marker', '+', 'LineStyle', ':', 'LineWidth', 1.3, 'Color', CM(idx,:));
 	hold on;
@@ -113,9 +140,9 @@ for pwr = pwr_all
 	
 	legend_list2 = [legend_list2(:)', {strcat("P = ", num2str(pwr), " dBm")}];
 	
-% 	figure(7);
-% 	plot(Ibias, P_meas, 'Marker', '+', 'LineStyle', ':', 'LineWidth', 1.3, 'Color', CM(idx,:));
-% 	hold on;
+	figure(7);
+	plot(Ibias, Ipp_fund, 'Marker', '+', 'LineStyle', ':', 'LineWidth', 1.3, 'Color', CM(idx,:));
+	hold on;
 % 	
 % 	figure(8);
 % 	plot(Ibias, atten, 'Marker', '+', 'LineStyle', ':', 'LineWidth', 1.3, 'Color', CM(idx,:));
@@ -158,6 +185,15 @@ figure(6);
 xlabel("Bias Current (A)");
 ylabel("Attenuation (dB)");
 title(strcat("2nd Harmonic Measurment relative to Expected, 10 GHz"));
+grid on;
+legend(legend_list2{:},'NumColumns',1,'FontSize',8);
+% set(hleg,'Location','best');
+force0y;
+
+figure(7);
+xlabel("Bias Current (A)");
+ylabel(" I_{PP} Fundamental(dB)");
+title(strcat("Fundamental Appox. Current, 10 GHz"));
 grid on;
 legend(legend_list2{:},'NumColumns',1,'FontSize',8);
 % set(hleg,'Location','best');
