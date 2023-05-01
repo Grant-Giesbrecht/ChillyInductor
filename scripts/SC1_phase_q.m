@@ -3,6 +3,7 @@
 %
 % Analyzes phase data with I^2/q^2 model
 %
+% Note: this datasweep is looking at how the 
 
 len = 0.5; % meters
 Vp0 = 86.207e6; % m/s

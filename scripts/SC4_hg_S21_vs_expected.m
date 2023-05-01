@@ -44,9 +44,6 @@ hold off;
 figure(7);
 hold off;
 
-figure(8);
-hold off;
-
 legend_list = {};
 legend_list2 = {};
 
@@ -87,6 +84,7 @@ for pwr = pwr_all
 	j = complex(0, 1);
 	L0 = 1e-6*0.5;
 	L0_guess = 4.5e-9;
+% 	L0_guess = 0.9e-9;
 	ZL_est = L0_guess*j*w;
 	Idc = abs(Ibias);
 	Ipp_theory = abs( 2/sqrt(2)*sqrt(cvrt(pwr, 'dBm', 'W')/(105+ZL_est)) );
@@ -101,11 +99,12 @@ for pwr = pwr_all
 	Ipp = Ipp_vg;
 	q = .19;
 	f2w = L0./q.^2.*(Idc*Ipp^2*w);
+	f2w_vna = f2w/2; % Divide by 2, voltage across L split between 2 loads (VNA and SG)
 	P_est = f2w.*Ipp;
 	
 	
 	% Calculate attenuation in dB
-	atten = lin2dB(V_port2./f2w.*2);
+	atten = lin2dB(V_port2./f2w_vna);
 % 	atten = lin2dB(P_rec./P_est);
 	
 	figure(3);
@@ -123,7 +122,7 @@ for pwr = pwr_all
 		continue
 	end
 	
-	displ("Ipp Estimates:")
+	displ("Ipp Estimates: ( P = ", pwr, " dBm)")
 	displ("  From PWR & Z: |Ipp| = ", Ipp_theory*1e3, " mA");
 	displ("  From Vgen   : |Ipp| = ", Ipp_vg*1e3, " mA");
 	displ("  From Fund.  : min|Ipp| = ", min(abs(Ipp_fund))*1e3, " mA");
@@ -131,7 +130,7 @@ for pwr = pwr_all
 	displ("     ...      : avg|Ipp| = ", mean(abs(Ipp_fund))*1e3, " mA");
 	
 	figure(5);
-	plot(Ibias, f2w, 'Marker', '+', 'LineStyle', ':', 'LineWidth', 1.3, 'Color', CM(idx,:));
+	plot(Ibias, f2w_vna, 'Marker', '+', 'LineStyle', ':', 'LineWidth', 1.3, 'Color', CM(idx,:));
 	hold on;
 
 	figure(6);
@@ -175,7 +174,7 @@ force0y;
 figure(5);
 xlabel("Bias Current (A)");
 ylabel("Voltage (V)");
-title(strcat("Expected Voltage - 2nd Harmonic, 10 GHz"));
+title(strcat("Expected VNA Voltage - 2nd Harmonic, 10 GHz"));
 grid on;
 legend(legend_list2{:},'NumColumns',1,'FontSize',8);
 % set(hleg,'Location','best');
