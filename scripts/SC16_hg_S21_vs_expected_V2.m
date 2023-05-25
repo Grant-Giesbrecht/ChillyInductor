@@ -1,12 +1,18 @@
-% From 'hg_to_L0.m' but references power levels to signal generator as
-% opposed to 'a1' of VNA. 
+%% SC16
 %
-% Previously named: hg_to_L0_SgR_compare.m
+% Previously named: DS23_hg_S21_vs_expected_V2.m
 %
-% Extends the functionality of SC3 but gets rid of the 'equivalent bias'
-% graph (which didn't explain the seen phenomenon) and instead tries to
-% calculate the expected 2nd harmonic strength and compares measurement to
-% expectation to try to gauge system loss.
+% Repeat of SC4 (plot meas vs expectation over bias, and calculates system
+% loss as difference), but instead of estimating one Ipp value for all bias
+% conditions at one RF input power (wrong, ignores changing Zin), it uses
+% measurements to update Iac for each bias point. Shows substantailly less
+% variation in atten (still too much though ~5 dB change across bias)
+%
+%
+% Built off of SC4, but instead of assuming Iac (called Ipp previously) is
+% constant versus DC bias (which is certainly not true - DC bias impacts
+% Vp, which impacts Zin, which impacts P0, which impacts Iac), it uses the
+% VNA measurement at each bias point as the Iac estimate. 
 
 % Import data
 load(dataset_path("DS5_FinePower_PO-1.mat"));
@@ -38,10 +44,16 @@ hold off;
 figure(5);
 hold off;
 
-figure(6);
+figure(60);
 hold off;
 
 figure(7);
+hold off;
+
+figure(8);
+hold off;
+
+figure(9);
 hold off;
 
 legend_list = {};
@@ -92,14 +104,15 @@ for pwr = pwr_all
 	% Approximate Ipp from generator voltage
 	Vgen = sqrt(cvrt(pwr, 'dBm', 'W')*200);
 	Ipp_vg = abs(Vgen/(105+ZL_est));
-
+	
 	% Calculate expected voltage
-	Ipp = mean(Ipp_fund);
+% 	Ipp = mean(Ipp_fund);
 % 	Ipp = Ipp_theory;
 % 	Ipp = Ipp_vg;
+	Ipp = Ipp_fund;
 	q = .19;
-	f2w = L0./q.^2.*(Idc*Ipp^2*w);
-	f2w_vna = f2w/2; % Divide by 2, voltage across L split between 2 loads (VNA and SG)
+	f2w = L0./q.^2.*(Idc.*Ipp.^2.*w);
+	f2w_vna = f2w./2; % Divide by 2, voltage across L split between 2 loads (VNA and SG)
 	P_est = f2w.*Ipp;
 	
 	
@@ -117,6 +130,10 @@ for pwr = pwr_all
 
 	legend_list = [legend_list(:)', {strcat("P = ", num2str(pwr), " dBm")}];
 	
+	figure(8);
+	plot(Ibias, norm.V, 'Marker', '+', 'LineStyle', ':', 'LineWidth', 1.3, 'Color', CM(idx,:));
+	hold on;
+	
 	%skip the baddies
 	if pwr > 7
 		continue
@@ -133,7 +150,7 @@ for pwr = pwr_all
 	plot(Ibias, f2w_vna, 'Marker', '+', 'LineStyle', ':', 'LineWidth', 1.3, 'Color', CM(idx,:));
 	hold on;
 
-	figure(6);
+	figure(60);
 	plot(Ibias, atten, 'Marker', '+', 'LineStyle', ':', 'LineWidth', 1.3, 'Color', CM(idx,:));
 	hold on;
 	
@@ -141,6 +158,15 @@ for pwr = pwr_all
 	
 	figure(7);
 	plot(Ibias, Ipp_fund, 'Marker', '+', 'LineStyle', ':', 'LineWidth', 1.3, 'Color', CM(idx,:));
+	hold on;
+	
+	%skip the baddies
+	if pwr > 4.1
+		continue
+	end
+	
+	figure(9);
+	plot(Ibias, norm.V.*1e3, 'Marker', '+', 'LineStyle', ':', 'LineWidth', 1.3, 'Color', CM(idx,:));
 	hold on;
 % 	
 % 	figure(8);
@@ -180,7 +206,7 @@ legend(legend_list2{:},'NumColumns',1,'FontSize',8);
 % set(hleg,'Location','best');
 force0y;
 
-figure(6);
+figure(60);
 xlabel("Bias Current (A)");
 ylabel("Attenuation (dB)");
 title(strcat("2nd Harmonic Measurment relative to Expected, 10 GHz"));
@@ -198,6 +224,21 @@ legend(legend_list2{:},'NumColumns',1,'FontSize',8);
 % set(hleg,'Location','best');
 force0y;
 
+figure(8);
+xlabel("Bias Current (A)");
+ylabel("MFLI Voltage (V)");
+title(strcat("DC Voltage for Nomral Mode Monitoring"));
+grid on;
+legend(legend_list{:},'NumColumns',2,'FontSize',8);
+% set(hleg,'Location','best');
+% force0y;
+
+figure(9);
+xlabel("Bias Current (A)");
+ylabel("MFLI Voltage (mV)");
+title(strcat("Low-Power DC Voltages"));
+grid on;
+legend(legend_list{:},'NumColumns',2,'FontSize',8);
 
 
 

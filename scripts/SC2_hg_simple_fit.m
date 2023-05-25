@@ -99,7 +99,7 @@ xlabel("Bias Current (A)");
 ylabel("Harmonic Power, b1/a2");
 title(strcat("2nd Harmonic Measurement, ", num2str(pwr), " dBm, 10 GHz"));
 grid on;
-legend("Measured", "Simulated");
+legend("Measured", "Fit");
 
 displ("Plotted power level: ", pwr, " dBm");
 displ();

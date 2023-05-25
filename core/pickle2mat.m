@@ -35,7 +35,8 @@ function ld = pickle2mat(pickle_fn, mat_fn)
 		cd{idx}.collection_index = double(cd{idx}.collection_index);
 		cd{idx}.timestamp = string(cd{idx}.timestamp);
 		cd{idx}.harmonic = double(cd{idx}.harmonic);
-		cd{idx}.harmonic = double(cd{idx}.harmonic);
+		cd{idx}.offset_V = double(cd{idx}.offset_V);
+		cd{idx}.VNA_src_power_dBm = double(cd{idx}.VNA_src_power_dBm);
 
 		% Get complex values from arcane format
 		ts_cells = cell(cd{idx}.MFLI_voltage);

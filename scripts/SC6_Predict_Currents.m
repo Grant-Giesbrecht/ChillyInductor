@@ -55,6 +55,7 @@ theta_chip  = freqs_cable;
 load = shuntRes(51, conditions);
 cable = tlin(48, [conditions.cable], conditions, true);
 cable2 = tlin(48, [conditions.cable], conditions, true);
+% cable = tlin(48, 45, conditions, true);
 chip =  tlin(88.4, [conditions.chip], conditions, true);
 coupler = seriesRes(90, conditions);
 
@@ -201,7 +202,7 @@ contour_level = 3.9;
 % contour_color = [0.6, 0, 0.7];
 contour_color = [.85, 0, 0];
 
-figure(6);
+figure(60);
 hold off;
 surfc(X,Y,abs(IL_surf_load.*1e3));
 hold on;

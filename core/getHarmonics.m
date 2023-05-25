@@ -71,7 +71,7 @@ function [norm, harms, stdev] = getHarmonics(dataset, conditions)
 	end
 	
 	% Get readout voltage
-	mv=[dataset(1).MFLI_voltage];
+	mv=[points.MFLI_voltage];
 	voltage = mean(abs(mv));
 	
 	% Prepare norm output
