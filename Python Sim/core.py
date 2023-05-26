@@ -3,6 +3,7 @@ import numpy as np
 from scipy.fft import fft, fftfreq
 import matplotlib.pyplot as plt
 
+import copy
 import logging
 import getopt, sys
 from dataclasses import dataclass
@@ -36,12 +37,35 @@ tabchar = "    "
 prime_color = Fore.YELLOW
 standard_color = Fore.LIGHTBLACK_EX
 quiet_color = Fore.WHITE
+cspecial = Fore.GREEN # COlor used to highlight content inside logging messages
 logging.basicConfig(format=f'{prime_color}%(levelname)s:{standard_color} %(message)s{quiet_color} | %(asctime)s{Style.RESET_ALL}', level=LOG_LEVEL)
 
 PI = 3.1415926535
 
+# Starting Iac guess options
+GUESS_ZERO_REFLECTION = 1
+GUESS_USE_LAST = 2
+
+@dataclass
+class Simopt:
+	""" Contains simulation options"""
+	
+	# Simulation options
+	use_interp = False # This option allows FFT interpolation, but has NOT been implemented
+	
+	# Convergence options
+	max_iter = 1000 # Max iterations for convergence
+	tol_pcnt = 1 # Tolerance in percent between Iac guesses
+	guess_update_coef = 0.5 # Fraction by which to compromise between guess and result Iac (0=remain at guess, 1=use result; 0.5 recommended)
+	ceof_shrink_factor = 0.2 # Fraction by which to modify guess_update_coef when sign reverses (good starting point: 0.2)
+	
+	# How to pick initial Iac guess
+	start_guess_method = GUESS_ZERO_REFLECTION
+
 @dataclass
 class LKSolution:
+	""" Contains data to represent a solution to the LKsystem problem"""
+	
 	Lk = None
 	
 	Vp = None # Not actually used
@@ -58,6 +82,12 @@ class LKSolution:
 	Iac_result_td = None # Use Iac to find solution and calculate Iac again, this is the result in time domain
 	Iac_result_spec = None # Iac result as spectrum, shows fundamental, 2harm, and 3harm as touple (idx 0 = fund, ..., 2 = 3rd harm)
 	rmse = None # |Iac_result - Iac|
+	
+	convergence_failure = None # Set as True if fails to converge
+	num_iter = None # Number of iterations completed
+
+	spec = None # Spectrum data [AC Current amplitude in Amps]
+	spec_freqs = None # Spectrum frequencies in Hz
 
 def rd(x:float, num_decimals:int=2):
 	return f"{round(x*10**num_decimals)/(10**num_decimals)}"
@@ -87,30 +117,31 @@ class LKSystem:
 		""" Initialize system with given conditions """
 		
 		# Simulations options
-		self.use_interp = False
-		
+		self.opt = Simopt()
+
+		# System Settings
 		self.Pgen = (10**(Pgen_dBm/10))/1000
 		self.C_ = C_
 		self.l_phys = l_phys
 		self.freq = freq
 		self.q = q
 		self.L0 = L0
-		
 		self.Zcable = 50 # Z0 of cable leading into chip
 		self.Rsrc = 50 # R of generator
 		self.Xsrc = 0 # X of generator
+		self.Vgen  = np.sqrt(self.Pgen*200) # Solve for Generator voltage from power
 		
 		# Time domain options
 		self.num_periods = None
 		self.max_harm = None
 		self.min_points_per_wave = None
 		self.t = []
-		
-		# Solve for Generator voltage from power
-		self.Vgen  = np.sqrt(self.Pgen*200)
-		
+
 		# Create solution object
 		self.soln = LKSolution() # Current solution data
+		
+		self.solution = [] # List of solution data
+		self.bias_points = [] # List of bias values corresponding to solution data
 		
 		self.configure_time_domain(1000, 3, 30)
 		
@@ -135,10 +166,11 @@ class LKSystem:
 		# Create t array
 		self.t = np.linspace(0, t_max, num_points)
 		
-		logging.info(f"Configured time domain with {len(self.t)} points.")
+		logging.info(f"Configured time domain with {cspecial}{len(self.t)}{standard_color} points.")
 		
-	def check_solution(self, Iac:float, Idc:float, show_plot_td=False, show_plot_spec=False):
-		""" Using the current best guess, find the solution error.
+	def crunch(self, Iac:float, Idc:float, show_plot_td=False, show_plot_spec=False):
+		""" Using the provided Iac guess, find the reuslting solution, and the error
+		between the solution and the initial guess.
 		
 		Converts the resulting Iac time domain data into spectral components, saving the
 		fundamental through 3rd hamonic as a touple, with idx=0 assigned to fundamental.
@@ -183,24 +215,24 @@ class LKSystem:
 		self.soln.rmse = np.sqrt(np.mean(err_list**2))
 		
 		# Save to logger
-		logging.info(f"Solution error: {round(self.soln.rmse*1000)/1000}")
+		logging.debug(f"Solution error: {round(self.soln.rmse*1000)/1000}")
 		
 		if show_plot_td:
 			plot_Ts = 5
 			idx_end = find_nearest(self.t, plot_Ts/self.freq)
 			
-			# plt.plot(self.t*1e9, self.soln.Iac_result_td*1e3)
-			# plt.xlabel("Time (ns)")
-			# plt.ylabel("AC Current (mA)")
-			# plt.title("Solution Iteration Time Domain Plot")
-			# plt.show()
-			
-			plt.plot(self.t[:idx_end]*1e9, self.soln.Lk[:idx_end]*1e9)
+			plt.plot(self.t*1e9, self.soln.Iac_result_td*1e3)
 			plt.xlabel("Time (ns)")
-			plt.ylabel("Lk (nH)")
+			plt.ylabel("AC Current (mA)")
 			plt.title("Solution Iteration Time Domain Plot")
-			plt.grid()
 			plt.show()
+			
+			# plt.plot(self.t[:idx_end]*1e9, self.soln.Lk[:idx_end]*1e9)
+			# plt.xlabel("Time (ns)")
+			# plt.ylabel("Lk (nH)")
+			# plt.title("Solution Iteration Time Domain Plot")
+			# plt.grid()
+			# plt.show()
 		
 		############# Previously called get_spec_components() ###########
 		
@@ -213,11 +245,13 @@ class LKSystem:
 		
 		# Fix magnitude to compensate for number of points
 		spec = 2.0/num_pts*np.abs(spec_raw)
+		self.soln.spec = spec
 		
 		# Get corresponding x axis (frequencies)
 		spec_freqs = fftfreq(num_pts, dt)[:num_pts//2]
+		self.soln.spec_freqs = spec_freqs
 		
-		if self.use_interp:
+		if self.opt.use_interp:
 			logging.warning("interp feature has not been implemented. See fft_demo.py to see how.")
 		
 		# Find index of peak - Fundamental
@@ -233,9 +267,9 @@ class LKSystem:
 		Iac_3H = np.max([ spec[idx-1], spec[idx], spec[idx+1] ])
 		
 		# Save to solution set
-		self.Iac_result_spec = (Iac_fund, Iac_2H, Iac_3H)
+		self.soln.Iac_result_spec = (Iac_fund, Iac_2H, Iac_3H)
 		
-		logging.info(f"Calcualted Iac spectral components: fund={rd(Iac_fund*1e6, 3)}, 2H={rd(Iac_2H*1e6, 3)}, 3H={rd(Iac_3H*1e6, 3)} uA")
+		logging.debug(f"Calcualted Iac spectral components: fund={rd(Iac_fund*1e6, 3)}, 2H={rd(Iac_2H*1e6, 3)}, 3H={rd(Iac_3H*1e6, 3)} uA")
 		
 		if show_plot_spec:
 			
@@ -246,6 +280,129 @@ class LKSystem:
 			
 			plt.show()
 		
+	def plot_solution(self, s:LKSolution=None):
 		
+		# Pick last solution if none provided
+		if s is None:
+			s = self.soln
 		
+		# calculate end index
+		plot_Ts = 5
+		idx_end = find_nearest(self.t, plot_Ts/self.freq)
 		
+		# Create time domain figure
+		plt.figure(1)
+		plt.plot(self.t[:idx_end]*1e9, s.Iac_result_td[:idx_end]*1e3)
+		plt.xlabel("Time (ns)")
+		plt.ylabel("AC Current (mA)")
+		plt.title(f"Time Domain Data, Idc = {rd(s.Ibias*1e3)} mA")
+		
+		# Create spectrum figure
+		plt.figure(2)
+		plt.plot(s.spec_freqs/1e9, s.spec)
+		plt.xlabel("Frequency (GHz)")
+		plt.ylabel("AC Current (mA)")
+		plt.title(f"Current Spectrum, Idc = {rd(s.Ibias*1e3)} mA")
+		
+		plt.show()
+	
+	def solve(self, Ibias_vals:list, show_plot_on_conv=False):
+		""" Takes a list of bias values, plugs them in for Idc, and solves for
+		the AC current s.t. error is within tolerance. """
+		
+		logging.info(f"Beginning iterative solve for {cspecial}{len(Ibias_vals)}{standard_color} bias points.")
+		
+		Iac_crude_guess = np.abs(self.Vgen)**2 / 50 # Crude guess for AC current (Assume 50 ohm looking into chip)
+		
+		# Scan over each bias value
+		for Idc in Ibias_vals:
+			
+			last_sign = None # Sign of last change
+			self.soln.num_iter = 0	# Reset iteration counter
+			guess_coef = self.opt.guess_update_coef # Reset guess_coef
+			
+			if self.opt.start_guess_method == GUESS_ZERO_REFLECTION:
+				Iac_guess = Iac_crude_guess
+			elif self.opt.start_guess_method == GUESS_USE_LAST:
+				if len(self.solution) > 0:
+					Iac_guess = self.solution[-1].Iac
+				else:
+					Iac_guess = Iac_crude_guess
+			
+			# Loop until converge
+			while True:
+				
+				# Crunch the numbers of this guess value
+				self.crunch(Iac_guess, Idc)
+				self.soln.num_iter += 1
+				
+				# Calculate signed error
+				error = self.soln.Iac_result_spec[0] - Iac_guess
+				error_pcnt = (np.max([self.soln.Iac_result_spec[0], Iac_guess])/np.min([self.soln.Iac_result_spec[0], Iac_guess])-1)*100
+				
+				# Check for convergence
+				if error_pcnt < self.opt.tol_pcnt:
+					
+					# Add to logger
+					logging.info(f"Datapoint ({cspecial}Idc={rd(Idc*1e3)} mA{standard_color}),({cspecial}Iac={Iac_guess} mA{standard_color}) converged with {cspecial}error={rd(error_pcnt, 3)}%{standard_color} after {cspecial}{self.soln.num_iter}{standard_color} iterations ")
+					
+					# Create deep
+					new_soln = copy.deepcopy(self.soln)
+					new_soln.convergence_failure = True
+					
+					# Add solution to list
+					self.solution.append(new_soln)
+					
+					# Add bias point to list
+					self.bias_points.append(Idc)
+					
+					# Plot result if requested
+					if show_plot_on_conv:
+						self.plot_solution()
+					
+					# Exit convergence loop
+					break
+					
+				# Check for exceed max iterations
+				elif self.soln.num_iter >= self.opt.max_iter:
+					
+					# Add to logger
+					logging.warning(f"Failed to converge for point ({cspecial}Idc={rd(Idc*1e3)} mA{standard_color}).")
+					
+					# Exit convergence loop
+					break
+				
+				# Else update guess
+				else:
+					
+					# Error is positive
+					if error > 0:
+						
+						# First iteration - set sign
+						if last_sign is None:
+							last_sign = np.sign(error)
+						# Last change was in different direction
+						elif last_sign < 1:
+							guess_coef *= self.opt.ceof_shrink_factor # Change update size
+							last_sign = -1 # Update change direction
+							logging.debug(f"Error sign changed. Changing guess update coefficient to {cspecial}{guess_coef}{standard_color}")
+						
+						# Update guess
+						Iac_guess = Iac_guess + error * guess_coef
+					
+					# Else error is negative
+					else:
+						
+						# First iteration - set sign
+						if last_sign is None:
+							last_sign = np.sign(error)
+						# Last change was in different direction
+						elif last_sign > 1:
+							guess_coef *= self.opt.ceof_shrink_factor # Change update size
+							last_sign = 1 # Update change direction
+							logging.debug(f"Error sign changed. Changing guess update coefficient to {cspecial}{guess_coef}{standard_color}")
+							
+						# Update guess
+						Iac_guess = Iac_guess + error * guess_coef
+					
+					logging.debug(f"Last guess produced {cspecial}error={error}{standard_color}. Updated guess to {cspecial}Iac={Iac_guess}{standard_color}. [{cspecial}iter={self.soln.num_iter}{standard_color}]")
