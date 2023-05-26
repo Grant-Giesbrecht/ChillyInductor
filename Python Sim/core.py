@@ -136,29 +136,26 @@ class LKSystem:
 		self.t = np.linspace(0, t_max, num_points)
 		
 		logging.info(f"Configured time domain with {len(self.t)} points.")
-	
-	def solve_inductance(self, Iac:float, Idc:float):
-		""" Given the input current values, finds the inductance of the chip
-		and updates the solution with its value."""
+		
+	def check_solution(self, Iac:float, Idc:float, show_plot_td=False, show_plot_spec=False):
+		""" Using the current best guess, find the solution error.
+		
+		Converts the resulting Iac time domain data into spectral components, saving the
+		fundamental through 3rd hamonic as a touple, with idx=0 assigned to fundamental.
+		
+		"""
+		
+		# Update Iac in solution
+		self.soln.Iac = Iac
+		self.soln.Ibias = Idc
 		
 		# Solve for inductance (Lk)
 		self.soln.Lk = self.L0 + self.L0/self.q**2 * ( Idc**2 + 2*Idc*Iac*np.sin(self.freq*2*PI*self.t) + Iac**2/2 - Iac**2/2*np.cos(2*self.freq*2*PI*self.t) ) 
 		
 		self.soln.L_ = self.soln.Lk/self.l_phys
 		
-		# Lk_DC = self.L0 + self.L0/self.q**2 * ( Idc**2 + Iac**2/2) 
-		# Lk_fund = self.L0 + self.L0/self.q**2 * ( 2*Idc*Iac ) 
-		# Lk_2H = self.L0 + self.L0/self.q**2 * ( Idc**2 + 2*Idc*Iac*np.sin(self.freq*2*PI) ) 
-				
-	def check_solution(self, Iac:float, Idc:float, show_plot=False):
-		""" Using the current best guess, find the solution error """
-		
-		# Update Iac in solution
-		self.soln.Iac = Iac
-		self.soln.Ibias = Idc
-		
-		# Update inductance estimate
-		self.solve_inductance(Iac, Idc)
+		# # Update inductance estimate
+		# self.solve_inductance(Iac, Idc)
 		
 		# Find Z0 of chip
 		self.soln.Vp = 1/np.sqrt(self.C_ * self.soln.L_)
@@ -188,7 +185,7 @@ class LKSystem:
 		# Save to logger
 		logging.info(f"Solution error: {round(self.soln.rmse*1000)/1000}")
 		
-		if show_plot:
+		if show_plot_td:
 			plot_Ts = 5
 			idx_end = find_nearest(self.t, plot_Ts/self.freq)
 			
@@ -205,8 +202,7 @@ class LKSystem:
 			plt.grid()
 			plt.show()
 		
-	def get_spec_components(self, show_plot=False):
-		""" Uses the current solution and calculates the spectral components"""
+		############# Previously called get_spec_components() ###########
 		
 		y = self.soln.Iac_result_td
 		num_pts = len(self.soln.Iac_result_td)
@@ -241,7 +237,7 @@ class LKSystem:
 		
 		logging.info(f"Calcualted Iac spectral components: fund={rd(Iac_fund*1e6, 3)}, 2H={rd(Iac_2H*1e6, 3)}, 3H={rd(Iac_3H*1e6, 3)} uA")
 		
-		if show_plot:
+		if show_plot_spec:
 			
 			plt.plot(spec_freqs/1e9, spec*1e3)
 			plt.xlabel("Frequency (GHz)")
@@ -249,5 +245,7 @@ class LKSystem:
 			plt.title("Solution Iteration Spectrum")
 			
 			plt.show()
+		
+		
 		
 		
