@@ -1,6 +1,10 @@
 from scipy.fft import fft, fftfreq
+from scipy import signal
+
 import numpy as np
+from colorama import Fore, Style
 import matplotlib.pyplot as plt
+
 
 ############################### USER OPTIONS ############################
 
@@ -9,9 +13,11 @@ f1 = 5e3
 f2 = 8e3
 
 # Select sampling options
-num_T = 120 # Picks frequency resolution
+num_T = 1000 # Picks frequency resolution
 max_harm = 1
-min_pts = 20 # Picks max frequency
+min_pts = 10 # Picks max frequency
+
+enh_fact = 3
 
 ####################### CREATE VARS FROM USER OPTIONS ####################
 
@@ -39,25 +45,69 @@ spec = 2.0/num_pts*np.abs(spec_raw)
 spec_freqs = fftfreq(num_pts,dt)[:num_pts//2]
 spec_freqs_KHz = spec_freqs/1e3
 
+############# RESAMPLE WAVEFORM WITH UPCONVERSION ###################
+
+f0 = 3.5e3
+f1 = 6.5e3
+
+freq_rs = []
+spec_rs = []
+for idx, f in enumerate(spec_freqs):
+		
+	if f >= f0 and f <= f1:
+		freq_rs.append(f)
+		spec_rs.append(spec[idx])
+		
+
+(spec_enh, spec_freqs_enh) = signal.resample(spec_rs, num_pts*enh_fact, freq_rs)
+
+############################# INTEGRATE POWER #######################
+
+f0 = 4.9e3
+f1 = 5.1e3
+
+n_pts = 0
+Ptot = 0
+Ptot_fs = 0
+for idx, f in enumerate(spec_freqs):
+	if f >= 1e3 and f <= 10e3:
+		Ptot_fs += spec[idx]
+		
+	if f >= f0 and f <= f1:
+		Ptot += spec[idx]
+		n_pts += 1
+		
+
 ##################### CALCULATE AND PRINT STATS ##########################
 
 # freq_step = round((spec_freqs[2]-spec_freqs[1])/1e1)*1e2
 freq_step = spec_freqs[2]-spec_freqs[1]
 
-print(f"No. Periods: {num_T}")
-print(f"No. Harmonics: {max_harm}")
-print(f"Min. Pnts: {min_pts}")
-print(f"-------------------------------------")
-print(f"t max: {t_max*1e3} ms")
-print(f"No. Points: {num_pts}")
-print(f"dt: {round(dt*1e8)/1e2} us")
-print(f"-------------------------------------")
-print(f"Max Display Freq: {round(np.max(spec_freqs)/1e1)*1e2} KHz")
-print(f"Display Freq Step: {freq_step} KHz")
+c1 = Fore.BLUE
+c2 = Fore.YELLOW
+c3 = Fore.GREEN
+rst = Style.RESET_ALL
+print(f"{c3}-------------------------------------{rst}")
+print(f"{c1}No. Periods:{c2} {num_T}{rst}")
+print(f"{c1}No. Harmonics:{c2} {max_harm}{rst}")
+print(f"{c1}Min. Pnts:{c2} {min_pts}{rst}")
+print(f"{c3}-------------------------------------{rst}")
+print(f"{c1}t max:{c2} {t_max*1e3} ms{rst}")
+print(f"{c1}No. Points:{c2} {num_pts}{rst}")
+print(f"{c1}dt:{c2} {round(dt*1e8)/1e2} us{rst}")
+print(f"{c3}-------------------------------------{rst}")
+print(f"{c1}Max Display Freq:{c2} {round(np.max(spec_freqs_KHz)/1e1)*1e2} KHz{rst}")
+print(f"{c1}Display Freq Step:{c2} {round(freq_step)} Hz{rst}")
+print(f"{c3}------------- 5 KHz Peak -------------{rst}")
+print(f"{c1}Integration Total:{c2} {round(Ptot*100)/100}{rst}")
+print(f"{c1}Number of matching points:{c2} {n_pts} {rst}")
+print(f"{c3}------------- Full Span -------------{rst}")
+print(f"{c1}Integration Total:{c2} {round(Ptot_fs*100)/100}{rst}")
 
 ######################## PLOT RESULTS ###############################
 
 plt.plot(spec_freqs_KHz, spec, '-b')
+plt.plot(spec_freqs_enh/1e3, spec_enh, '-r')
 plt.legend('FFT')
 plt.grid()
 plt.show()
