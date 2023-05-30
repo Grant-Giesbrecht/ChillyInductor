@@ -211,9 +211,9 @@ class LKSystem:
 		self.soln.P0 = np.abs(self.Vgen)**2 * Rin * 0.5 / ((Rin + self.Rsrc)**2 + (Xin + self.Xsrc)**2)
 		
 		# Find resulting Iac and error
-		self.soln.Iac_result = np.sqrt(2*self.soln.P0/np.cos(self.theta)/self.soln.Zin)
-		self.soln.Iac_result_td = self.soln.Iac_result*np.sin(2*PI*self.freq*self.t) #TODO: Need a factor of sqrt(2)
-		err_list = np.abs(self.soln.Iac_result - self.soln.Iac) # Error at each time point
+		self.soln.Iac_result_rms = np.sqrt(2*self.soln.P0/np.cos(self.theta)/self.soln.Zin)
+		self.soln.Iac_result_td = np.sqrt(2)*self.soln.Iac_result_rms*np.sin(2*PI*self.freq*self.t) #TODO: Need a factor of sqrt(2)
+		err_list = np.abs(self.soln.Iac_result_rms - self.soln.Iac) # Error in signal *amplitude* at each time point
 		self.soln.rmse = np.sqrt(np.mean(err_list**2))
 		
 		# Save to logger
@@ -296,17 +296,21 @@ class LKSystem:
 		plt.figure(1)
 		plt.plot(self.t[:idx_end]*1e9, np.real(s.Iac_result_td[:idx_end])*1e3, '-b')
 		plt.plot(self.t[:idx_end]*1e9, np.abs(s.Iac_result_td[:idx_end])*1e3, '-r')
+		plt.plot(self.t[:idx_end]*1e9, np.sqrt(2)*np.abs(s.Iac_result_rms[:idx_end])*1e3, '-g')
 		plt.xlabel("Time (ns)")
 		plt.ylabel("AC Current (mA)")
 		plt.title(f"Time Domain Data, Idc = {rd(s.Ibias*1e3)} mA")
-		plt.legend(["Real", "Abs."])
+		plt.legend(["TD Real", "TD Abs.", "|Amplitude|"])
+		plt.grid()
 		
 		# Create spectrum figure
 		plt.figure(2)
-		plt.plot(s.spec_freqs/1e9, s.spec)
+		plt.plot(s.spec_freqs/1e9, s.spec*1e3)
 		plt.xlabel("Frequency (GHz)")
 		plt.ylabel("AC Current (mA)")
 		plt.title(f"Current Spectrum, Idc = {rd(s.Ibias*1e3)} mA")
+		plt.xlim((0, self.freq*5/1e9))
+		plt.grid()
 		
 		plt.show()
 	
@@ -348,7 +352,7 @@ class LKSystem:
 				if error_pcnt < self.opt.tol_pcnt:
 					
 					# Add to logger
-					logging.info(f"Datapoint ({cspecial}Idc={rd(Idc*1e3)} mA{standard_color}),({cspecial}Iac={Iac_guess} mA{standard_color}) converged with {cspecial}error={rd(error_pcnt, 3)}%{standard_color} after {cspecial}{self.soln.num_iter}{standard_color} iterations ")
+					logging.info(f"Datapoint ({cspecial}Idc={rd(Idc*1e3)} mA{standard_color}),({cspecial}Iac={rd(Iac_guess*1e3, 3)} mA{standard_color}) converged with {cspecial}error={rd(error_pcnt, 3)}%{standard_color} after {cspecial}{self.soln.num_iter}{standard_color} iterations ")
 					
 					# Create deep
 					new_soln = copy.deepcopy(self.soln)
