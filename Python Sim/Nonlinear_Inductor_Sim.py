@@ -21,9 +21,6 @@ print(f"{Fore.RED}there or similar. But Iac_td is sitting at 2.something and FFT
 print(f"{Fore.RED} = 0, which agrees with the guess of Iac=0 (which is really setting the osc.")
 print(f"{Fore.RED}amplitude of Iac).")
 
-
-
-
 Ibias = [.01, .02, .03]
 
 lks = LKSystem(Pgen, C_, l_phys, freq, q, L0)

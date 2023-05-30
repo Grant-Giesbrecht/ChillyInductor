@@ -79,6 +79,7 @@ class LKSolution:
 	L_ = None # From Lk
 	Zchip = None # From L_, characteristic impedance of chip
 	
+	Iac_result = None # Magnitude of Iac
 	Iac_result_td = None # Use Iac to find solution and calculate Iac again, this is the result in time domain
 	Iac_result_spec = None # Iac result as spectrum, shows fundamental, 2harm, and 3harm as touple (idx 0 = fund, ..., 2 = 3rd harm)
 	rmse = None # |Iac_result - Iac|
@@ -210,8 +211,9 @@ class LKSystem:
 		self.soln.P0 = np.abs(self.Vgen)**2 * Rin * 0.5 / ((Rin + self.Rsrc)**2 + (Xin + self.Xsrc)**2)
 		
 		# Find resulting Iac and error
-		self.soln.Iac_result_td = np.sqrt(2*self.soln.P0/np.cos(self.theta)/self.soln.Zin)
-		err_list = np.abs(self.soln.Iac_result_td - self.soln.Iac)
+		self.soln.Iac_result = np.sqrt(2*self.soln.P0/np.cos(self.theta)/self.soln.Zin)
+		self.soln.Iac_result_td = self.soln.Iac_result*np.sin(2*PI*self.freq*self.t) #TODO: Need a factor of sqrt(2)
+		err_list = np.abs(self.soln.Iac_result - self.soln.Iac) # Error at each time point
 		self.soln.rmse = np.sqrt(np.mean(err_list**2))
 		
 		# Save to logger
@@ -292,10 +294,12 @@ class LKSystem:
 		
 		# Create time domain figure
 		plt.figure(1)
-		plt.plot(self.t[:idx_end]*1e9, s.Iac_result_td[:idx_end]*1e3)
+		plt.plot(self.t[:idx_end]*1e9, np.real(s.Iac_result_td[:idx_end])*1e3, '-b')
+		plt.plot(self.t[:idx_end]*1e9, np.abs(s.Iac_result_td[:idx_end])*1e3, '-r')
 		plt.xlabel("Time (ns)")
 		plt.ylabel("AC Current (mA)")
 		plt.title(f"Time Domain Data, Idc = {rd(s.Ibias*1e3)} mA")
+		plt.legend(["Real", "Abs."])
 		
 		# Create spectrum figure
 		plt.figure(2)
