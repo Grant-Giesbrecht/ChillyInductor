@@ -1,7 +1,8 @@
 from colorama import Fore, Style
 import numpy as np
 from scipy.fft import fft, fftfreq
-import matplotlib.pyplot as plt
+
+from base import *
 
 import copy
 import logging
@@ -39,6 +40,9 @@ standard_color = Fore.LIGHTBLACK_EX
 quiet_color = Fore.WHITE
 cspecial = Fore.GREEN # COlor used to highlight content inside logging messages
 logging.basicConfig(format=f'{prime_color}%(levelname)s:{standard_color} %(message)s{quiet_color} | %(asctime)s{Style.RESET_ALL}', level=LOG_LEVEL)
+
+addLoggingLevel('MAIN', logging.INFO + 5)
+logging.getLogger(__name__).setLevel("MAIN")
 
 PI = 3.1415926535
 
@@ -79,7 +83,7 @@ class LKSolution:
 	L_ = None # From Lk
 	Zchip = None # From L_, characteristic impedance of chip
 	
-	Iac_result = None # Magnitude of Iac
+	Iac_result_rms = None # Magnitude of Iac
 	Iac_result_td = None # Use Iac to find solution and calculate Iac again, this is the result in time domain
 	Iac_result_spec = None # Iac result as spectrum, shows fundamental, 2harm, and 3harm as touple (idx 0 = fund, ..., 2 = 3rd harm)
 	rmse = None # |Iac_result - Iac|
