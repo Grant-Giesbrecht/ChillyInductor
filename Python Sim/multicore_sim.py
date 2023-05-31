@@ -16,7 +16,7 @@ q_list = np.linspace(0.18, 0.2, 5)
 mcs = MulticoreSim()
 mcs.sweep_setup(L0=L0_list, Pgen=Pgen_list, q=q_list)
 mcs.constants(C_=C_, freq=freq, l_phys=l_phys)
-mcs.mcopt.num_cores = 6
+mcs.mcopt.num_cores = 7
 
 mcs.solve_all()
 mcs.solve_search()
