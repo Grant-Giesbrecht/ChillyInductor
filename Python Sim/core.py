@@ -10,6 +10,8 @@ import getopt, sys
 from dataclasses import dataclass
 import math
 
+addLoggingLevel('MAIN', logging.INFO + 5)
+
 LOG_LEVEL = logging.WARNING
 
 #-----------------------------------------------------------
@@ -17,7 +19,7 @@ LOG_LEVEL = logging.WARNING
 argv = sys.argv[1:]
 
 try:
-	opts, args = getopt.getopt(sys.argv[1:], "h", ["help", "debug", "info", "warning", "error", "critical"])
+	opts, args = getopt.getopt(sys.argv[1:], "h", ["help", "debug", "info", "main", "warning", "error", "critical"])
 except getopt.GetoptError as err:
 	print("--help for help")
 	sys.exit(2)
@@ -27,6 +29,8 @@ for opt, aarg in opts:
 		sys.exit()
 	elif opt == "--debug":
 		LOG_LEVEL = logging.DEBUG
+	elif opt == "--main":
+		LOG_LEVEL = logging.MAIN
 	elif opt == "--info":
 		LOG_LEVEL = logging.INFO
 	else:
@@ -40,9 +44,6 @@ standard_color = Fore.LIGHTBLACK_EX
 quiet_color = Fore.WHITE
 cspecial = Fore.GREEN # COlor used to highlight content inside logging messages
 logging.basicConfig(format=f'{prime_color}%(levelname)s:{standard_color} %(message)s{quiet_color} | %(asctime)s{Style.RESET_ALL}', level=LOG_LEVEL)
-
-addLoggingLevel('MAIN', logging.INFO + 5)
-logging.getLogger(__name__).setLevel("MAIN")
 
 PI = 3.1415926535
 

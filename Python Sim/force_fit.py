@@ -1,14 +1,15 @@
 from core import *
 import time
+import pickle
 
 Pgen = 0 # dBm
 C_ = 121e-12
 l_phys = 0.5
 freq = 10e9
-q = 0.190
+# q = 0.190
+q = 0.200
 
-# Create array of L0 values to try
-L0_list = np.linspace(300e-9, 500e-9, 11)
+filename = "last_simulation.pkl"
 
 # Get target values from MATLAB
 Idc_A = np.array([-0.03325, -0.030875, -0.0285, -0.026125, -0.02375, -0.021375, -0.019, -0.016625, -0.01425, -0.011875, -0.0095, -0.007125, -0.00475, -0.002375, 0, 0.002375, 0.00475, 0.007125, 0.0095, 0.011875, 0.01425, 0.016625, 0.019, 0.021375, 0.02375, 0.026125, 0.0285, 0.030875, 0.03325])
@@ -18,7 +19,7 @@ Ifund_A = Ifund_mA/1e3
 mid_idx = int(np.floor(len(Idc_A)/2))
 
 # Create array of L0 values to try
-L0_list = np.linspace(1e-9, 600e-9, 5)
+L0_list = np.linspace(1e-9, 600e-9, 100)
 
 # Create colormapper
 cm = CMap('plasma', data=L0_list)
@@ -71,16 +72,22 @@ idx_best1 = rmse1_results.index(min(rmse1_results))
 idx_best2 = rmse2_results.index(min(rmse2_results))
 L0_best1 = L0_list[idx_best1]
 L0_best2 = L0_list[idx_best2]
+coef_best = coefs[idx_best2]
 
 plt.plot(Idc_A, Ifund_mA, color='r', label="Measurement", linestyle='dashed', marker='o')
 plt.plot(Idc_A, 1e3*Iac_results[idx_best1], color='b', label=f"Sim (L0={rd(L0_best1*1e9,1)} nH)", linestyle='dashed', marker='o')
-plt.plot(Idc_A, 1e3*Iac_results[idx_best2], color='g', label=f"Scaled Sim (L0={rd(L0_best2*1e9, 1)} nH)", linestyle='dashed', marker='o')
+plt.plot(Idc_A, 1e3*Iac_results[idx_best2]*coef_best, color='g', label=f"Scaled Sim (L0={rd(L0_best2*1e9, 1)} nH)", linestyle='dashed', marker='o')
 plt.grid()
 plt.xlabel("Bias Current (mA)")
 plt.ylabel("AC Current Amplitude (mA)")
 plt.title(f"Closest fit")
 plt.legend()
 
-# print(f"L0 values: {L0_best}")
+print(f"Scaling coefficient used in plot: {coef_best}")
+
+# Save data to Pickle for further analysis
+master_data = {"Iac_results":Iac_results, "rmse1_results":rmse1_results, "rmse2_results":rmse2_results, "Idc_A":Idc_A, "coefs":coefs}
+with open(filename, 'wb') as f:
+	pickle.dump(master_data, f)
 
 plt.show()
