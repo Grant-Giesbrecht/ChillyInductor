@@ -16,44 +16,34 @@ l_phys = 0.5
 freq = 10e9
 q = 0.190
 
-Nthread = 4
+Nthread = 8
 Nq = 10
 NL0 = 16
-# NL01 = NL0//Nthread
-# NL02 = NL0//Nthread
-# NL03 = NL0//Nthread
-# NL04 = NL0//Nthread
-# NL05 = NL0//Nthread
-# NL06 = NL0 - NL01 - NL02 - NL03 - NL04 - NL05
 
-
-# Create array of L0 values to try
+# Create L0 lists
+L0_sub_lists = []
 L0_list = np.linspace(1.0e-9, 2.0e-9, NL0)
 
 nL = NL0//Nthread
 
-i = 1
-L0_list1 = L0_list[int(0+nL*(i-1)):int(nL*i)]
+# Break into sub lists
+i = None
+for idx in range(Nthread):
+	
+	# Get slice of list
+	i = idx + 1
+	L0_list_temp = L0_list[int(nL*(i-1)):int((nL*i))]
+	
+	# Add to list of sub lists
+	L0_sub_lists.append(L0_list_temp)
 
-i = 2
-L0_list2 = L0_list[int(0+nL*(i-1)):int(nL*i)]
-
-i = 3
-L0_list3 = L0_list[int(0+nL*(i-1)):int(nL*i)]
-
-# i = 4
-# L0_list4 = L0_list[int(0+nL*(i-1)):int(nL*i)]
-
-# i = 5
-# L0_list5 = L0_list[int(0+nL*(i-1)):int(nL*i)]
-
-L0_list4 = L0_list[int(nL*i)+1:]
-
-# L0_list1 = np.linspace(1.0e-9, 1.25e-9, NL01)
-# L0_list2 = np.linspace(1.25e-9, 1.5e-9, NL02)
-# L0_list3 = np.linspace(1.5e-9, 1.75e-9, NL03)
-# L0_list4 = np.linspace(1.75e-9, 2.0e-9, NL04)
+# Create q list
 q_list = np.linspace(0.18, 0.2, Nq)
+
+print(f"Will create {Nthread} threads. Number of simulations per thread:")
+for idx in range(Nthread):
+	npts = len(L0_sub_lists[idx])*len(q_list)
+	print(f"\t[thread {idx}]: {npts} sims")
 
 # Read file if no data provided
 # Open File
@@ -102,11 +92,13 @@ class SimThread(threading.Thread):
 				
 				logging.main(f"{Fore.GREEN}[TID={hex(threading.get_ident())}]{Fore.LIGHTBLUE_EX}Beginning simulation of L0 = {L0*1e9} nH{standard_color}")
 				
+				# Prepare simulation
 				lks = LKSystem(Pgen, C_, l_phys, freq, q, L0)
 				lks.opt.start_guess_method = GUESS_USE_LAST
-				lks.solve(Ibias, show_plot_on_conv=False)
 				lks.configure_loss(sparam_data=S21_data)
-				lks.opt.use_S21_loss = True
+				
+				# Solve!
+				lks.solve(Ibias, show_plot_on_conv=False)
 				
 				# Calculate current array
 				Iac = np.array([x.Iac for x in lks.solution])
@@ -139,36 +131,32 @@ class SimThread(threading.Thread):
 		logging.main(f"{Fore.GREEN}[TID={hex(threading.get_ident())}]{standard_color} Exiting")
 
 # Create threads
-st1 = SimThread(L0_list1, q_list, Pgen, C_, l_phys, freq)
-st2 = SimThread(L0_list2, q_list, Pgen, C_, l_phys, freq)
-st3 = SimThread(L0_list3, q_list, Pgen, C_, l_phys, freq)
-st4 = SimThread(L0_list4, q_list, Pgen, C_, l_phys, freq)
-# st5 = SimThread(L0_list5, q_list, Pgen, C_, l_phys, freq)
-# st6 = SimThread(L0_list6, q_list, Pgen, C_, l_phys, freq)
+threads = []
+for idx in range(Nthread):
+	
+	# Create thread and add to list
+	new_thread = SimThread(L0_sub_lists[idx], q_list, Pgen, C_, l_phys, freq)
+	threads.append(new_thread)
 
 t0 = time.time()
 
 # Begin all threads
-st1.start()
-st2.start()
-st3.start()
-st4.start()
-# st5.start()
-# st6.start()
+for idx in range(Nthread):
+	threads[idx].start()
 
 # Wait for threads to complete
-st1.join()
-st2.join()
-st3.join()
-st4.join()
-# st5.join()
-# st6.join()
+for idx in range(Nthread):
+	threads[idx].join()
 
 tf = time.time()
 
 # Print stats
 print(f"Finished sweep in {tf-t0} seconds")
-npoints = len(L0_list1)*len(q_list) + len(L0_list2)*len(q_list) + len(L0_list3)*len(q_list) + len(L0_list4)*len(q_list) #+ len(L0_list5)*len(q_list) + len(L0_list6)*len(q_list)
+
+npoints = 0
+for idx in range(Nthread):
+	npoints += len(L0_sub_lists[idx])*len(q_list)
+
 print(f"Number of sweep points: {npoints}")
 
 # Find minimum error 
