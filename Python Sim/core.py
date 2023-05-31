@@ -1,6 +1,7 @@
 from colorama import Fore, Style
 import numpy as np
 from scipy.fft import fft, fftfreq
+import pickle
 
 from base import *
 
@@ -57,6 +58,7 @@ class Simopt:
 	
 	# Simulation options
 	use_interp = False # This option allows FFT interpolation, but has NOT been implemented
+	use_S21_loss = True # This option interprets S21 data to determine system loss and incorporates it in the converging simulation
 	
 	# Convergence options
 	max_iter = 1000 # Max iterations for convergence
@@ -136,6 +138,7 @@ class LKSystem:
 		self.Rsrc = 50 # R of generator
 		self.Xsrc = 0 # X of generator
 		self.Vgen  = np.sqrt(self.Pgen*200) # Solve for Generator voltage from power
+		self.system_loss = None # Tuple containing system loss at each harmonic (linear scale, not dB)
 		
 		# Time domain options
 		self.num_periods = None
@@ -173,6 +176,45 @@ class LKSystem:
 		self.t = np.linspace(0, t_max, num_points)
 		
 		logging.info(f"Configured time domain with {cspecial}{len(self.t)}{standard_color} points.")
+		
+	def configure_loss(self, file:str=None, sparam_data:dict=None):
+		""" Reads a pkl file with a dictionary containing variables 'freq_Hz' and 'S21_dB'
+		and calculates the loss at each of the simulated harmonics. Can provide the dictionary
+		without specifying a filename by using the sparam_data argument.
+		"""
+		
+		# Read file if no data provided
+		if sparam_data is None:
+			
+			# Open File
+			with open(file, 'rb') as fh:
+				f_data = pickle.load(fh)
+		
+		# Access frequency and S21 data
+		try:
+			freq = f_data['freq_Hz']
+			S21 = f_data['S21_dB']
+		except:
+			logging.error(f"{Fore.RED}Invalid S-parameter data provided when configuring system loss!{Style.RESET_ALL}")
+			logging.main("Simulating wihtout system loss")
+			return
+		
+		# Find indecies
+		f_idx1 = find_nearest(freq, self.freq)
+		f_idx2 = find_nearest(freq, self.freq*2)
+		f_idx3 = find_nearest(freq, self.freq*3)
+		
+		#TODO: add more error checking if data doesn't contain correct or close enoguh frequencies
+		
+		# Convert from dB to linear scaling - dB20 because this will be applied to Iac, not P0
+		loss_Fund = (10**(S21[f_idx1]/20))
+		loss_2H = (10**(S21[f_idx2]/20))
+		loss_3H = (10**(S21[f_idx3]/20))
+		
+		# Save loss
+		self.system_loss = (loss_Fund, loss_2H, loss_3H)
+		
+		logging.main(f"Configured system loss: {cspecial}[lf={rd(loss_Fund, 2)}, l2H={rd(loss_2H, 2)}, l3H={rd(loss_3H, 2)}]{standard_color}")
 		
 	def crunch(self, Iac:float, Idc:float, show_plot_td=False, show_plot_spec=False):
 		""" Using the provided Iac guess, find the reuslting solution, and the error
@@ -218,11 +260,12 @@ class LKSystem:
 		# Find resulting Iac and error
 		self.soln.Iac_result_rms = np.sqrt(2*self.soln.P0/np.cos(self.theta)/self.soln.Zin)
 		self.soln.Iac_result_td = np.sqrt(2)*self.soln.Iac_result_rms*np.sin(2*PI*self.freq*self.t) #TODO: Need a factor of sqrt(2)
-		err_list = np.abs(self.soln.Iac_result_rms - self.soln.Iac) # Error in signal *amplitude* at each time point
-		self.soln.rmse = np.sqrt(np.mean(err_list**2))
+		# err_list = np.abs(self.soln.Iac_result_rms - self.soln.Iac) # Error in signal *amplitude* at each time point
+		# self.soln.rmse = np.sqrt(np.mean(err_list**2))
 		
-		# Save to logger
-		logging.debug(f"Solution error: {round(self.soln.rmse*1000)/1000}")
+		# # Save to logger
+		# logging.debug(f"Solution error: {round(self.soln.rmse*1000)/1000}")
+		#TODO: This error is never used - Populate self.soln.rmse correctly!
 		
 		if show_plot_td:
 			plot_Ts = 5
@@ -272,6 +315,12 @@ class LKSystem:
 		# Find index of peak - Fundamental
 		idx = find_nearest(spec_freqs, self.freq*3)
 		Iac_3H = np.max([ spec[idx-1], spec[idx], spec[idx+1] ])
+		
+		# Apply system loss
+		if self.opt.use_S21_loss and self.system_loss is not None:
+			Iac_fund *= self.system_loss[0]
+			Iac_2H *= self.system_loss[1]
+			Iac_3H *= self.system_loss[2]
 		
 		# Save to solution set
 		self.soln.Iac_result_spec = (Iac_fund, Iac_2H, Iac_3H)
