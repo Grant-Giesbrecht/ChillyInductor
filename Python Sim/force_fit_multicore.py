@@ -16,15 +16,15 @@ l_phys = 0.5
 freq = 10e9
 q = 0.190
 
-Nthread = 6
+Nthread = 4
 Nq = 10
 NL0 = 16
-NL01 = NL0//Nthread
-NL02 = NL0//Nthread
-NL03 = NL0//Nthread
-NL04 = NL0//Nthread
-NL05 = NL0//Nthread
-NL06 = NL0 - NL01 - NL02 - NL03 - NL04 - NL05
+# NL01 = NL0//Nthread
+# NL02 = NL0//Nthread
+# NL03 = NL0//Nthread
+# NL04 = NL0//Nthread
+# NL05 = NL0//Nthread
+# NL06 = NL0 - NL01 - NL02 - NL03 - NL04 - NL05
 
 
 # Create array of L0 values to try
@@ -41,19 +41,24 @@ L0_list2 = L0_list[int(0+nL*(i-1)):int(nL*i)]
 i = 3
 L0_list3 = L0_list[int(0+nL*(i-1)):int(nL*i)]
 
-i = 4
-L0_list4 = L0_list[int(0+nL*(i-1)):int(nL*i)]
+# i = 4
+# L0_list4 = L0_list[int(0+nL*(i-1)):int(nL*i)]
 
-i = 5
-L0_list5 = L0_list[int(0+nL*(i-1)):int(nL*i)]
+# i = 5
+# L0_list5 = L0_list[int(0+nL*(i-1)):int(nL*i)]
 
-L0_list6 = L0_list[int(nL*i)+1:]
+L0_list4 = L0_list[int(nL*i)+1:]
 
 # L0_list1 = np.linspace(1.0e-9, 1.25e-9, NL01)
 # L0_list2 = np.linspace(1.25e-9, 1.5e-9, NL02)
 # L0_list3 = np.linspace(1.5e-9, 1.75e-9, NL03)
 # L0_list4 = np.linspace(1.75e-9, 2.0e-9, NL04)
 q_list = np.linspace(0.18, 0.2, Nq)
+
+# Read file if no data provided
+# Open File
+with open("cryostat_sparams.pkl", 'rb') as fh:
+	S21_data = pickle.load(fh)
 
 # Global data
 master_mutex = threading.Lock()
@@ -79,7 +84,7 @@ class SimThread(threading.Thread):
 	
 	def run(self):
 		global master_mutex, master_coefs, master_conditions, master_Iac, master_rmse1, master_rmse2
-		global Idc_A
+		global Idc_A, S21_data
 		
 		logging.main(f"{Fore.GREEN}[TID={hex(threading.get_ident())}]{standard_color} Beginning sweep.")
 		
@@ -100,6 +105,8 @@ class SimThread(threading.Thread):
 				lks = LKSystem(Pgen, C_, l_phys, freq, q, L0)
 				lks.opt.start_guess_method = GUESS_USE_LAST
 				lks.solve(Ibias, show_plot_on_conv=False)
+				lks.configure_loss(sparam_data=S21_data)
+				lks.opt.use_S21_loss = True
 				
 				# Calculate current array
 				Iac = np.array([x.Iac for x in lks.solution])
@@ -136,8 +143,8 @@ st1 = SimThread(L0_list1, q_list, Pgen, C_, l_phys, freq)
 st2 = SimThread(L0_list2, q_list, Pgen, C_, l_phys, freq)
 st3 = SimThread(L0_list3, q_list, Pgen, C_, l_phys, freq)
 st4 = SimThread(L0_list4, q_list, Pgen, C_, l_phys, freq)
-st5 = SimThread(L0_list5, q_list, Pgen, C_, l_phys, freq)
-st6 = SimThread(L0_list6, q_list, Pgen, C_, l_phys, freq)
+# st5 = SimThread(L0_list5, q_list, Pgen, C_, l_phys, freq)
+# st6 = SimThread(L0_list6, q_list, Pgen, C_, l_phys, freq)
 
 t0 = time.time()
 
@@ -146,22 +153,22 @@ st1.start()
 st2.start()
 st3.start()
 st4.start()
-st5.start()
-st6.start()
+# st5.start()
+# st6.start()
 
 # Wait for threads to complete
 st1.join()
 st2.join()
 st3.join()
 st4.join()
-st5.join()
-st6.join()
+# st5.join()
+# st6.join()
 
 tf = time.time()
 
 # Print stats
 print(f"Finished sweep in {tf-t0} seconds")
-npoints = len(L0_list1)*len(q_list) + len(L0_list2)*len(q_list) + len(L0_list3)*len(q_list) + len(L0_list4)*len(q_list)
+npoints = len(L0_list1)*len(q_list) + len(L0_list2)*len(q_list) + len(L0_list3)*len(q_list) + len(L0_list4)*len(q_list) #+ len(L0_list5)*len(q_list) + len(L0_list6)*len(q_list)
 print(f"Number of sweep points: {npoints}")
 
 # Find minimum error 

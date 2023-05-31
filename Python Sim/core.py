@@ -188,12 +188,12 @@ class LKSystem:
 			
 			# Open File
 			with open(file, 'rb') as fh:
-				f_data = pickle.load(fh)
+				sparam_data = pickle.load(fh)
 		
 		# Access frequency and S21 data
 		try:
-			freq = f_data['freq_Hz']
-			S21 = f_data['S21_dB']
+			freq = sparam_data['freq_Hz']
+			S21 = sparam_data['S21_dB']
 		except:
 			logging.error(f"{Fore.RED}Invalid S-parameter data provided when configuring system loss!{Style.RESET_ALL}")
 			logging.main("Simulating wihtout system loss")
