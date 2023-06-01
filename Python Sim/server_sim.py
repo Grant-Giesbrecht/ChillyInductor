@@ -1,13 +1,15 @@
 from core import *
 import time
 import threading
+import socket
 
-# Get target values from MATLAB
+# Get target values from MATLAB DraftScript-25 which reads data from DS5
 Idc_A = np.array([-0.03325, -0.030875, -0.0285, -0.026125, -0.02375, -0.021375, -0.019, -0.016625, -0.01425, -0.011875, -0.0095, -0.007125, -0.00475, -0.002375, 0, 0.002375, 0.00475, 0.007125, 0.0095, 0.011875, 0.01425, 0.016625, 0.019, 0.021375, 0.02375, 0.026125, 0.0285, 0.030875, 0.03325])
 Ifund_mA = np.array([1.5131, 1.6246, 1.4932, 1.6711, 1.7109, 1.817, 1.7177, 1.6502, 1.6852, 1.7652, 1.8488, 1.9048, 1.9497, 1.9705, 1.9756, 1.9717, 1.9531, 1.9116, 1.8525, 1.7779, 1.6928, 1.6577, 1.7247, 1.8184, 1.7306, 1.6805, 1.5131, 1.6378, 1.5375])
 Ifund_A = Ifund_mA/1e3
-
+V2h = np.array([0.022715, 0.019268, 0.018873, 0.020213, 0.023781, 0.017135, 0.01579, 0.014872, 0.012785, 0.0098328, 0.0081696, 0.0070002, 0.0055488, 0.003095, 1.5521e-05, 0.003104, 0.0056001, 0.0070699, 0.0082481, 0.0098724, 0.012929, 0.015455, 0.016188, 0.01738, 0.024912, 0.020964, 0.019668, 0.019591, 0.023608])
 mid_idx = int(np.floor(len(Idc_A)/2))
+I2h = V2h/50
 
 # Pgen = -4 # dBm
 Pgen = 0 # dBm
@@ -16,9 +18,10 @@ l_phys = 0.5
 freq = 10e9
 q = 0.190
 
-Nthread = 8
-Nq = 5
-NL0 = 401
+NUM_CLIENTS = 4
+Nthread = 2
+Nq = 3
+NL0 = 4
 
 # Create L0 lists
 L0_sub_lists = []
@@ -53,8 +56,10 @@ with open("cryostat_sparams.pkl", 'rb') as fh:
 # Global data
 master_mutex = threading.Lock()
 master_Iac = []
+master_I2h = []
 master_rmse1 = []
 master_rmse2 = []
+master_rmse3 = []
 master_coefs = []
 master_conditions = []
 
@@ -82,8 +87,10 @@ class SimThread(threading.Thread):
 		Ibias = Idc_A
 		
 		Iac_results = []
+		I2h_results = []
 		rmse1_results = []
 		rmse2_results = []
+		rmse3_results = []
 		coefs = []
 		conditions = []
 		
@@ -102,6 +109,7 @@ class SimThread(threading.Thread):
 				
 				# Calculate current array
 				Iac = np.array([x.Iac for x in lks.solution])
+				I2h_sim = np.array([x.Iac_result_spec[1] for x in lks.solution])
 				
 				# Calculate error basic error
 				rmse1 = np.sqrt( np.mean( np.abs(Ifund_A - Iac)**2 ) )
@@ -111,10 +119,15 @@ class SimThread(threading.Thread):
 				Iac_scaled = Iac * coef
 				rmse2 = np.sqrt( np.mean( np.abs(Ifund_A - Iac_scaled)**2 ) )
 				
+				# Calculate harmonic error
+				rmse3 = np.sqrt( np.mean( np.abs(I2h - I2h_sim)**2 ) )
+				
 				# Add to output data
 				Iac_results.append(Iac)
+				I2h_results.append(I2h_sim)
 				rmse1_results.append(rmse1)
 				rmse2_results.append(rmse2)
+				rmse3_results.append(rmse3)
 				coefs.append(coef)
 				conditions.append( (q, L0) )
 		
@@ -123,8 +136,10 @@ class SimThread(threading.Thread):
 		with master_mutex:
 			logging.main(f"{Fore.GREEN}[TID={hex(threading.get_ident())}]{standard_color} Acquired mutex. Saving to global data arrays")
 			master_Iac.extend(Iac_results)
+			master_I2h.extend(I2h_results)
 			master_rmse1.extend(rmse1_results)
 			master_rmse2.extend(rmse2_results)
+			master_rmse3.extend(rmse3_results)
 			master_coefs.extend(coefs)
 			master_conditions.extend(conditions)
 		
@@ -148,45 +163,98 @@ for idx in range(Nthread):
 for idx in range(Nthread):
 	threads[idx].join()
 
-tf = time.time()
 
-# Print stats
-print(f"Finished sweep in {tf-t0} seconds")
 
-npoints = 0
-for idx in range(Nthread):
-	npoints += len(L0_sub_lists[idx])*len(q_list)
+client_idx = 0
+id_str = "MIAN"
 
-print(f"Number of sweep points: {npoints}")
+def main():
+	global next_thread_id, sock, server_opt
+	
+	threads = []
+	
+	# Loop accept client connections
+	while client_idx < NUM_CLIENTS
+				
+		# Accept a new client connection
+		try:
+			client_socket, client_addr = sock.accept()
+		except socket.timeout:
+			logging.info(f"{id_str}Timed out waiting for client")
+			continue
+		logging.info(f"{id_str}Accepted client connected on address <{client_addr}>")
+		
+		# Create server agent class
+		st = SimThread(L0_sub_lists[client_idx], q_list, Pgen, C_, l_phys, freq)
+		st.append(st)
+		
+		# Increment counter
+		client_idx += 1
+		
+		 # Update thread_id
+		next_thread_id += 1
+			
+		# Start client thread
+		st.start()
+	
+	logging.info(f"{id_str}Server shutting down")
+	server_opt.kill_stat_thread = True
+	server_opt.kill_distribution_thread = True
+	
+	tf = time.time()
 
-# Find minimum error 
-idx_best1 = master_rmse1.index(min(master_rmse1))
-idx_best2 = master_rmse2.index(min(master_rmse2))
+	# Print stats
+	print(f"Finished sweep in {tf-t0} seconds")
 
-# Get L0 conditions
-L0_best1 = master_conditions[idx_best1][1]
-L0_best2 = master_conditions[idx_best2][1]
+	npoints = 0
+	for idx in range(Nthread):
+		npoints += len(L0_sub_lists[idx])*len(q_list)
 
-# Get Pg conditions
-q_best1 = master_conditions[idx_best1][0]
-q_best2 = master_conditions[idx_best2][0]
+	print(f"Number of sweep points: {npoints}")
 
-coef_best = master_coefs[idx_best2]
+	# Find minimum error 
+	idx_best1 = master_rmse1.index(min(master_rmse1))
+	idx_best2 = master_rmse2.index(min(master_rmse2))
 
-plt.plot(Idc_A, Ifund_mA, color='r', label="Measurement", linestyle='dashed', marker='o')
-plt.plot(Idc_A, 1e3*master_Iac[idx_best1], color='b', label=f"Sim (L0={rd(L0_best1*1e9,1)} nH) (q = {q_best1} A)", linestyle='dashed', marker='o')
-plt.plot(Idc_A, 1e3*master_Iac[idx_best2]*coef_best, color='g', label=f"Scaled Sim (L0={rd(L0_best2*1e9, 1)} nH) (q = {q_best2} A)", linestyle='dashed', marker='o')
-plt.grid()
-plt.xlabel("Bias Current (mA)")
-plt.ylabel("AC Current Amplitude (mA)")
-plt.title(f"Closest fit")
-plt.legend()
+	# Get L0 conditions
+	L0_best1 = master_conditions[idx_best1][1]
+	L0_best2 = master_conditions[idx_best2][1]
 
-print(f"Scaling coefficient used in plot: {coef_best}")
+	# Get Pg conditions
+	q_best1 = master_conditions[idx_best1][0]
+	q_best2 = master_conditions[idx_best2][0]
 
-# Save data to Pickle for further analysis
-master_data = {"Iac_results":master_Iac, "rmse1_results":master_rmse1, "rmse2_results":master_rmse2, "Idc_A":Idc_A, "coefs":master_coefs, "conditions":master_conditions}
-with open("multithread_sim_last_data.pkl", 'wb') as f:
-	pickle.dump(master_data, f)
+	coef_best = master_coefs[idx_best2]
 
-plt.show()
+	plt.figure(1)
+	plt.plot(Idc_A, Ifund_mA, color='r', label="Measurement", linestyle='dashed', marker='o')
+	plt.plot(Idc_A, 1e3*master_Iac[idx_best1], color='b', label=f"Sim (L0={rd(L0_best1*1e9,1)} nH) (q = {q_best1} A)", linestyle='dashed', marker='+')
+	plt.plot(Idc_A, 1e3*master_Iac[idx_best2]*coef_best, color=(0.35, 0, 0.6), label=f"Scaled Sim (L0={rd(L0_best2*1e9, 1)} nH) (q = {q_best2} A)", linestyle='dashed', marker='x')
+	plt.grid()
+	plt.xlabel("Bias Current (mA)")
+	plt.ylabel("AC Current Amplitude (mA)")
+	plt.title(f"Fundamental - Closest fit")
+	plt.legend()
+
+	plt.figure(2)
+	plt.plot(Idc_A, 1e3*I2h, color='r', label="Measurement", linestyle='dashed', marker='o')
+	plt.plot(Idc_A, 1e3*master_I2h[idx_best1], color='b', label=f"Sim (L0={rd(L0_best1*1e9,1)} nH) (q = {q_best1} A)", linestyle='dashed', marker='+')
+	plt.grid()
+	plt.xlabel("Bias Current (mA)")
+	plt.ylabel("AC Current Amplitude (mA)")
+	plt.title(f"2nd Harmonics - Closest fit")
+	plt.legend()
+
+	print(f"Scaling coefficient used in plot: {coef_best}")
+
+	# Save data to Pickle for further analysis
+	master_data = {"Iac_results":master_Iac, "I2h_results":master_I2h, "rmse1_results":master_rmse1, "rmse2_results":master_rmse2, "rmse3_results":master_rmse3, "Idc_A":Idc_A, "coefs":master_coefs, "conditions":master_conditions}
+	with open("harm_sim_last_data.pkl", 'wb') as f:
+		pickle.dump(master_data, f)
+
+	plt.show()
+	
+
+if __name__ == "__main__":
+	
+	main()
