@@ -17,13 +17,15 @@ l_phys = 0.5
 freq = 10e9
 q = 0.190
 
-Nthread = 2
+Nthread = 8
 Nq = 3
-NL0 = 4
+NL0 = 6666
 
 # Create L0 lists
 L0_sub_lists = []
-L0_list = np.linspace(250e-9, 350e-9, NL0)
+# L0_list = np.linspace(.05e-9, 333.35e-9, NL0)
+# L0_list = np.linspace(333.4e-9, 666.7e-9, NL0)
+L0_list = np.linspace(666.75e-9, 1000e-9, NL0)
 
 nL = NL0//Nthread
 

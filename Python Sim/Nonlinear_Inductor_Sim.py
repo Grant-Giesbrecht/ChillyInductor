@@ -6,7 +6,7 @@ C_ = 121e-12
 l_phys = 0.5
 freq = 10e9
 q = 0.190
-L0 = 10e-9
+L0 = 269e-9
 
 # lks.configure_time_domain()
 # lks.convergence_settings()
@@ -23,10 +23,11 @@ L0 = 10e-9
 # print(f"{Fore.RED}amplitude of Iac).")
 
 # Ibias = [.01, .02, .03]
-Ibias = np.linspace(1, 33, 34)*1e-3
+Ibias = np.linspace(1, 133, 134)*1e-3
 
 lks = LKSystem(Pgen, C_, l_phys, freq, q, L0)
 lks.opt.start_guess_method = GUESS_USE_LAST
+lks.opt.tol_pcnt = 0.1
 # lks.opt.start_guess_method = GUESS_ZERO_REFLECTION
 lks.solve(Ibias, show_plot_on_conv=False)
 

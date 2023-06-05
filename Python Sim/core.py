@@ -57,8 +57,9 @@ class Simopt:
 	""" Contains simulation options"""
 	
 	# Simulation options
-	use_interp = False # This option allows FFT interpolation, but has NOT been implemented
+	use_interp = False # This option allows FFT interpolation, but ***has NOT been implemented***
 	use_S21_loss = True # This option interprets S21 data to determine system loss and incorporates it in the converging simulation
+	use_approx_Lk = True # This option calculates Lk from the standard I^2 approx as opposed to including all terms
 	
 	# Convergence options
 	max_iter = 1000 # Max iterations for convergence
@@ -139,6 +140,8 @@ class LKSystem:
 		self.Xsrc = 0 # X of generator
 		self.Vgen  = np.sqrt(self.Pgen*200) # Solve for Generator voltage from power
 		self.system_loss = None # Tuple containing system loss at each harmonic (linear scale, not dB)
+		self.Itickle = None # Amplitude (A) of tickle signal (Set to none to exclude tickle)
+		self.freq_tickle = None # Amplitude (A) of tickle signal (Set to none to exclude tickle)
 		
 		# Time domain options
 		self.num_periods = None
@@ -230,7 +233,12 @@ class LKSystem:
 		self.soln.Ibias = Idc
 		
 		# Solve for inductance (Lk)
-		self.soln.Lk = self.L0 + self.L0/self.q**2 * ( Idc**2 + 2*Idc*Iac*np.sin(self.freq*2*PI*self.t) + Iac**2/2 - Iac**2/2*np.cos(2*self.freq*2*PI*self.t) ) 
+		if self.opt.use_approx_Lk:
+			self.soln.Lk = self.L0 + self.L0/self.q**2 * ( Idc**2 + 2*Idc*Iac*np.sin(self.freq*2*PI*self.t) + Iac**2/2 - Iac**2/2*np.cos(2*self.freq*2*PI*self.t) ) 
+		else:
+			if self.Itickle
+			self.Iin = Idc + Iac*np.sin(self.freq*2*PI*self.t) + self.Itickle*np.sin(self.tickle_freq*2*PI*self.t)
+		
 		
 		self.soln.L_ = self.soln.Lk/self.l_phys
 		
