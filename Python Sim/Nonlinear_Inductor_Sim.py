@@ -23,13 +23,13 @@ L0 = 269e-9
 # print(f"{Fore.RED}amplitude of Iac).")
 
 # Ibias = [.01, .02, .03]
-Ibias = np.linspace(1, 133, 134)*1e-3
+Ibias = np.linspace(1, 33, 34)*1e-3
 
 lks = LKSystem(Pgen, C_, l_phys, freq, q, L0)
 lks.opt.start_guess_method = GUESS_USE_LAST
 lks.opt.tol_pcnt = 0.1
 # lks.opt.start_guess_method = GUESS_ZERO_REFLECTION
-lks.solve(Ibias, show_plot_on_conv=False)
+lks.solve(Ibias, show_plot_on_conv=True)
 
 Iac = np.array([x.Iac for x in lks.solution])
 

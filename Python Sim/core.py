@@ -59,7 +59,7 @@ class Simopt:
 	# Simulation options
 	use_interp = False # This option allows FFT interpolation, but ***has NOT been implemented***
 	use_S21_loss = True # This option interprets S21 data to determine system loss and incorporates it in the converging simulation
-	use_approx_Lk = True # This option calculates Lk from the standard I^2 approx as opposed to including all terms
+	use_Lk_expansion = False # This option calculates Lk from the standard I^2 approx as opposed to including all terms. Note: this option must be FALSE to include tickle. Only included because it was used in the original simulations
 	
 	# Convergence options
 	max_iter = 1000 # Max iterations for convergence
@@ -69,6 +69,9 @@ class Simopt:
 	
 	# How to pick initial Iac guess
 	start_guess_method = GUESS_ZERO_REFLECTION
+	
+	# Data Save Options
+	remove_td = False # Prevents all time domain data from being saved in solution data to save space
 
 @dataclass
 class LKSolution:
@@ -79,7 +82,7 @@ class LKSolution:
 	Vp = None # Not actually used
 	betaL = None # Electrical length of chip in radians
 	P0 = None
-	theta = None
+	theta = None # TODO: not saved
 	Iac = None
 	Ibias = None
 	Zin = None # Impedance looking into chip (from source side)
@@ -145,6 +148,7 @@ class LKSystem:
 		
 		# Time domain options
 		self.num_periods = None
+		self.num_periods_tickle = None # If tickle is included, this may not be none, in which case this will set the t_max time (greatly extending simulation time)
 		self.max_harm = None
 		self.min_points_per_wave = None
 		self.t = []
@@ -156,6 +160,19 @@ class LKSystem:
 		self.bias_points = [] # List of bias values corresponding to solution data
 		
 		self.configure_time_domain(1000, 3, 30)
+	
+	def configure_tickle(self, Itickle:float, freq_tickle:float, num_periods:float=20):
+		""" This function configures the tickle variables, enabling a tickle signal to be
+		included in the simulation. Current is the amplitude in amps, and freq is in Hz."""
+		
+		self.Itickle = Itickle
+		self.freq_tickle = freq_tickle
+		self.num_periods_tickle = num_periods
+		
+		# # Reconfigure time domain
+		# self.configure_time_domain(self.num_periods, self.max_harm, self.min_points_per_wave)
+		
+		logging.info(f"Configured tickle signal with f={cspecial}{len(rd(self.freq_tickle/1e3))}{standard_color} KHz and Iac={cspecial}{rd(Itickle*1e3)}{standard_color} mA.")
 		
 	def configure_time_domain(self, num_periods:float, max_harm:int, min_points_per_wave:int=10):
 		""" Configures the time domain settings
@@ -172,8 +189,12 @@ class LKSystem:
 		self.min_points_per_wave = min_points_per_wave
 		
 		# Calculate max 
-		t_max = num_periods/self.freq
-		num_points = min_points_per_wave*max_harm*num_periods+1
+		if self.num_periods_tickle is None: # Calculate t_max and num_points the standard way
+			t_max = num_periods/self.freq
+			num_points = min_points_per_wave*max_harm*num_periods+1
+		else: # Greatly extend number of points to simulate low-freq tickle accurately
+			t_max = self.num_periods_tickle/self.freq_tickle
+			num_points = min_points_per_wave*int(max_harm*self.freq/self.freq_tickle)*num_periods+1
 		
 		# Create t array
 		self.t = np.linspace(0, t_max, num_points)
@@ -225,7 +246,6 @@ class LKSystem:
 		
 		Converts the resulting Iac time domain data into spectral components, saving the
 		fundamental through 3rd hamonic as a touple, with idx=0 assigned to fundamental.
-		
 		"""
 		
 		# Update Iac in solution
@@ -233,13 +253,21 @@ class LKSystem:
 		self.soln.Ibias = Idc
 		
 		# Solve for inductance (Lk)
-		if self.opt.use_approx_Lk:
+		if self.opt.use_Lk_expansion: 
+			# Use expansion for I=Idc+Iac*sin
+			
 			self.soln.Lk = self.L0 + self.L0/self.q**2 * ( Idc**2 + 2*Idc*Iac*np.sin(self.freq*2*PI*self.t) + Iac**2/2 - Iac**2/2*np.cos(2*self.freq*2*PI*self.t) ) 
 		else:
-			if self.Itickle
-			self.Iin = Idc + Iac*np.sin(self.freq*2*PI*self.t) + self.Itickle*np.sin(self.tickle_freq*2*PI*self.t)
+			
+			# Calculate input current waveform
+			if (self.Itickle is not None) and (self.freq_tickle is not None):
+				Iin = Idc + Iac*np.sin(self.freq*2*PI*self.t) + self.Itickle*np.sin(self.freq_tickle*2*PI*self.t)
+			else:
+				Iin = Idc + Iac*np.sin(self.freq*2*PI*self.t)
 		
-		
+			# Calculate Lk
+			self.soln.Lk = self.L0 + self.L0/self.q**2 * Iin**2 
+			
 		self.soln.L_ = self.soln.Lk/self.l_phys
 		
 		# # Update inductance estimate
@@ -314,16 +342,29 @@ class LKSystem:
 		
 		# Find index of peak - Fundamental
 		idx = find_nearest(spec_freqs, self.freq)
-		Iac_fund = np.max([ spec[idx-1], spec[idx], spec[idx+1] ])
-		
+		try:
+			Iac_fund = np.max([ spec[idx-1], spec[idx], spec[idx+1] ])
+		except:
+			logging.warning("Spectrum selected edge-element for fundamental")
+			Iac_fund = spec[idx]
+			
 		# Find index of peak - Fundamental
 		idx = find_nearest(spec_freqs, self.freq*2)
-		Iac_2H = np.max([ spec[idx-1], spec[idx], spec[idx+1] ])
-		
+		try:
+			Iac_2H = np.max([ spec[idx-1], spec[idx], spec[idx+1] ])
+		except:
+			logging.warning("Spectrum selected edge-element for 2nd Harmonic")
+			Iac_2H = spec[idx]
+			
 		# Find index of peak - Fundamental
 		idx = find_nearest(spec_freqs, self.freq*3)
-		Iac_3H = np.max([ spec[idx-1], spec[idx], spec[idx+1] ])
-		
+		try:
+			Iac_3H = np.max([ spec[idx-1], spec[idx], spec[idx+1] ])
+		except:
+			logging.warning("Spectrum selected edge-element for 3rd Harmonic")
+			Iac_3H = spec[idx]
+			show_plot_spec = True
+			
 		# Apply system loss
 		if self.opt.use_S21_loss and self.system_loss is not None:
 			Iac_fund *= self.system_loss[0]
@@ -367,7 +408,7 @@ class LKSystem:
 		
 		# Create spectrum figure
 		plt.figure(2)
-		plt.plot(s.spec_freqs/1e9, s.spec*1e3)
+		plt.semilogy(s.spec_freqs/1e9, s.spec*1e3)
 		plt.xlabel("Frequency (GHz)")
 		plt.ylabel("AC Current (mA)")
 		plt.title(f"Current Spectrum, Idc = {rd(s.Ibias*1e3)} mA")
@@ -418,7 +459,19 @@ class LKSystem:
 					
 					# Create deep
 					new_soln = copy.deepcopy(self.soln)
-					new_soln.convergence_failure = True
+					new_soln.convergence_failure = False
+					
+					if self.opt.remove_td:
+						new_soln.Lk = []
+						new_soln.Vp = []
+						new_soln.betaL = []
+						new_soln.Zchip = []
+						new_soln.L_ = []
+						new_soln.P0 = []
+						new_soln.theta = []
+						new_soln.Zin = []
+						new_soln.Iac_result_rms = []
+						new_soln.Iac_result_td = []
 					
 					# Add solution to list
 					self.solution.append(new_soln)
