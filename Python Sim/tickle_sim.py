@@ -28,7 +28,7 @@ Iac = np.array([x.Iac for x in lks.solution])
 lkst = LKSystem(Pgen, C_, l_phys, freq, q, L0)
 lkst.opt.start_guess_method = GUESS_USE_LAST
 # lkst.opt.tol_pcnt = 10
-lkst.configure_tickle(0, freq_tickle, 2)
+lkst.configure_tickle(0.001, freq_tickle, 2)
 lkst.configure_time_domain(1, 3, 6)
 lkst.opt.use_Lk_expansion = False
 lkst.opt.remove_td = True
@@ -45,5 +45,6 @@ plt.grid()
 plt.xlabel("Bias Current (mA)")
 plt.ylabel("AC Current Amplitude (mA)")
 plt.title("Impact of Tickle on Simulation")
+plt.legend()
 
 plt.show()
