@@ -39,7 +39,7 @@ for idx, x in enumerate(lks.solution):
 	Iac_plot.append(x.Iac)
 	Idc_plot.append(Idc_A[idx])
 Iac_plot = np.array(Iac_plot)
-Idc_plot = np.arrat(Idc_plot)
+Idc_plot = np.array(Idc_plot)
 
 plt.plot(Idc_plot*1e3, abs(Iac_plot*1e3), linestyle='dashed', marker='o', color=(0, 0, 0.7))
 plt.grid()
