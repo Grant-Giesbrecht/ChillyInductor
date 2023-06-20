@@ -57,9 +57,13 @@ class Simopt:
 	""" Contains simulation options"""
 	
 	# Simulation options
-	use_interp = False # This option allows FFT interpolation, but ***has NOT been implemented***
 	use_S21_loss = True # This option interprets S21 data to determine system loss and incorporates it in the converging simulation
-	use_Lk_expansion = False # This option calculates Lk from the standard I^2 approx as opposed to including all terms. Note: this option must be FALSE to include tickle. Only included because it was used in the original simulations
+	
+	# Frequency tolerance flags
+	#   These apply to finding frequencies for the loss estimate, FFT, etc. If
+	#   these tolerances are exceeded, warnings are sent to the log.
+	freq_tol_pcnt = 5 # If the estimate can't match the target freq. within this tolerance, it will send an error. Does not apply to DC
+	freq_tol_Hz = 100e6 # Same as above, but as absolute vale and DOES apply to DC
 	
 	# Convergence options
 	max_iter = 1000 # Max iterations for convergence
@@ -86,8 +90,13 @@ class LKSolution:
 	Iac = None
 	Ibias = None
 	Zin = None # Impedance looking into chip (from source side)
+	harms = None
 	
 	L_ = None # From Lk
+	sqL_ = None # Sqrt(Lk)
+	specsqL_ = None # List of spectral values for sqL_
+	specsqL_freqs = None # List of frequency values to correspond to sqL_ spectrum
+	
 	Zchip = None # From L_, characteristic impedance of chip
 	
 	Iac_result_rms = None # Magnitude of Iac
@@ -125,7 +134,7 @@ class LKSystem:
 	""" This class represents a solution to the nonlinear chip system, give a set of input conditions (things
 	like actual chip length, input power, etc)."""
 	
-	def __init__(self, Pgen_dBm:float, C_:float, l_phys:float, freq:float, q:float, L0:float):
+	def __init__(self, Pgen_dBm:float, C_:float, l_phys:float, freq:float, q:float, L0:float, max_harm:int=6):
 		""" Initialize system with given conditions """
 		
 		# Simulations options
@@ -142,14 +151,16 @@ class LKSystem:
 		self.Rsrc = 50 # R of generator
 		self.Xsrc = 0 # X of generator
 		self.Vgen  = np.sqrt(self.Pgen*200) # Solve for Generator voltage from power
+		self.max_harm = max_harm # Harmonic number to go up to in spectral domain (plus DC)
 		self.system_loss = None # Tuple containing system loss at each harmonic (linear scale, not dB)
 		self.Itickle = None # Amplitude (A) of tickle signal (Set to none to exclude tickle)
 		self.freq_tickle = None # Amplitude (A) of tickle signal (Set to none to exclude tickle)
+		self.harms = list(range(self.max_harm+1)) # List of harmonic numbers to include in spectral analysis
 		
 		# Time domain options
 		self.num_periods = None
 		self.num_periods_tickle = None # If tickle is included, this may not be none, in which case this will set the t_max time (greatly extending simulation time)
-		self.max_harm = None
+		self.max_harm_td = None
 		self.min_points_per_wave = None
 		self.t = []
 
@@ -170,31 +181,31 @@ class LKSystem:
 		self.num_periods_tickle = num_periods
 		
 		# # Reconfigure time domain
-		# self.configure_time_domain(self.num_periods, self.max_harm, self.min_points_per_wave)
+		# self.configure_time_domain(self.num_periods, self.max_harm_td, self.min_points_per_wave)
 		
 		logging.info(f"Configured tickle signal with f={cspecial}{len(rd(self.freq_tickle/1e3))}{standard_color} KHz and Iac={cspecial}{rd(Itickle*1e3)}{standard_color} mA.")
 		
-	def configure_time_domain(self, num_periods:float, max_harm:int, min_points_per_wave:int=10):
+	def configure_time_domain(self, num_periods:float, max_harm_td:int, min_points_per_wave:int=10):
 		""" Configures the time domain settings
 		 
 		  num_periods: Minimum number of periods to simulate
-		  max_harm: Number of harmoinics to simulate
+		  max_harm_td: Number of harmoinics to simulate
 		  min_points_per_wave: Minimum number of time points per wavelength (at all frequencies)
 		  
 		"""
 		
 		# Save options
 		self.num_periods = num_periods
-		self.max_harm = max_harm
+		self.max_harm_td = max_harm_td
 		self.min_points_per_wave = min_points_per_wave
 		
 		# Calculate max 
 		if self.num_periods_tickle is None: # Calculate t_max and num_points the standard way
 			t_max = num_periods/self.freq
-			num_points = min_points_per_wave*max_harm*num_periods+1
+			num_points = min_points_per_wave*max_harm_td*num_periods+1
 		else: # Greatly extend number of points to simulate low-freq tickle accurately
 			t_max = self.num_periods_tickle/self.freq_tickle
-			num_points = min_points_per_wave*int(max_harm*self.freq/self.freq_tickle)*num_periods+1
+			num_points = min_points_per_wave*int(max_harm_td*self.freq/self.freq_tickle)*num_periods+1
 		
 		# Create t array
 		self.t = np.linspace(0, t_max, num_points)
@@ -223,23 +234,29 @@ class LKSystem:
 			logging.main("Simulating wihtout system loss")
 			return
 		
-		# Find indecies
-		f_idx1 = find_nearest(freq, self.freq)
-		f_idx2 = find_nearest(freq, self.freq*2)
-		f_idx3 = find_nearest(freq, self.freq*3)
+		# Scan over all included harmonics and find loss
+		self.system_loss = []
+		for h in self.harms:
+			
+			target_freq = self.freq*h
+			
+			f_idx = find_nearest(freq, target_freq) # Find index
+			
+			# Send warning if target frequency missed by substatial margin
+			freq_err = np.abs(freq[f_idx]-target_freq)
+			if target_freq == 0:
+				if freq_err > self.opt.freq_tol_Hz:
+					logging.warning(f"Failed to find loss data within absolute tolerance of target frequency. (Error = {freq_err/1e6} MHz, target = DC")
+			elif freq_err/target_freq*100 > self.opt.freq_tol_pcnt:
+				logging.warning(f"Failed to find loss data within (%) tolerance of target frequency. (Error = {freq_err/target_freq*100} %, target = {target_freq/1e9} GHz")
+			elif freq_err > self.opt.freq_tol_Hz:
+				logging.warning(f"Failed to find loss data within absolute tolerance of target frequency. (Error = {freq_err/1e6} MHz, target = {target_freq/1e9} GHz")
+			
+			loss = (10**(S21[f_idx]/20)) # Calculate loss (convert from dB)
+			self.system_loss.append(loss) # Add to list
 		
-		#TODO: add more error checking if data doesn't contain correct or close enoguh frequencies
-		
-		# Convert from dB to linear scaling - dB20 because this will be applied to Iac, not P0
-		loss_Fund = (10**(S21[f_idx1]/20))
-		loss_2H = (10**(S21[f_idx2]/20))
-		loss_3H = (10**(S21[f_idx3]/20))
-		
-		# Save loss
-		self.system_loss = (loss_Fund, loss_2H, loss_3H)
-		
-		logging.main(f"Configured system loss: {cspecial}[lf={rd(loss_Fund, 2)}, l2H={rd(loss_2H, 2)}, l3H={rd(loss_3H, 2)}]{standard_color}")
-		
+		logging.main(f"Configured system loss.")
+			
 	def crunch(self, Iac:float, Idc:float, show_plot_td=False, show_plot_spec=False):
 		""" Using the provided Iac guess, find the reuslting solution, and the error
 		between the solution and the initial guess.
@@ -248,30 +265,107 @@ class LKSystem:
 		fundamental through 3rd hamonic as a touple, with idx=0 assigned to fundamental.
 		"""
 		
+		logging.warning("Remove option for: use_Lk_expansion")
+		
 		# Update Iac in solution
 		self.soln.Iac = Iac
 		self.soln.Ibias = Idc
 		
 		# Solve for inductance (Lk)
-		if self.opt.use_Lk_expansion: 
-			# Use expansion for I=Idc+Iac*sin
-			
-			self.soln.Lk = self.L0 + self.L0/self.q**2 * ( Idc**2 + 2*Idc*Iac*np.sin(self.freq*2*PI*self.t) + Iac**2/2 - Iac**2/2*np.cos(2*self.freq*2*PI*self.t) ) 
+		# Calculate input current waveform
+		if (self.Itickle is not None) and (self.freq_tickle is not None):
+			Iin = Idc + Iac*np.sin(self.freq*2*PI*self.t) + self.Itickle*np.sin(self.freq_tickle*2*PI*self.t)
 		else:
-			
-			# Calculate input current waveform
-			if (self.Itickle is not None) and (self.freq_tickle is not None):
-				Iin = Idc + Iac*np.sin(self.freq*2*PI*self.t) + self.Itickle*np.sin(self.freq_tickle*2*PI*self.t)
-			else:
-				Iin = Idc + Iac*np.sin(self.freq*2*PI*self.t)
-		
-			# Calculate Lk
-			self.soln.Lk = self.L0 + self.L0/self.q**2 * Iin**2 
-			
+			Iin = Idc + Iac*np.sin(self.freq*2*PI*self.t)
+	
+		# Calculate Lk
+		self.soln.Lk = self.L0 + self.L0/self.q**2 * Iin**2
 		self.soln.L_ = self.soln.Lk/self.l_phys
+		self.soln.sqL_ = np.sqrt(self.soln.L_)
 		
-		# # Update inductance estimate
-		# self.solve_inductance(Iac, Idc)
+		if show_plot_td:
+			plot_Ts = 5
+			idx_end = find_nearest(self.t, plot_Ts/self.freq)
+			
+			plt.plot(self.t[:idx_end]*1e9, self.soln.sqL_[:idx_end], label="sqrt(L_)")
+			# plt.plot(self.t[:idx_end]*1e9, self.soln.L_[:idx_end], label="L_")
+			plt.xlabel("Time (ns)")
+			plt.ylabel("sqL_  [sqrt(H/M)]")
+			plt.title("Solution Iteration Time Domain Plot")
+			plt.grid()
+			plt.legend()
+			plt.show()
+		
+		#----------------------- CALCULATE SPECTRAL COMPONENTS OF sqL_ --------------------
+		
+		y = self.soln.sqL_
+		num_pts = len(y)
+		dt = self.t[1]-self.t[0]
+		
+		# Run FFT
+		spec_raw = fft(y)[:num_pts//2]
+		
+		# Fix magnitude to compensate for number of points
+		spec = 2.0/num_pts*np.abs(spec_raw)
+		self.soln.spec = spec
+		
+		# Get corresponding x axis (frequencies)
+		spec_freqs = fftfreq(num_pts, dt)[:num_pts//2]
+		self.soln.spec_freqs = spec_freqs
+		
+		# Iterate over all harmonics
+		self.soln.specsqL_ = []
+		for h_idx, h in enumerate(self.harms):
+			
+			# Find closest datapoint to target frequency
+			target_freq = self.freq*h
+			idx = find_nearest(spec_freqs, target_freq)
+			freq_err = np.abs(spec_freqs[idx]-target_freq)
+
+			# Send warning if target frequency missed by substatial margin
+			if target_freq == 0:
+				if freq_err > self.opt.freq_tol_Hz:
+					logging.warning(f"Failed to find spectral data within absolute tolerance of target frequency. (Error = {freq_err/1e6} MHz, target = DC")
+			elif freq_err/target_freq*100 > self.opt.freq_tol_pcnt:
+				logging.warning(f"Failed to find spectral data within (%) tolerance of target frequency. (Error = {freq_err/target_freq*100} %, target = {target_freq/1e9} GHz")
+			elif freq_err > self.opt.freq_tol_Hz:
+				logging.warning(f"Failed to find spectral data within absolute tolerance of target frequency. (Error = {freq_err/1e6} MHz, target = {target_freq/1e9} GHz")
+			
+			# Find index of peak
+			try:
+				Iac_hx = np.max([ spec[idx-1], spec[idx], spec[idx+1] ])
+			except:
+				if h != 0:
+					logging.warning("Spectrum selected edge-element for fundamental")
+				Iac_hx = spec[idx]
+			
+			# Apply system loss
+			if (self.opt.use_S21_loss) and (self.system_loss is not None):
+				Iac_hx *= self.system_loss[h_idx]
+		
+			# Save to solution set
+			self.soln.specsqL_.append(Iac_hx)
+		
+		# Show spectrum if requested
+		if show_plot_spec:
+			
+			# Limit plot window
+			f_min_plot = 1e9
+			f_max_plot = self.freq*10
+			idx_start = find_nearest(spec_freqs, f_min_plot)
+			idx_end = find_nearest(spec_freqs, f_max_plot)
+			
+			# Plot Data
+			plt.semilogy(spec_freqs[idx_start:idx_end]/1e9, spec[idx_start:idx_end], label="Spectrum", color=(0, 0, 0.7))
+			plt.scatter(self.freq/1e9*np.array(self.harms), self.soln.specsqL_, label="Selected Points", color=(0.8, 0, 0))
+			plt.xlabel("Frequency (GHz)")
+			plt.ylabel("sqL_ [sq(H/m)]")
+			plt.title("Solution Iteration Spectrum")
+			plt.grid()
+			
+			plt.show()
+		
+		#-------------------- USE sqL_(freq) TO FINISH ABCD ANALYSIS ----------------------
 		
 		# Find Z0 of chip
 		self.soln.Vp = 1/np.sqrt(self.C_ * self.soln.L_)
@@ -304,87 +398,12 @@ class LKSystem:
 		# logging.debug(f"Solution error: {round(self.soln.rmse*1000)/1000}")
 		#TODO: This error is never used - Populate self.soln.rmse correctly!
 		
-		if show_plot_td:
-			plot_Ts = 5
-			idx_end = find_nearest(self.t, plot_Ts/self.freq)
+
 			
-			plt.plot(self.t*1e9, self.soln.Iac_result_td*1e3)
-			plt.xlabel("Time (ns)")
-			plt.ylabel("AC Current (mA)")
-			plt.title("Solution Iteration Time Domain Plot")
-			plt.show()
-			
-			# plt.plot(self.t[:idx_end]*1e9, self.soln.Lk[:idx_end]*1e9)
-			# plt.xlabel("Time (ns)")
-			# plt.ylabel("Lk (nH)")
-			# plt.title("Solution Iteration Time Domain Plot")
-			# plt.grid()
-			# plt.show()
+
 		
-		############# Previously called get_spec_components() ###########
 		
-		y = self.soln.Iac_result_td
-		num_pts = len(self.soln.Iac_result_td)
-		dt = self.t[1]-self.t[0]
-		
-		# Run FFT
-		spec_raw = fft(y)[:num_pts//2]
-		
-		# Fix magnitude to compensate for number of points
-		spec = 2.0/num_pts*np.abs(spec_raw)
-		self.soln.spec = spec
-		
-		# Get corresponding x axis (frequencies)
-		spec_freqs = fftfreq(num_pts, dt)[:num_pts//2]
-		self.soln.spec_freqs = spec_freqs
-		
-		if self.opt.use_interp:
-			logging.warning("interp feature has not been implemented. See fft_demo.py to see how.")
-		
-		# Find index of peak - Fundamental
-		idx = find_nearest(spec_freqs, self.freq)
-		try:
-			Iac_fund = np.max([ spec[idx-1], spec[idx], spec[idx+1] ])
-		except:
-			logging.warning("Spectrum selected edge-element for fundamental")
-			Iac_fund = spec[idx]
-			
-		# Find index of peak - Fundamental
-		idx = find_nearest(spec_freqs, self.freq*2)
-		try:
-			Iac_2H = np.max([ spec[idx-1], spec[idx], spec[idx+1] ])
-		except:
-			logging.warning("Spectrum selected edge-element for 2nd Harmonic")
-			Iac_2H = spec[idx]
-			
-		# Find index of peak - Fundamental
-		idx = find_nearest(spec_freqs, self.freq*3)
-		try:
-			Iac_3H = np.max([ spec[idx-1], spec[idx], spec[idx+1] ])
-		except:
-			logging.warning("Spectrum selected edge-element for 3rd Harmonic")
-			Iac_3H = spec[idx]
-			show_plot_spec = True
-			
-		# Apply system loss
-		if self.opt.use_S21_loss and self.system_loss is not None:
-			Iac_fund *= self.system_loss[0]
-			Iac_2H *= self.system_loss[1]
-			Iac_3H *= self.system_loss[2]
-		
-		# Save to solution set
-		self.soln.Iac_result_spec = (Iac_fund, Iac_2H, Iac_3H)
-		
-		logging.debug(f"Calcualted Iac spectral components: fund={rd(Iac_fund*1e6, 3)}, 2H={rd(Iac_2H*1e6, 3)}, 3H={rd(Iac_3H*1e6, 3)} uA")
-		
-		if show_plot_spec:
-			
-			plt.plot(spec_freqs/1e9, spec*1e3)
-			plt.xlabel("Frequency (GHz)")
-			plt.ylabel("AC Current (mA)")
-			plt.title("Solution Iteration Spectrum")
-			
-			plt.show()
+
 		
 	def plot_solution(self, s:LKSolution=None):
 		
