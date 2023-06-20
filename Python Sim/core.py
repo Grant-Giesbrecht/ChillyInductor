@@ -134,7 +134,7 @@ class LKSystem:
 	""" This class represents a solution to the nonlinear chip system, give a set of input conditions (things
 	like actual chip length, input power, etc)."""
 	
-	def __init__(self, Pgen_dBm:float, C_:float, l_phys:float, freq:float, q:float, L0:float, max_harm:int=6):
+	def __init__(self, Pgen_dBm:float, C_:float, l_phys:float, freq:float, q:float, L0:float, max_harm:int=6, ZL=50, Zg=50):
 		""" Initialize system with given conditions """
 		
 		# Simulations options
@@ -148,14 +148,14 @@ class LKSystem:
 		self.q = q
 		self.L0 = L0
 		self.Zcable = 50 # Z0 of cable leading into chip
-		self.Rsrc = 50 # R of generator
-		self.Xsrc = 0 # X of generator
+		self.ZL = ZL # Impedance of load
+		self.Zg = Zg # Impedance of generator
 		self.Vgen  = np.sqrt(self.Pgen*200) # Solve for Generator voltage from power
 		self.max_harm = max_harm # Harmonic number to go up to in spectral domain (plus DC)
 		self.system_loss = None # Tuple containing system loss at each harmonic (linear scale, not dB)
 		self.Itickle = None # Amplitude (A) of tickle signal (Set to none to exclude tickle)
 		self.freq_tickle = None # Amplitude (A) of tickle signal (Set to none to exclude tickle)
-		self.harms = list(range(self.max_harm+1)) # List of harmonic numbers to include in spectral analysis
+		self.harms = np.array(range(self.max_harm+1)) # List of harmonic numbers to include in spectral analysis
 		
 		# Time domain options
 		self.num_periods = None
@@ -314,7 +314,7 @@ class LKSystem:
 		self.soln.spec_freqs = spec_freqs
 		
 		# Iterate over all harmonics
-		self.soln.specsqL_ = []
+		spectrum = []
 		for h_idx, h in enumerate(self.harms):
 			
 			# Find closest datapoint to target frequency
@@ -344,7 +344,8 @@ class LKSystem:
 				Iac_hx *= self.system_loss[h_idx]
 		
 			# Save to solution set
-			self.soln.specsqL_.append(Iac_hx)
+			spectrum.append(Iac_hx)
+		self.soln.specsqL_ = np.array(spectrum)
 		
 		# Show spectrum if requested
 		if show_plot_spec:
@@ -356,52 +357,40 @@ class LKSystem:
 			idx_end = find_nearest(spec_freqs, f_max_plot)
 			
 			# Plot Data
-			plt.semilogy(spec_freqs[idx_start:idx_end]/1e9, spec[idx_start:idx_end], label="Spectrum", color=(0, 0, 0.7))
-			plt.scatter(self.freq/1e9*np.array(self.harms), self.soln.specsqL_, label="Selected Points", color=(0.8, 0, 0))
+			plt.semilogy(spec_freqs[idx_start:idx_end]/1e9, spec[idx_start:idx_end], label="Full Spectrum", color=(0, 0, 0.7))
+			plt.scatter(self.freq/1e9*self.harms, self.soln.specsqL_, label="Selected Points", color=(0.8, 0, 0))
 			plt.xlabel("Frequency (GHz)")
 			plt.ylabel("sqL_ [sq(H/m)]")
-			plt.title("Solution Iteration Spectrum")
+			plt.title("Solution Spectrum")
 			plt.grid()
+			plt.legend()
 			
 			plt.show()
 		
 		#-------------------- USE sqL_(freq) TO FINISH ABCD ANALYSIS ----------------------
 		
 		# Find Z0 of chip
-		self.soln.Vp = 1/np.sqrt(self.C_ * self.soln.L_)
-		self.soln.Zchip = np.sqrt(self.soln.L_ / self.C_)
+		self.soln.Zchip = np.sqrt(self.soln.specsqL_ / self.C_)
+		Z0 = self.soln.Zchip
 		
 		# Find electrical length of chip (from phase velocity)
-		self.soln.betaL = 2*PI*self.l_phys*self.freq*np.sqrt(self.C_ * self.soln.L_)
+		self.soln.betaL = 2*PI*self.l_phys*self.freq*self.harms*np.sqrt(self.C_ * self.soln.specsqL_)
 		
-		# Find input impedance to chip
-		self.soln.Zin = xfmr(self.soln.Zchip, self.Zcable, self.soln.betaL)
+		thetaA = self.soln.betaL
+		thetaB = 0
+		j = complex(0, 1)
 		
-		# Get real and imag components of Zin
-		Rin = np.real(self.soln.Zin)
-		Xin = np.imag(self.soln.Zin)
+		# Solve for IL (Eq. 33,4 in Notebook TAE-33)
+		M = (self.ZL*np.cos(thetaB) + j*Z0*np.sin(thetaB)) * ( np.cos(thetaA) + j*self.Zg/Z0*np.sin(thetaA))
+		N = ( self.ZL*j/Z0*np.sin(thetaB + np.cos(thetaB)) ) * ( j*Z0*np.sin(thetaA) + self.Zg*np.cos(thetaB) )
 		
-		# Find angle of Zin
-		self.theta = np.angle(self.soln.Zin)
+		IL = self.Vgen/(M+N)
+		Vx = IL*self.ZL*np.cos(thetaB) + IL*j*Z0*np.sin(thetaB)
+		Ix = IL*self.ZL*j/Z0*np.sin(thetaB) + IL*np.cos(thetaB)
+		Ig = Vx*j/Z0*np.sin(thetaA) + Ix*np.cos(thetaA)
 		
-		# Calcualte transmitted power (to chip)
-		self.soln.P0 = np.abs(self.Vgen)**2 * Rin * 0.5 / ((Rin + self.Rsrc)**2 + (Xin + self.Xsrc)**2)
-		
-		# Find resulting Iac and error
-		logging.warning(f"{Fore.RED}ERROR: Power calculation ignored higher order terms.{standard_color}")
-		self.soln.Iac_result_rms = np.sqrt(2*self.soln.P0/np.cos(self.theta)/self.soln.Zin)
-		self.soln.Iac_result_td = np.sqrt(2)*self.soln.Iac_result_rms*np.sin(2*PI*self.freq*self.t) #TODO: Need a factor of sqrt(2)
-		# err_list = np.abs(self.soln.Iac_result_rms - self.soln.Iac) # Error in signal *amplitude* at each time point
-		# self.soln.rmse = np.sqrt(np.mean(err_list**2))
-		
-		# # Save to logger
-		# logging.debug(f"Solution error: {round(self.soln.rmse*1000)/1000}")
-		#TODO: This error is never used - Populate self.soln.rmse correctly!
-		
-
-			
-
-		
+		# Save to result. Note the solve function expects no DC case
+		self.soln.Iac_result_spec = IL[1:]
 		
 
 		
