@@ -20,6 +20,7 @@ with open("cryostat_sparams.pkl", 'rb') as fh:
 
 lks = LKSystem(Pgen, C_, l_phys, freq, q, L0)
 lks.opt.start_guess_method = GUESS_USE_LAST
+lks.opt.max_iter = 200
 lks.configure_loss(sparam_data=S21_data)
 
 # lks.crunch(.01, .03, show_plot_td=False, show_plot_spec=True)
@@ -28,9 +29,19 @@ lks.configure_loss(sparam_data=S21_data)
 lks.solve(Idc_A, show_plot_on_conv=False)
 
 # Get results
-Iac = np.array([x.Iac for x in lks.solution])
+# Iac = np.array([x.Iac for x in lks.solution])
+Iac_plot = []
+Idc_plot = []
+for idx, x in enumerate(lks.solution):
+	if x.convergence_failure:
+		continue
+	
+	Iac_plot.append(x.Iac)
+	Idc_plot.append(Idc_A[idx])
+Iac_plot = np.array(Iac_plot)
+Idc_plot = np.arrat(Idc_plot)
 
-plt.plot(Idc_A*1e3, abs(Iac*1e3), linestyle='dashed', marker='o', color=(0, 0, 0.7))
+plt.plot(Idc_plot*1e3, abs(Iac_plot*1e3), linestyle='dashed', marker='o', color=(0, 0, 0.7))
 plt.grid()
 plt.xlabel("Bias Current (mA)")
 plt.ylabel("Current Amplitude (mA)")

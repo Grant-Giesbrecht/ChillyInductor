@@ -156,7 +156,7 @@ class LKSystem:
 		self.Itickle = None # Amplitude (A) of tickle signal (Set to none to exclude tickle)
 		self.freq_tickle = None # Amplitude (A) of tickle signal (Set to none to exclude tickle)
 		self.harms = np.array(range(self.max_harm+1)) # List of harmonic numbers to include in spectral analysis
-		
+				
 		# Time domain options
 		self.num_periods = None
 		self.num_periods_tickle = None # If tickle is included, this may not be none, in which case this will set the t_max time (greatly extending simulation time)
@@ -264,9 +264,7 @@ class LKSystem:
 		Converts the resulting Iac time domain data into spectral components, saving the
 		fundamental through 3rd hamonic as a touple, with idx=0 assigned to fundamental.
 		"""
-		
-		logging.warning("Remove option for: use_Lk_expansion")
-		
+				
 		# Update Iac in solution
 		self.soln.Iac = Iac
 		self.soln.Ibias = Idc
@@ -344,7 +342,7 @@ class LKSystem:
 				Iac_hx *= self.system_loss[h_idx]
 		
 			# Save to solution set
-			spectrum.append(Iac_hx)
+			spectrum.append(abs(Iac_hx))
 		self.soln.specsqL_ = np.array(spectrum)
 		
 		# Show spectrum if requested
@@ -384,15 +382,13 @@ class LKSystem:
 		M = (self.ZL*np.cos(thetaB) + j*Z0*np.sin(thetaB)) * ( np.cos(thetaA) + j*self.Zg/Z0*np.sin(thetaA))
 		N = ( self.ZL*j/Z0*np.sin(thetaB + np.cos(thetaB)) ) * ( j*Z0*np.sin(thetaA) + self.Zg*np.cos(thetaB) )
 		
-		IL = self.Vgen/(M+N)
+		IL = abs(self.Vgen/(M+N))
 		Vx = IL*self.ZL*np.cos(thetaB) + IL*j*Z0*np.sin(thetaB)
 		Ix = IL*self.ZL*j/Z0*np.sin(thetaB) + IL*np.cos(thetaB)
 		Ig = Vx*j/Z0*np.sin(thetaA) + Ix*np.cos(thetaA)
 		
 		# Save to result. Note the solve function expects no DC case
 		self.soln.Iac_result_spec = IL[1:]
-		
-
 		
 	def plot_solution(self, s:LKSolution=None):
 		
@@ -500,6 +496,25 @@ class LKSystem:
 					
 					# Add to logger
 					logging.warning(f"Failed to converge for point ({cspecial}Idc={rd(Idc*1e3)} mA{standard_color}).")
+					
+					# Create deep
+					new_soln = copy.deepcopy(self.soln)
+					new_soln.convergence_failure = True
+					
+					if self.opt.remove_td:
+						new_soln.Lk = []
+						new_soln.Vp = []
+						new_soln.betaL = []
+						new_soln.Zchip = []
+						new_soln.L_ = []
+						new_soln.P0 = []
+						new_soln.theta = []
+						new_soln.Zin = []
+						new_soln.Iac_result_rms = []
+						new_soln.Iac_result_td = []
+					
+					# Add solution to list
+					self.solution.append(new_soln)
 					
 					# Exit convergence loop
 					break
