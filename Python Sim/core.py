@@ -41,8 +41,8 @@ for opt, aarg in opts:
 
 tabchar = "    "
 prime_color = Fore.YELLOW
-standard_color = Fore.LIGHTBLACK_EX
-quiet_color = Fore.WHITE
+standard_color = Fore.WHITE
+quiet_color = Fore.LIGHTBLACK_EX
 cspecial = Fore.GREEN # COlor used to highlight content inside logging messages
 logging.basicConfig(format=f'{prime_color}%(levelname)s:{standard_color} %(message)s{quiet_color} | %(asctime)s{Style.RESET_ALL}', level=LOG_LEVEL)
 
@@ -76,6 +76,9 @@ class Simopt:
 	
 	# Data Save Options
 	remove_td = False # Prevents all time domain data from being saved in solution data to save space
+	
+	# Debug/display options
+	print_soln_on_converge = False # Prints a list of stats for the solution when convergence occurs
 
 @dataclass
 class LKSolution:
@@ -85,34 +88,51 @@ class LKSolution:
 	
 	Vp = None # Not actually used
 	betaL = None # Electrical length of chip in radians
-	P0 = None
+	P0 = None # TODO: Remove?
 	theta = None # TODO: not saved
 	Iac = None
 	Ibias = None
 	Zin = None # Impedance looking into chip (from source side)
 	harms = None
+	freq = None # Frequency of fundamnetal tone
 	
 	L_ = None # From Lk
 	sqL_ = None # Sqrt(Lk)
-	specsqL_ = None # List of spectral values for sqL_
+	specsqL_ = None # List of spectral values for sqL_ (1 value per item in harms)
+	specsqL_full = None # List of spectral values for sqL_, all points saved
 	specsqL_freqs = None # List of frequency values to correspond to sqL_ spectrum
 	
 	Zchip = None # From L_, characteristic impedance of chip
 	
-	Iac_result_rms = None # Magnitude of Iac
-	Iac_result_td = None # Use Iac to find solution and calculate Iac again, this is the result in time domain
+	Ix_result_spec = None
+	Vx_result_spec = None
+	IL_result_spec = None
 	Iac_result_spec = None # Iac result as spectrum, shows fundamental, 2harm, and 3harm as touple (idx 0 = fund, ..., 2 = 3rd harm)
 	rmse = None # |Iac_result - Iac|
 	
+	# Convergence data
 	convergence_failure = None # Set as True if fails to converge
 	num_iter = None # Number of iterations completed
+	Iac_guess_history = None # List of all Iac guesses
+	guess_coef_history = None # List of all guess_coefficeints
 
-	spec = None # Spectrum data [AC Current amplitude in Amps]
-	spec_freqs = None # Spectrum frequencies in Hz
+	spec = None # Spectrum data [AC Current amplitude in Amps] TODO: Remove and replace with specsqL
+	spec_freqs = None # Spectrum frequencies in Hz # TODO: Remove and replace with specsqL_freqs
 
 def rd(x:float, num_decimals:int=2):
 	return f"{round(x*10**num_decimals)/(10**num_decimals)}"
 
+def rdl(L:list, num_decimals:int=2):
+	
+	S = "["
+	
+	# Scan over list
+	for item in L:
+		S = S + rd(item, num_decimals) + ", "
+	
+	S = S[:-2] + "]"
+	return S
+	
 def find_nearest(array,value):
 	""" Finds closest value.
 	
@@ -170,7 +190,7 @@ class LKSystem:
 		self.solution = [] # List of solution data
 		self.bias_points = [] # List of bias values corresponding to solution data
 		
-		self.configure_time_domain(1000, 3, 30)
+		self.configure_time_domain(2000, 3, 40)
 	
 	def configure_tickle(self, Itickle:float, freq_tickle:float, num_periods:float=20):
 		""" This function configures the tickle variables, enabling a tickle signal to be
@@ -277,22 +297,9 @@ class LKSystem:
 			Iin = Idc + Iac*np.sin(self.freq*2*PI*self.t)
 	
 		# Calculate Lk
-		self.soln.Lk = self.L0 + self.L0/self.q**2 * Iin**2
+		self.soln.Lk = self.L0 + self.L0/(self.q**2) * (Iin**2)
 		self.soln.L_ = self.soln.Lk/self.l_phys
 		self.soln.sqL_ = np.sqrt(self.soln.L_)
-		
-		if show_plot_td:
-			plot_Ts = 5
-			idx_end = find_nearest(self.t, plot_Ts/self.freq)
-			
-			plt.plot(self.t[:idx_end]*1e9, self.soln.sqL_[:idx_end], label="sqrt(L_)")
-			# plt.plot(self.t[:idx_end]*1e9, self.soln.L_[:idx_end], label="L_")
-			plt.xlabel("Time (ns)")
-			plt.ylabel("sqL_  [sqrt(H/M)]")
-			plt.title("Solution Iteration Time Domain Plot")
-			plt.grid()
-			plt.legend()
-			plt.show()
 		
 		#----------------------- CALCULATE SPECTRAL COMPONENTS OF sqL_ --------------------
 		
@@ -306,10 +313,13 @@ class LKSystem:
 		# Fix magnitude to compensate for number of points
 		spec = 2.0/num_pts*np.abs(spec_raw)
 		self.soln.spec = spec
+		self.soln.specsqL_full = spec
+		
 		
 		# Get corresponding x axis (frequencies)
 		spec_freqs = fftfreq(num_pts, dt)[:num_pts//2]
 		self.soln.spec_freqs = spec_freqs
+		self.soln.specsqL_freqs = spec_freqs
 		
 		# Iterate over all harmonics
 		spectrum = []
@@ -345,6 +355,10 @@ class LKSystem:
 			spectrum.append(abs(Iac_hx))
 		self.soln.specsqL_ = np.array(spectrum)
 		
+		# DC term is doubled, per matching TD with reconstructed signal.
+		# TODO: Explain this!
+		self.soln.specsqL_[0] /= 2
+		
 		# Show spectrum if requested
 		if show_plot_spec:
 			
@@ -356,7 +370,7 @@ class LKSystem:
 			
 			# Plot Data
 			plt.semilogy(spec_freqs[idx_start:idx_end]/1e9, spec[idx_start:idx_end], label="Full Spectrum", color=(0, 0, 0.7))
-			plt.scatter(self.freq/1e9*self.harms, self.soln.specsqL_, label="Selected Points", color=(0.8, 0, 0))
+			plt.scatter(self.freq/1e9*self.harms, self.soln.specsqL_, label="Selected Points (Includes loss)", color=(0.8, 0, 0))
 			plt.xlabel("Frequency (GHz)")
 			plt.ylabel("sqL_ [sq(H/m)]")
 			plt.title("Solution Spectrum")
@@ -365,14 +379,44 @@ class LKSystem:
 			
 			plt.show()
 		
+		if show_plot_td:
+			plot_Ts = 5
+			idx_end = find_nearest(self.t, plot_Ts/self.freq)
+			
+			# Reconstruct TD from FFT to test result
+			sqL_recon = self.soln.specsqL_[0]
+			for idx, h in enumerate(self.harms):
+				
+				# Skip DC
+				if h == 0:
+					continue
+				
+				sqL_recon = sqL_recon + self.soln.specsqL_[idx]*np.sin(self.freq*h*2*PI*self.t[:idx_end]+PI)
+				
+			
+			plt.plot(self.t[:idx_end]*1e9, self.soln.sqL_[:idx_end], label="Original sqrt(L_)")
+			plt.plot(self.t[:idx_end]*1e9, sqL_recon, label="Reconstructed sqrt(L_) from FFT")
+			# plt.plot(self.t[:idx_end]*1e9, self.soln.L_[:idx_end], label="L_")
+			plt.xlabel("Time (ns)")
+			plt.ylabel("sqL_  [sqrt(H/M)]")
+			plt.title("Solution Iteration Time Domain Plot")
+			plt.grid()
+			plt.legend()
+			
+			# ax = plt.gca()
+			# yl = ax.get_ylim()
+			# plt.ylim([0, yl[1]])
+			
+			plt.show()
+		
 		#-------------------- USE sqL_(freq) TO FINISH ABCD ANALYSIS ----------------------
 		
 		# Find Z0 of chip
-		self.soln.Zchip = np.sqrt(self.soln.specsqL_ / self.C_)
+		self.soln.Zchip = self.soln.specsqL_ / np.sqrt(self.C_)
 		Z0 = self.soln.Zchip
 		
 		# Find electrical length of chip (from phase velocity)
-		self.soln.betaL = 2*PI*self.l_phys*self.freq*self.harms*np.sqrt(self.C_ * self.soln.specsqL_)
+		self.soln.betaL = 2*PI*self.l_phys*self.freq*self.harms*np.sqrt(self.C_)*self.soln.specsqL_
 		
 		thetaA = self.soln.betaL
 		thetaB = 0
@@ -382,13 +426,18 @@ class LKSystem:
 		M = (self.ZL*np.cos(thetaB) + j*Z0*np.sin(thetaB)) * ( np.cos(thetaA) + j*self.Zg/Z0*np.sin(thetaA))
 		N = ( self.ZL*j/Z0*np.sin(thetaB + np.cos(thetaB)) ) * ( j*Z0*np.sin(thetaA) + self.Zg*np.cos(thetaB) )
 		
-		IL = abs(self.Vgen/(M+N))
+		IL = self.Vgen/(M+N)
 		Vx = IL*self.ZL*np.cos(thetaB) + IL*j*Z0*np.sin(thetaB)
 		Ix = IL*self.ZL*j/Z0*np.sin(thetaB) + IL*np.cos(thetaB)
 		Ig = Vx*j/Z0*np.sin(thetaA) + Ix*np.cos(thetaA)
 		
 		# Save to result. Note the solve function expects no DC case
-		self.soln.Iac_result_spec = IL[1:]
+		self.soln.Iac_result_spec = abs(Ig)
+		self.soln.Ix_result_spec = abs(Ix)
+		self.soln.Vx_result_spec = abs(Vx)
+		self.soln.IL_result_spec = abs(IL)
+		self.soln.harms = self.harms
+		self.soln.freq = self.freq
 		
 	def plot_solution(self, s:LKSolution=None):
 		
@@ -401,24 +450,56 @@ class LKSystem:
 		idx_end = find_nearest(self.t, plot_Ts/self.freq)
 		
 		# Create time domain figure
-		plt.figure(1)
-		plt.plot(self.t[:idx_end]*1e9, np.real(s.Iac_result_td[:idx_end])*1e3, '-b')
-		plt.plot(self.t[:idx_end]*1e9, np.abs(s.Iac_result_td[:idx_end])*1e3, '-r')
-		plt.plot(self.t[:idx_end]*1e9, np.sqrt(2)*np.abs(s.Iac_result_rms[:idx_end])*1e3, '-g')
-		plt.xlabel("Time (ns)")
-		plt.ylabel("AC Current (mA)")
-		plt.title(f"Time Domain Data, Idc = {rd(s.Ibias*1e3)} mA")
-		plt.legend(["TD Real", "TD Abs.", "|Amplitude|"])
+		# plt.figure(1)
+		# plt.plot(self.t[:idx_end]*1e9, np.real(s.Iac_result_td[:idx_end])*1e3, '-b')
+		# plt.plot(self.t[:idx_end]*1e9, np.abs(s.Iac_result_td[:idx_end])*1e3, '-r')
+		# plt.plot(self.t[:idx_end]*1e9, np.sqrt(2)*np.abs(s.Iac_result_rms[:idx_end])*1e3, '-g')
+		# plt.xlabel("Time (ns)")
+		# plt.ylabel("AC Current (mA)")
+		# plt.title(f"Time Domain Data, Idc = {rd(s.Ibias*1e3)} mA")
+		# plt.legend(["TD Real", "TD Abs.", "|Amplitude|"])
+		# plt.grid()
+		
+		# # Create spectrum figure
+		# plt.figure(2)
+		# plt.semilogy(s.spec_freqs/1e9, s.spec*1e3)
+		# plt.xlabel("Frequency (GHz)")
+		# plt.ylabel("AC Current (mA)")
+		# plt.title(f"Current Spectrum, Idc = {rd(s.Ibias*1e3)} mA")
+		# plt.xlim((0, self.freq*5/1e9))
+		# plt.grid()
+		
+		# Limit plot window
+		f_max_plot = self.freq*np.max([10, np.max(self.harms)])
+		idx_end = find_nearest(s.specsqL_freqs, f_max_plot)
+		
+		# Plot Spectrum
+		fig1 = plt.figure(1)
+		plt.subplot(1, 3, 1)
+		plt.semilogy(s.specsqL_freqs[:idx_end]/1e9, self.soln.specsqL_full[:idx_end], label="Full Spectrum", color=(0, 0, 0.8))
+		plt.scatter(s.freq/1e9*self.harms, self.soln.specsqL_, label="Selected Points", color=(0.8, 0, 0))
+		plt.xlabel("Frequency (GHz)")
+		plt.ylabel("sqL_ [sq(H/m)]")
+		plt.title("Solution Spectrum")
+		plt.grid()
+		plt.legend()
+		
+		# Plot convergence history
+		plt.subplot(1, 3, 2)
+		plt.plot(np.array(s.Iac_guess_history)*1e3, linestyle='dashed', marker='+', color=(0.4, 0, 0.6))
+		plt.xlabel("Iteration")
+		plt.ylabel("Iac Guess (mA)")
+		plt.grid()
+		plt.title("Guess History")
+		plt.subplot(1, 3, 3)
+		plt.plot(s.guess_coef_history, linestyle='dashed', marker='+', color=(0, 0.4, 0.7))
+		plt.xlabel("Iteration")
+		plt.ylabel("Convergence Coefficient")
+		plt.title("Coeff. History")
 		plt.grid()
 		
-		# Create spectrum figure
-		plt.figure(2)
-		plt.semilogy(s.spec_freqs/1e9, s.spec*1e3)
-		plt.xlabel("Frequency (GHz)")
-		plt.ylabel("AC Current (mA)")
-		plt.title(f"Current Spectrum, Idc = {rd(s.Ibias*1e3)} mA")
-		plt.xlim((0, self.freq*5/1e9))
-		plt.grid()
+		fig1.set_size_inches((14, 3))
+		
 		
 		plt.show()
 	
@@ -435,6 +516,8 @@ class LKSystem:
 			
 			last_sign = None # Sign of last change
 			self.soln.num_iter = 0	# Reset iteration counter
+			self.soln.Iac_guess_history = []
+			self.soln.guess_coef_history = []
 			guess_coef = self.opt.guess_update_coef # Reset guess_coef
 			
 			if self.opt.start_guess_method == GUESS_ZERO_REFLECTION:
@@ -448,13 +531,17 @@ class LKSystem:
 			# Loop until converge
 			while True:
 				
+				#Add to solution history
+				self.soln.guess_coef_history.append(guess_coef)
+				self.soln.Iac_guess_history.append(Iac_guess)
+				
 				# Crunch the numbers of this guess value
 				self.crunch(Iac_guess, Idc)
 				self.soln.num_iter += 1
 				
 				# Calculate signed error
-				error = self.soln.Iac_result_spec[0] - Iac_guess
-				error_pcnt = (np.max([self.soln.Iac_result_spec[0], Iac_guess])/np.min([self.soln.Iac_result_spec[0], Iac_guess])-1)*100
+				error = self.soln.Iac_result_spec[1] - Iac_guess
+				error_pcnt = (np.max([self.soln.Iac_result_spec[1], Iac_guess])/np.min([self.soln.Iac_result_spec[1], Iac_guess])-1)*100
 				
 				# Check for convergence
 				if error_pcnt < self.opt.tol_pcnt:
@@ -477,6 +564,18 @@ class LKSystem:
 						new_soln.Zin = []
 						new_soln.Iac_result_rms = []
 						new_soln.Iac_result_td = []
+						
+					if self.opt.print_soln_on_converge:
+						print(f"{Fore.LIGHTBLUE_EX}Solution:{Style.RESET_ALL}")
+						print(f"{Fore.LIGHTBLUE_EX}\tharms:{Style.RESET_ALL} {rdl(new_soln.harms)}")
+						print(f"{Fore.LIGHTBLUE_EX}\tsqL_ (sq(nH/M)):{Style.RESET_ALL} {rdl(new_soln.specsqL_*1e9)}")
+						print(f"{Fore.LIGHTBLUE_EX}\tZ0 (ohms):{Style.RESET_ALL} {rdl(new_soln.Zchip)}")
+						print(f"{Fore.LIGHTBLUE_EX}\tbetaL (deg):{Style.RESET_ALL} {rdl(new_soln.betaL)}")
+						print(f"{Fore.LIGHTBLUE_EX}\tIL (mA):{Style.RESET_ALL} {rdl(new_soln.IL_result_spec*1e3)}")
+						print(f"{Fore.LIGHTBLUE_EX}\tIx (mA):{Style.RESET_ALL} {rdl(new_soln.Ix_result_spec*1e3)}")
+						print(f"{Fore.LIGHTBLUE_EX}\tIg (mA):{Style.RESET_ALL} {rdl(new_soln.Iac_result_spec*1e3)}")
+						
+						self.plot_solution(new_soln)
 					
 					# Add solution to list
 					self.solution.append(new_soln)
@@ -515,6 +614,9 @@ class LKSystem:
 					
 					# Add solution to list
 					self.solution.append(new_soln)
+					
+					if self.opt.print_soln_on_converge:
+						self.plot_solution(new_soln)
 					
 					# Exit convergence loop
 					break

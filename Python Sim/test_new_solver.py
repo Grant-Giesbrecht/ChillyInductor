@@ -21,7 +21,8 @@ with open("cryostat_sparams.pkl", 'rb') as fh:
 lks = LKSystem(Pgen, C_, l_phys, freq, q, L0)
 lks.opt.start_guess_method = GUESS_USE_LAST
 lks.opt.max_iter = 200
-lks.configure_loss(sparam_data=S21_data)
+lks.opt.print_soln_on_converge = False
+# lks.configure_loss(sparam_data=S21_data)
 
 # lks.crunch(.01, .03, show_plot_td=False, show_plot_spec=True)
 
