@@ -277,6 +277,85 @@ class LKSystem:
 		
 		logging.main(f"Configured system loss.")
 			
+	def fourier(self, y:list, loss_frac:float=0):
+		""" Takes the fourier transform of 'y and returns both the full spectrum, and
+		the spectral components at the frequencies indicated by self.freq and self.harms. 
+		
+		y: variable to take FFT of
+		loss_frac: fraction of S21_loss to apply to spectral components. (0 = apply no loss, 1 = apply full S21 loss)
+		
+		Returns all data as a tuple:
+			(fullspec, fullspec_freqs, spectrum, spectrum_freqs)
+		
+		fullspec: Entire spectrum, no S21 loss applied ever
+		fullspec_freqs: corresponding frequencies for fullspec
+		spectrum: Spectrum as specified frequencies WITH S21 loss applied, per loss_frac
+		spectrum_freqs: Frequencies at which spectrum is defined
+		"""
+		# Initialize X and Y variables
+		num_pts = len(y)
+		dt = self.t[1]-self.t[0]
+		
+		# Run FFT
+		spec_raw = fft(y)[:num_pts//2]
+		
+		# Fix magnitude to compensate for number of points
+		fullspec = 2.0/num_pts*np.abs(spec_raw)
+		
+		# Get corresponding x axis (frequencies)
+		fullspec_freqs = fftfreq(num_pts, dt)[:num_pts//2]
+		
+		# Iterate over all harmonics
+		spectrum = []
+		spectrum_freqs = []
+		DC_idx = 0
+		for h_idx, h in enumerate(self.harms):
+			
+			# Find closest datapoint to target frequency
+			target_freq = self.freq*h
+			idx = find_nearest(fullspec_freqs, target_freq)
+			freq_err = np.abs(fullspec_freqs[idx]-target_freq)
+
+			# Send warning if target frequency missed by substatial margin
+			if target_freq == 0:
+				if freq_err > self.opt.freq_tol_Hz:
+					logging.warning(f"Failed to find spectral data within absolute tolerance of target frequency. (Error = {freq_err/1e6} MHz, target = DC")
+			elif freq_err/target_freq*100 > self.opt.freq_tol_pcnt:
+				logging.warning(f"Failed to find spectral data within (%) tolerance of target frequency. (Error = {freq_err/target_freq*100} %, target = {target_freq/1e9} GHz")
+			elif freq_err > self.opt.freq_tol_Hz:
+				logging.warning(f"Failed to find spectral data within absolute tolerance of target frequency. (Error = {freq_err/1e6} MHz, target = {target_freq/1e9} GHz")
+			
+			# Find index of peak, checking adjacent datapoints as well
+			try:
+				Iac_hx = np.max([ fullspec[idx-1], fullspec[idx], fullspec[idx+1] ])
+			except:
+				if h != 0:
+					logging.warning("Spectrum selected edge-element for fundamental")
+				Iac_hx = fullspec[idx]
+			
+			# # Record DC index
+			# if h_idx == 0:
+			# 	speclist = list(fullspec)
+			# 	DC_idx = speclist.index(Iac_hx)
+			# else: # Add DC component to harmonic component
+			# 	Iac_hx += fullspec[DC_idx]
+			
+			# Apply system loss
+			if (self.opt.use_S21_loss) and (self.system_loss is not None):
+				logging.error("Need to apply system loss to power, not LK!!!")
+				Iac_hx *= 1 - loss_frac*(1 - self.system_loss[h_idx])
+		
+			# Save to solution set
+			spectrum.append(abs(Iac_hx))
+			spectrum.append(fullspec_freqs[idx])
+			
+		# DC term is doubled, per matching TD with reconstructed signal.
+		# TODO: Explain this!
+		spectrum[0] /= 2
+		
+		# Return tuple of all data
+		return (fullspec, fullspec_freqs, spectrum, spectrum_freqs)
+	
 	def crunch(self, Iac:float, Idc:float, show_plot_td=False, show_plot_spec=False):
 		""" Using the provided Iac guess, find the reuslting solution, and the error
 		between the solution and the initial guess.
@@ -288,6 +367,8 @@ class LKSystem:
 		# Update Iac in solution
 		self.soln.Iac = Iac
 		self.soln.Ibias = Idc
+		self.soln.harms = self.harms
+		self.soln.freq = self.freq
 		
 		# Solve for inductance (Lk)
 		# Calculate input current waveform
@@ -299,154 +380,165 @@ class LKSystem:
 		# Calculate Lk
 		self.soln.Lk = self.L0 + self.L0/(self.q**2) * (Iin**2)
 		self.soln.L_ = self.soln.Lk/self.l_phys
-		self.soln.sqL_ = np.sqrt(self.soln.L_)
 		
-		#----------------------- CALCULATE SPECTRAL COMPONENTS OF sqL_ --------------------
-		
-		y = self.soln.sqL_
-		num_pts = len(y)
-		dt = self.t[1]-self.t[0]
-		
-		# Run FFT
-		spec_raw = fft(y)[:num_pts//2]
-		
-		# Fix magnitude to compensate for number of points
-		spec = 2.0/num_pts*np.abs(spec_raw)
-		self.soln.spec = spec
-		self.soln.specsqL_full = spec
-		
-		
-		# Get corresponding x axis (frequencies)
-		spec_freqs = fftfreq(num_pts, dt)[:num_pts//2]
-		self.soln.spec_freqs = spec_freqs
-		self.soln.specsqL_freqs = spec_freqs
-		
-		# Iterate over all harmonics
-		spectrum = []
-		DC_idx = 0
-		for h_idx, h in enumerate(self.harms):
-			
-			# Find closest datapoint to target frequency
-			target_freq = self.freq*h
-			idx = find_nearest(spec_freqs, target_freq)
-			freq_err = np.abs(spec_freqs[idx]-target_freq)
-
-			# Send warning if target frequency missed by substatial margin
-			if target_freq == 0:
-				if freq_err > self.opt.freq_tol_Hz:
-					logging.warning(f"Failed to find spectral data within absolute tolerance of target frequency. (Error = {freq_err/1e6} MHz, target = DC")
-			elif freq_err/target_freq*100 > self.opt.freq_tol_pcnt:
-				logging.warning(f"Failed to find spectral data within (%) tolerance of target frequency. (Error = {freq_err/target_freq*100} %, target = {target_freq/1e9} GHz")
-			elif freq_err > self.opt.freq_tol_Hz:
-				logging.warning(f"Failed to find spectral data within absolute tolerance of target frequency. (Error = {freq_err/1e6} MHz, target = {target_freq/1e9} GHz")
-			
-			# Find index of peak
-			try:
-				Iac_hx = np.max([ spec[idx-1], spec[idx], spec[idx+1] ])
-			except:
-				if h != 0:
-					logging.warning("Spectrum selected edge-element for fundamental")
-				Iac_hx = spec[idx]
-			
-			# Record DC index
-			if h_idx == 0:
-				speclist = list(spec)
-				DC_idx = speclist.index(Iac_hx)
-			else: # Add DC component to harmonic component
-				Iac_hx += spec[DC_idx]
-			
-			# Apply system loss
-			if (self.opt.use_S21_loss) and (self.system_loss is not None):
-				logging.error("Need to apply system loss to power, not LK!!!")
-				Iac_hx *= self.system_loss[h_idx]
-		
-			# Save to solution set
-			spectrum.append(abs(Iac_hx))
-		self.soln.specsqL_ = np.array(spectrum)
-		
-		# DC term is doubled, per matching TD with reconstructed signal.
-		# TODO: Explain this!
-		self.soln.specsqL_[0] /= 2
-		
-		# Show spectrum if requested
-		if show_plot_spec:
-			
-			# Limit plot window
-			f_min_plot = 1e9
-			f_max_plot = self.freq*10
-			idx_start = find_nearest(spec_freqs, f_min_plot)
-			idx_end = find_nearest(spec_freqs, f_max_plot)
-			
-			# Plot Data
-			plt.semilogy(spec_freqs[idx_start:idx_end]/1e9, spec[idx_start:idx_end], label="Full Spectrum", color=(0, 0, 0.7))
-			plt.scatter(self.freq/1e9*self.harms, self.soln.specsqL_, label="Selected Points (Includes loss)", color=(0.8, 0, 0))
-			plt.xlabel("Frequency (GHz)")
-			plt.ylabel("sqL_ [sq(H/m)]")
-			plt.title("Solution Spectrum")
-			plt.grid()
-			plt.legend()
-			
-			plt.show()
-		
-		if show_plot_td:
-			plot_Ts = 5
-			idx_end = find_nearest(self.t, plot_Ts/self.freq)
-			
-			# Reconstruct TD from FFT to test result
-			sqL_recon = self.soln.specsqL_[0]
-			for idx, h in enumerate(self.harms):
-				
-				# Skip DC
-				if h == 0:
-					continue
-				
-				sqL_recon = sqL_recon + self.soln.specsqL_[idx]*np.sin(self.freq*h*2*PI*self.t[:idx_end]+PI)
-				
-			
-			plt.plot(self.t[:idx_end]*1e9, self.soln.sqL_[:idx_end], label="Original sqrt(L_)")
-			plt.plot(self.t[:idx_end]*1e9, sqL_recon, label="Reconstructed sqrt(L_) from FFT")
-			# plt.plot(self.t[:idx_end]*1e9, self.soln.L_[:idx_end], label="L_")
-			plt.xlabel("Time (ns)")
-			plt.ylabel("sqL_  [sqrt(H/M)]")
-			plt.title("Solution Iteration Time Domain Plot")
-			plt.grid()
-			plt.legend()
-			
-			# ax = plt.gca()
-			# yl = ax.get_ylim()
-			# plt.ylim([0, yl[1]])
-			
-			plt.show()
-		
-		#-------------------- USE sqL_(freq) TO FINISH ABCD ANALYSIS ----------------------
+		#-------------------- Apply ABCD-method ----------------------
 		
 		# Find Z0 of chip
-		self.soln.Zchip = self.soln.specsqL_ / np.sqrt(self.C_)
+		self.soln.Zchip = np.sqrt(self.soln.L_ / self.C_)
 		Z0 = self.soln.Zchip
 		
 		# Find electrical length of chip (from phase velocity)
-		self.soln.betaL = 2*PI*self.l_phys*self.freq*self.harms*np.sqrt(self.C_)*self.soln.specsqL_
+		self.soln.betaL = 2*PI*self.l_phys*self.freq*self.harms*np.sqrt(self.C_ * self.soln.L_)
 		
-		thetaA = self.soln.betaL
-		thetaB = 0
+		# Define ABCD method s.t. calculate current at VNA
+		meas_frac = 1 #Fractional distance from gen towards source at which to meas. Vx and Ix
+		thetaA = self.soln.betaL*meas_frac # = betaL
+		thetaB = self.soln.betaL*(1-meas_frac) # = 0
 		j = complex(0, 1)
 		
 		# Solve for IL (Eq. 33,4 in Notebook TAE-33)
 		M = (self.ZL*np.cos(thetaB) + j*Z0*np.sin(thetaB)) * ( np.cos(thetaA) + j*self.Zg/Z0*np.sin(thetaA))
 		N = ( self.ZL*j/Z0*np.sin(thetaB + np.cos(thetaB)) ) * ( j*Z0*np.sin(thetaA) + self.Zg*np.cos(thetaB) )
 		
-		IL = self.Vgen/(M+N)
-		Vx = IL*self.ZL*np.cos(thetaB) + IL*j*Z0*np.sin(thetaB)
-		Ix = IL*self.ZL*j/Z0*np.sin(thetaB) + IL*np.cos(thetaB)
-		Ig = Vx*j/Z0*np.sin(thetaA) + Ix*np.cos(thetaA)
+		IL_t = self.Vgen/(M+N)
+		Vx_t = IL*self.ZL*np.cos(thetaB) + IL*j*Z0*np.sin(thetaB)
+		Ix_t = IL*self.ZL*j/Z0*np.sin(thetaB) + IL*np.cos(thetaB)
+		Ig_t = Vx*j/Z0*np.sin(thetaA) + Ix*np.cos(thetaA)
+		
+		#----------------------- CALCULATE SPECTRAL COMPONENTS OF V and I --------------------
+		
+		IL_tuple = self.fourier(IL_t, loss_frac=1)
+		IL = IL_tuple[2]
+		
+		Vx_tuple = self.fourier(Vx_t, loss_frac=meas_frac)
+		Vx = Vx_tuple[2]
+		
+		Ix_tuple = self.fourier(Ix_t, loss_frac=meas_frac)
+		Ix = Ix_tuple[2]
+		
+		Ig_tuple = self.fourier(Ig_t, loss_frac=0)
+		Ig = Ig_tuple[2]
+		
+		# y = self.soln.sqL_
+		# num_pts = len(y)
+		# dt = self.t[1]-self.t[0]
+		
+		# # Run FFT
+		# spec_raw = fft(y)[:num_pts//2]
+		
+		# # Fix magnitude to compensate for number of points
+		# spec = 2.0/num_pts*np.abs(spec_raw)
+		# self.soln.spec = spec
+		# self.soln.specsqL_full = spec
+		
+		
+		# # Get corresponding x axis (frequencies)
+		# spec_freqs = fftfreq(num_pts, dt)[:num_pts//2]
+		# self.soln.spec_freqs = spec_freqs
+		# self.soln.specsqL_freqs = spec_freqs
+		
+		# # Iterate over all harmonics
+		# spectrum = []
+		# DC_idx = 0
+		# for h_idx, h in enumerate(self.harms):
+			
+		# 	# Find closest datapoint to target frequency
+		# 	target_freq = self.freq*h
+		# 	idx = find_nearest(spec_freqs, target_freq)
+		# 	freq_err = np.abs(spec_freqs[idx]-target_freq)
+
+		# 	# Send warning if target frequency missed by substatial margin
+		# 	if target_freq == 0:
+		# 		if freq_err > self.opt.freq_tol_Hz:
+		# 			logging.warning(f"Failed to find spectral data within absolute tolerance of target frequency. (Error = {freq_err/1e6} MHz, target = DC")
+		# 	elif freq_err/target_freq*100 > self.opt.freq_tol_pcnt:
+		# 		logging.warning(f"Failed to find spectral data within (%) tolerance of target frequency. (Error = {freq_err/target_freq*100} %, target = {target_freq/1e9} GHz")
+		# 	elif freq_err > self.opt.freq_tol_Hz:
+		# 		logging.warning(f"Failed to find spectral data within absolute tolerance of target frequency. (Error = {freq_err/1e6} MHz, target = {target_freq/1e9} GHz")
+			
+		# 	# Find index of peak
+		# 	try:
+		# 		Iac_hx = np.max([ spec[idx-1], spec[idx], spec[idx+1] ])
+		# 	except:
+		# 		if h != 0:
+		# 			logging.warning("Spectrum selected edge-element for fundamental")
+		# 		Iac_hx = spec[idx]
+			
+		# 	# Record DC index
+		# 	if h_idx == 0:
+		# 		speclist = list(spec)
+		# 		DC_idx = speclist.index(Iac_hx)
+		# 	else: # Add DC component to harmonic component
+		# 		Iac_hx += spec[DC_idx]
+			
+		# 	# Apply system loss
+		# 	if (self.opt.use_S21_loss) and (self.system_loss is not None):
+		# 		logging.error("Need to apply system loss to power, not LK!!!")
+		# 		Iac_hx *= self.system_loss[h_idx]
+		
+		# 	# Save to solution set
+		# 	spectrum.append(abs(Iac_hx))
+		# self.soln.specsqL_ = np.array(spectrum)
+		
+		# # DC term is doubled, per matching TD with reconstructed signal.
+		# # TODO: Explain this!
+		# self.soln.specsqL_[0] /= 2
+		
+		# # Show spectrum if requested
+		# if show_plot_spec:
+			
+		# 	# Limit plot window
+		# 	f_min_plot = 1e9
+		# 	f_max_plot = self.freq*10
+		# 	idx_start = find_nearest(spec_freqs, f_min_plot)
+		# 	idx_end = find_nearest(spec_freqs, f_max_plot)
+			
+		# 	# Plot Data
+		# 	plt.semilogy(spec_freqs[idx_start:idx_end]/1e9, spec[idx_start:idx_end], label="Full Spectrum", color=(0, 0, 0.7))
+		# 	plt.scatter(self.freq/1e9*self.harms, self.soln.specsqL_, label="Selected Points (Includes loss)", color=(0.8, 0, 0))
+		# 	plt.xlabel("Frequency (GHz)")
+		# 	plt.ylabel("sqL_ [sq(H/m)]")
+		# 	plt.title("Solution Spectrum")
+		# 	plt.grid()
+		# 	plt.legend()
+			
+		# 	plt.show()
+		
+		# if show_plot_td:
+		# 	plot_Ts = 5
+		# 	idx_end = find_nearest(self.t, plot_Ts/self.freq)
+			
+		# 	# Reconstruct TD from FFT to test result
+		# 	sqL_recon = self.soln.specsqL_[0]
+		# 	for idx, h in enumerate(self.harms):
+				
+		# 		# Skip DC
+		# 		if h == 0:
+		# 			continue
+				
+		# 		sqL_recon = sqL_recon + self.soln.specsqL_[idx]*np.sin(self.freq*h*2*PI*self.t[:idx_end]+PI)
+				
+			
+		# 	plt.plot(self.t[:idx_end]*1e9, self.soln.sqL_[:idx_end], label="Original sqrt(L_)")
+		# 	plt.plot(self.t[:idx_end]*1e9, sqL_recon, label="Reconstructed sqrt(L_) from FFT")
+		# 	# plt.plot(self.t[:idx_end]*1e9, self.soln.L_[:idx_end], label="L_")
+		# 	plt.xlabel("Time (ns)")
+		# 	plt.ylabel("sqL_  [sqrt(H/M)]")
+		# 	plt.title("Solution Iteration Time Domain Plot")
+		# 	plt.grid()
+		# 	plt.legend()
+			
+		# 	# ax = plt.gca()
+		# 	# yl = ax.get_ylim()
+		# 	# plt.ylim([0, yl[1]])
+			
+		# 	plt.show()
 		
 		# Save to result. Note the solve function expects no DC case
 		self.soln.Iac_result_spec = abs(Ig)
 		self.soln.Ix_result_spec = abs(Ix)
 		self.soln.Vx_result_spec = abs(Vx)
 		self.soln.IL_result_spec = abs(IL)
-		self.soln.harms = self.harms
-		self.soln.freq = self.freq
 		
 	def plot_solution(self, s:LKSolution=None):
 		
