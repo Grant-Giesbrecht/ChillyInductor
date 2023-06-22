@@ -107,6 +107,7 @@ class LKSolution:
 	spec_Vx = None
 	spec_IL = None
 	spec_Ig = None # Iac result as spectrum, shows fundamental, 2harm, and 3harm as touple (idx 0 = fund, ..., 2 = 3rd harm)
+	spec_Ig_check = None
 	spec_freqs = None
 	spec_freqs_full = None
 	rmse = None # |Iac_result - Iac|
@@ -116,7 +117,8 @@ class LKSolution:
 	num_iter = None # Number of iterations completed
 	Iac_guess_history = None # List of all Iac guesses
 	guess_coef_history = None # List of all guess_coefficeints
-
+	error1_history = None # List of all error values during converge
+	error2_history = None # List of all error values during converge
 
 def rd(x:float, num_decimals:int=2):
 	
@@ -408,6 +410,23 @@ class LKSystem:
 		Ix_t = IL_t*self.ZL*j/Z0*np.sin(thetaB) + IL_t*np.cos(thetaB)
 		Ig_t = Vx_t*j/Z0*np.sin(thetaA) + Ix_t*np.cos(thetaA)
 		
+		#----------------------------- Calculate expected current for resistor divider ---------------------
+		
+		# # Impedance looking into chip
+		Zin = xfmr(Z0, self.ZL, self.soln.betaL)
+		Rin = np.real(Zin)
+		Xin = np.real(Zin)
+		
+		Rg = np.real(self.Zg)
+		Xg = np.imag(self.Zg)
+		
+		# # Calculate Ig resulting from impedance analysis
+		# Ig_zcheck = self.Vgen/(self.Zg + Zin)
+		
+		# Calculate load current from P0
+		P0 = 1/2 * abs(self.Vgen)**2 * Rin/ ( (Rin + Rg)**2 + (Xin + Xg)**2 )
+		IL_P0 = np.sqrt(2*P0/self.ZL)
+		
 		#----------------------- CALCULATE SPECTRAL COMPONENTS OF V and I --------------------
 		
 		IL_tuple = self.fourier(IL_t, loss_frac=1)
@@ -422,8 +441,12 @@ class LKSystem:
 		Ig_tuple = self.fourier(Ig_t, loss_frac=0)
 		Ig = Ig_tuple[2]
 		
+		Igzc_tuple = self.fourier(IL_P0, loss_frac=0)
+		Ig_zc = Igzc_tuple[2]
+		
 		# Save to result
 		self.soln.spec_Ig = abs(Ig)
+		self.soln.spec_Ig_check = abs(Ig_zc)
 		self.soln.spec_Ix = abs(Ix)
 		self.soln.spec_Vx = abs(Vx)
 		self.soln.spec_IL = abs(IL)
@@ -431,6 +454,9 @@ class LKSystem:
 		self.soln.spec_Ix_full = abs(Ix_tuple[0])
 		self.soln.spec_freqs = Ix_tuple[3]
 		self.soln.spec_freqs_full = Ix_tuple[1]
+		
+		
+		
 		
 	def plot_solution(self, s:LKSolution=None):
 		
@@ -482,13 +508,13 @@ class LKSystem:
 		
 		# Plot convergence history
 		plt.subplot(1, 3, 2)
-		plt.plot(np.array(s.Iac_guess_history)*1e3, linestyle='dashed', marker='+', color=(0.4, 0, 0.6))
+		plt.semilogy(np.array(s.Iac_guess_history)*1e3, linestyle='dashed', marker='+', color=(0.4, 0, 0.6))
 		plt.xlabel("Iteration")
 		plt.ylabel("Iac Guess (mA)")
 		plt.grid()
 		plt.title("Guess History")
 		plt.subplot(1, 3, 3)
-		plt.plot(s.guess_coef_history, linestyle='dashed', marker='+', color=(0, 0.4, 0.7))
+		plt.semilogy(s.guess_coef_history, linestyle='dashed', marker='+', color=(0, 0.4, 0.7))
 		plt.xlabel("Iteration")
 		plt.ylabel("Convergence Coefficient")
 		plt.title("Coeff. History")
@@ -504,17 +530,19 @@ class LKSystem:
 		
 		logging.info(f"Beginning iterative solve for {cspecial}{len(Ibias_vals)}{standard_color} bias points.")
 		
-		Iac_crude_guess = np.abs(self.Vgen)**2 / 50 # Crude guess for AC current (Assume 50 ohm looking into chip)
+		Iac_crude_guess = np.abs(self.Vgen) / 50 # Crude guess for AC current (Assume 50 ohm looking into chip)
 		
 		# Scan over each bias value
 		for Idc in Ibias_vals:
 			
+			# Reset solution data
 			last_sign = None # Sign of last change
 			self.soln.num_iter = 0	# Reset iteration counter
 			self.soln.Iac_guess_history = []
 			self.soln.guess_coef_history = []
 			guess_coef = self.opt.guess_update_coef # Reset guess_coef
 			
+			# Prepare initial guess
 			if self.opt.start_guess_method == GUESS_ZERO_REFLECTION:
 				Iac_guess = Iac_crude_guess
 			elif self.opt.start_guess_method == GUESS_USE_LAST:
@@ -522,7 +550,7 @@ class LKSystem:
 					Iac_guess = self.solution[-1].Iac
 				else:
 					Iac_guess = Iac_crude_guess
-			
+				
 			# Loop until converge
 			while True:
 				
@@ -531,21 +559,40 @@ class LKSystem:
 				self.soln.Iac_guess_history.append(Iac_guess)
 				
 				# Crunch the numbers of this guess value
+				# print(f"{Fore.BLUE}Guessing Iac = {Iac_guess}...{Style.RESET_ALL}")
 				self.crunch(Iac_guess, Idc)
 				self.soln.num_iter += 1
 				
-				# Calculate signed error
-				error = self.soln.spec_Ig[1] - Iac_guess
-				denom = np.min([self.soln.spec_Ig[1], Iac_guess])
-				if denom != 0:
-					error_pcnt = (np.max([self.soln.spec_Ig[1], Iac_guess])/denom-1)*100
-					did_converge = (error_pcnt < self.opt.tol_pcnt) and ( abs(error) < self.opt.tol_abs )
+				# Calculate signed error, check if convergence conditions met
+				error1 = self.soln.spec_Ig[1] - Iac_guess
+				denom1 = np.min([self.soln.spec_Ig[1], Iac_guess])
+				if denom1 != 0:
+					error_pcnt1 = (np.max([self.soln.spec_Ig[1], Iac_guess])/denom1-1)*100
+					did_converge1 = (error_pcnt1 < self.opt.tol_pcnt) and ( abs(error1) < self.opt.tol_abs )
 				else:
-					error_pcnt = None
-					did_converge = ( abs(error) < self.opt.tol_abs )
+					error_pcnt1 = None
+					did_converge1 = ( abs(error1) < self.opt.tol_abs )
+				
+				# Calculate signed error, check if convergence conditions met
+				error2 = self.soln.spec_Ig_check[1] - Iac_guess
+				denom2 = np.min([self.soln.spec_Ig_check[1], Iac_guess])
+				if denom1 != 0:
+					error_pcnt2 = (np.max([self.soln.spec_Ig_check[1], Iac_guess])/denom2-1)*100
+					did_converge2 = (error_pcnt2 < self.opt.tol_pcnt) and ( abs(error2) < self.opt.tol_abs )
+				else:
+					error_pcnt2 = None
+					did_converge2 = ( abs(error2) < self.opt.tol_abs )
+					
+				self.soln.error1_history.append(error1)
+				self.soln.error2_history.append(error2)
+				
+				#TODO: Remove debug prints!
+				# res = self.soln.spec_Ig[1]
+				# print(f"{Fore.YELLOW}\t-> result = {res}{Style.RESET_ALL}")
+				# print(f"{Fore.YELLOW}\t-> error = {rd(error_pcnt)} %, {rd(error*1e3)} mA{Style.RESET_ALL}")
 					
 				# Check for convergence
-				if did_converge:
+				if did_converge1 and did_converge2: #------------- Solution has converged ---------------------------------
 					
 					# Add to logger
 					logging.info(f"Datapoint ({cspecial}Idc={rd(Idc*1e3)} mA{standard_color}),({cspecial}Iac={rd(Iac_guess*1e3, 3)} mA{standard_color}) converged with {cspecial}error={rd(error_pcnt, 3)}%{standard_color} after {cspecial}{self.soln.num_iter}{standard_color} iterations ")
@@ -581,8 +628,8 @@ class LKSystem:
 						print(f"{label_color}\tIx (mA):{Style.RESET_ALL} {rdl(new_soln.spec_Ix*1e3)}")
 						print(f"{label_color}\tIg (mA):{Style.RESET_ALL} {rdl(new_soln.spec_Ig*1e3)}")
 						
-						if new_soln.Iac < 1e-3:
-							self.plot_solution(new_soln)
+						# if new_soln.Iac < 1e-3:
+						# 	self.plot_solution(new_soln)
 					
 					# Add solution to list
 					self.solution.append(new_soln)
@@ -598,15 +645,16 @@ class LKSystem:
 					break
 					
 				# Check for exceed max iterations
-				elif self.soln.num_iter >= self.opt.max_iter:
+				elif self.soln.num_iter >= self.opt.max_iter:  #-------- Not converged, has exceeded hax iterations! ---------
 					
 					# Add to logger
 					logging.warning(f"Failed to converge for point ({cspecial}Idc={rd(Idc*1e3)} mA{standard_color}).")
 					
-					# Create deep
+					# Create deep copy
 					new_soln = copy.deepcopy(self.soln)
 					new_soln.convergence_failure = True
 					
+					# Purge time domain data if requested
 					if self.opt.remove_td:
 						new_soln.Lk = []
 						new_soln.Vp = []
@@ -622,6 +670,7 @@ class LKSystem:
 					# Add solution to list
 					self.solution.append(new_soln)
 					
+					# Print convergence data if requested
 					if self.opt.print_soln_on_converge:
 						self.plot_solution(new_soln)
 					
@@ -629,36 +678,45 @@ class LKSystem:
 					break
 				
 				# Else update guess
-				else:
+				else: #---------------------- Not converged, calcualte a new guess ------------------------------
 					
-					# Error is positive
-					if error > 0:
+					# Get composite error
+					error_comp = (error1 + error2)/2
+					
+					# Eror is positive, both agree
+					if error1 > 0 and error2 > 0:
+						
+						# print(f"{Fore.CYAN}Calculating new guess. Current error = {error}, last_sign = {last_sign} {Style.RESET_ALL}")
 						
 						# First iteration - set sign
 						if last_sign is None:
-							last_sign = np.sign(error)
+							last_sign = np.sign(error1)
 						# Last change was in different direction
-						elif last_sign < 1:
+						elif last_sign < 0:
 							guess_coef *= self.opt.ceof_shrink_factor # Change update size
-							last_sign = -1 # Update change direction
+							logging.info(f"iter: {self.soln.num_iter} Changing guess coef from {rd(guess_coef*1e5)}e-5 to {rd(guess_coef*1e5)}e-5. Shrink factor: {rd(self.opt.ceof_shrink_factor)}")
+							last_sign = 1 # Update change direction
 							logging.debug(f"Error sign changed. Changing guess update coefficient to {cspecial}{guess_coef}{standard_color}")
 						
 						# Update guess
-						Iac_guess = Iac_guess + error * guess_coef
+						Iac_guess = Iac_guess + error1 * guess_coef
 					
-					# Else error is negative
-					else:
+					# Error is negative, both agree
+					elif error1 < 0 and error2 < 0:
+						
+						# print(f"{Fore.CYAN}Calculating new guess. Current error = {error}, last_sign = {last_sign} {Style.RESET_ALL}")
 						
 						# First iteration - set sign
 						if last_sign is None:
-							last_sign = np.sign(error)
+							last_sign = np.sign(error1)
 						# Last change was in different direction
-						elif last_sign > 1:
+						elif last_sign > 0:
 							guess_coef *= self.opt.ceof_shrink_factor # Change update size
-							last_sign = 1 # Update change direction
+							logging.info(f"iter: {self.soln.num_iter} Changing guess coef from {rd(guess_coef*1e5)}e-5 to {rd(guess_coef*1e5)}e-5. Shrink factor: {rd(self.opt.ceof_shrink_factor)}")
+							last_sign = -1 # Update change direction
 							logging.debug(f"Error sign changed. Changing guess update coefficient to {cspecial}{guess_coef}{standard_color}")
 							
 						# Update guess
-						Iac_guess = Iac_guess + error * guess_coef
+						Iac_guess = Iac_guess + error1 * guess_coef
 					
-					logging.debug(f"Last guess produced {cspecial}error={error}{standard_color}. Updated guess to {cspecial}Iac={Iac_guess}{standard_color}. [{cspecial}iter={self.soln.num_iter}{standard_color}]")
+					logging.debug(f"Last guess produced {cspecial}error={error1}{standard_color}. Updated guess to {cspecial}Iac={Iac_guess}{standard_color}. [{cspecial}iter={self.soln.num_iter}{standard_color}]")

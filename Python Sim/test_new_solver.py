@@ -19,7 +19,7 @@ with open("cryostat_sparams.pkl", 'rb') as fh:
 ######################### CONFIGURE BASIC SIMULATION ##################
 
 lks = LKSystem(Pgen, C_, l_phys, freq, q, L0)
-lks.opt.start_guess_method = GUESS_USE_LAST
+lks.opt.start_guess_method = GUESS_ZERO_REFLECTION
 lks.opt.max_iter = 200
 lks.opt.print_soln_on_converge = True
 # lks.configure_loss(sparam_data=S21_data)
