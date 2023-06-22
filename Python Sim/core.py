@@ -68,6 +68,7 @@ class Simopt:
 	# Convergence options
 	max_iter = 1000 # Max iterations for convergence
 	tol_pcnt = 1 # Tolerance in percent between Iac guesses
+	tol_abs = 0.1e-3 # Tolerance in mA between Iac guesses
 	guess_update_coef = 0.5 # Fraction by which to compromise between guess and result Iac (0=remain at guess, 1=use result; 0.5 recommended)
 	ceof_shrink_factor = 0.2 # Fraction by which to modify guess_update_coef when sign reverses (good starting point: 0.2)
 	
@@ -120,6 +121,10 @@ class LKSolution:
 	spec_freqs = None # Spectrum frequencies in Hz # TODO: Remove and replace with specsqL_freqs
 
 def rd(x:float, num_decimals:int=2):
+	
+	if x is None:
+		return "NaN"
+	
 	return f"{round(x*10**num_decimals)/(10**num_decimals)}"
 
 def rdl(L:list, num_decimals:int=2):
@@ -354,7 +359,7 @@ class LKSystem:
 		spectrum[0] /= 2
 		
 		# Return tuple of all data
-		return (fullspec, fullspec_freqs, spectrum, spectrum_freqs)
+		return (np.array(fullspec), np.array(fullspec_freqs), np.array(spectrum), np.array(spectrum_freqs))
 	
 	def crunch(self, Iac:float, Idc:float, show_plot_td=False, show_plot_spec=False):
 		""" Using the provided Iac guess, find the reuslting solution, and the error
@@ -388,7 +393,7 @@ class LKSystem:
 		Z0 = self.soln.Zchip
 		
 		# Find electrical length of chip (from phase velocity)
-		self.soln.betaL = 2*PI*self.l_phys*self.freq*self.harms*np.sqrt(self.C_ * self.soln.L_)
+		self.soln.betaL = 2*PI*self.l_phys*self.freq*np.sqrt(self.C_ * self.soln.L_)
 		
 		# Define ABCD method s.t. calculate current at VNA
 		meas_frac = 1 #Fractional distance from gen towards source at which to meas. Vx and Ix
@@ -401,9 +406,9 @@ class LKSystem:
 		N = ( self.ZL*j/Z0*np.sin(thetaB + np.cos(thetaB)) ) * ( j*Z0*np.sin(thetaA) + self.Zg*np.cos(thetaB) )
 		
 		IL_t = self.Vgen/(M+N)
-		Vx_t = IL*self.ZL*np.cos(thetaB) + IL*j*Z0*np.sin(thetaB)
-		Ix_t = IL*self.ZL*j/Z0*np.sin(thetaB) + IL*np.cos(thetaB)
-		Ig_t = Vx*j/Z0*np.sin(thetaA) + Ix*np.cos(thetaA)
+		Vx_t = IL_t*self.ZL*np.cos(thetaB) + IL_t*j*Z0*np.sin(thetaB)
+		Ix_t = IL_t*self.ZL*j/Z0*np.sin(thetaB) + IL_t*np.cos(thetaB)
+		Ig_t = Vx_t*j/Z0*np.sin(thetaA) + Ix_t*np.cos(thetaA)
 		
 		#----------------------- CALCULATE SPECTRAL COMPONENTS OF V and I --------------------
 		
@@ -641,10 +646,16 @@ class LKSystem:
 				
 				# Calculate signed error
 				error = self.soln.Iac_result_spec[1] - Iac_guess
-				error_pcnt = (np.max([self.soln.Iac_result_spec[1], Iac_guess])/np.min([self.soln.Iac_result_spec[1], Iac_guess])-1)*100
-				
+				denom = np.min([self.soln.Iac_result_spec[1], Iac_guess])
+				if denom != 0:
+					error_pcnt = (np.max([self.soln.Iac_result_spec[1], Iac_guess])/denom-1)*100
+					did_converge = (error_pcnt < self.opt.tol_pcnt) and ( abs(error) < self.opt.tol_abs )
+				else:
+					error_pcnt = None
+					did_converge = ( abs(error) < self.opt.tol_abs )
+					
 				# Check for convergence
-				if error_pcnt < self.opt.tol_pcnt:
+				if did_converge:
 					
 					# Add to logger
 					logging.info(f"Datapoint ({cspecial}Idc={rd(Idc*1e3)} mA{standard_color}),({cspecial}Iac={rd(Iac_guess*1e3, 3)} mA{standard_color}) converged with {cspecial}error={rd(error_pcnt, 3)}%{standard_color} after {cspecial}{self.soln.num_iter}{standard_color} iterations ")
@@ -673,7 +684,7 @@ class LKSystem:
 						
 						print(f"{label_color}Solution:{Style.RESET_ALL}")
 						print(f"{label_color}\tharms:{Style.RESET_ALL} {rdl(new_soln.harms)}")
-						print(f"{label_color}\tsqL_ (sq(nH/M)):{Style.RESET_ALL} {rdl(new_soln.specsqL_*1e9)}")
+						# print(f"{label_color}\tsqL_ (sq(nH/M)):{Style.RESET_ALL} {rdl(new_soln.specsqL_*1e9)}")
 						print(f"{label_color}\tZ0 (ohms):{Style.RESET_ALL} {rdl(new_soln.Zchip)}")
 						print(f"{label_color}\tbetaL (deg):{Style.RESET_ALL} {rdl(new_soln.betaL)}")
 						print(f"{label_color}\tIL (mA):{Style.RESET_ALL} {rdl(new_soln.IL_result_spec*1e3)}")
