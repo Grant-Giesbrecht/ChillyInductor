@@ -85,30 +85,30 @@ class Simopt:
 class LKSolution:
 	""" Contains data to represent a solution to the LKsystem problem"""
 	
-	Lk = None
-	
-	Vp = None # Not actually used
-	betaL = None # Electrical length of chip in radians
-	P0 = None # TODO: Remove?
-	theta = None # TODO: not saved
+	# Scalar/configuration variables
 	Iac = None
 	Ibias = None
 	Zin = None # Impedance looking into chip (from source side)
 	harms = None
 	freq = None # Frequency of fundamnetal tone
+	P0 = None # TODO: Remove?
 	
+	# Time domain variables
+	Lk = None
+	Vp = None # Not actually used
+	betaL = None # Electrical length of chip in radians
+	theta = None # TODO: not saved
 	L_ = None # From Lk
-	sqL_ = None # Sqrt(Lk)
-	specsqL_ = None # List of spectral values for sqL_ (1 value per item in harms)
-	specsqL_full = None # List of spectral values for sqL_, all points saved
-	specsqL_freqs = None # List of frequency values to correspond to sqL_ spectrum
-	
 	Zchip = None # From L_, characteristic impedance of chip
 	
-	Ix_result_spec = None
-	Vx_result_spec = None
-	IL_result_spec = None
-	Iac_result_spec = None # Iac result as spectrum, shows fundamental, 2harm, and 3harm as touple (idx 0 = fund, ..., 2 = 3rd harm)
+	# Spectrum Data
+	spec_Ix_full = None
+	spec_Ix = None
+	spec_Vx = None
+	spec_IL = None
+	spec_Ig = None # Iac result as spectrum, shows fundamental, 2harm, and 3harm as touple (idx 0 = fund, ..., 2 = 3rd harm)
+	spec_freqs = None
+	spec_freqs_full = None
 	rmse = None # |Iac_result - Iac|
 	
 	# Convergence data
@@ -117,8 +117,6 @@ class LKSolution:
 	Iac_guess_history = None # List of all Iac guesses
 	guess_coef_history = None # List of all guess_coefficeints
 
-	spec = None # Spectrum data [AC Current amplitude in Amps] TODO: Remove and replace with specsqL
-	spec_freqs = None # Spectrum frequencies in Hz # TODO: Remove and replace with specsqL_freqs
 
 def rd(x:float, num_decimals:int=2):
 	
@@ -352,7 +350,7 @@ class LKSystem:
 		
 			# Save to solution set
 			spectrum.append(abs(Iac_hx))
-			spectrum.append(fullspec_freqs[idx])
+			spectrum_freqs.append(fullspec_freqs[idx])
 			
 		# DC term is doubled, per matching TD with reconstructed signal.
 		# TODO: Explain this!
@@ -424,126 +422,15 @@ class LKSystem:
 		Ig_tuple = self.fourier(Ig_t, loss_frac=0)
 		Ig = Ig_tuple[2]
 		
-		# y = self.soln.sqL_
-		# num_pts = len(y)
-		# dt = self.t[1]-self.t[0]
+		# Save to result
+		self.soln.spec_Ig = abs(Ig)
+		self.soln.spec_Ix = abs(Ix)
+		self.soln.spec_Vx = abs(Vx)
+		self.soln.spec_IL = abs(IL)
 		
-		# # Run FFT
-		# spec_raw = fft(y)[:num_pts//2]
-		
-		# # Fix magnitude to compensate for number of points
-		# spec = 2.0/num_pts*np.abs(spec_raw)
-		# self.soln.spec = spec
-		# self.soln.specsqL_full = spec
-		
-		
-		# # Get corresponding x axis (frequencies)
-		# spec_freqs = fftfreq(num_pts, dt)[:num_pts//2]
-		# self.soln.spec_freqs = spec_freqs
-		# self.soln.specsqL_freqs = spec_freqs
-		
-		# # Iterate over all harmonics
-		# spectrum = []
-		# DC_idx = 0
-		# for h_idx, h in enumerate(self.harms):
-			
-		# 	# Find closest datapoint to target frequency
-		# 	target_freq = self.freq*h
-		# 	idx = find_nearest(spec_freqs, target_freq)
-		# 	freq_err = np.abs(spec_freqs[idx]-target_freq)
-
-		# 	# Send warning if target frequency missed by substatial margin
-		# 	if target_freq == 0:
-		# 		if freq_err > self.opt.freq_tol_Hz:
-		# 			logging.warning(f"Failed to find spectral data within absolute tolerance of target frequency. (Error = {freq_err/1e6} MHz, target = DC")
-		# 	elif freq_err/target_freq*100 > self.opt.freq_tol_pcnt:
-		# 		logging.warning(f"Failed to find spectral data within (%) tolerance of target frequency. (Error = {freq_err/target_freq*100} %, target = {target_freq/1e9} GHz")
-		# 	elif freq_err > self.opt.freq_tol_Hz:
-		# 		logging.warning(f"Failed to find spectral data within absolute tolerance of target frequency. (Error = {freq_err/1e6} MHz, target = {target_freq/1e9} GHz")
-			
-		# 	# Find index of peak
-		# 	try:
-		# 		Iac_hx = np.max([ spec[idx-1], spec[idx], spec[idx+1] ])
-		# 	except:
-		# 		if h != 0:
-		# 			logging.warning("Spectrum selected edge-element for fundamental")
-		# 		Iac_hx = spec[idx]
-			
-		# 	# Record DC index
-		# 	if h_idx == 0:
-		# 		speclist = list(spec)
-		# 		DC_idx = speclist.index(Iac_hx)
-		# 	else: # Add DC component to harmonic component
-		# 		Iac_hx += spec[DC_idx]
-			
-		# 	# Apply system loss
-		# 	if (self.opt.use_S21_loss) and (self.system_loss is not None):
-		# 		logging.error("Need to apply system loss to power, not LK!!!")
-		# 		Iac_hx *= self.system_loss[h_idx]
-		
-		# 	# Save to solution set
-		# 	spectrum.append(abs(Iac_hx))
-		# self.soln.specsqL_ = np.array(spectrum)
-		
-		# # DC term is doubled, per matching TD with reconstructed signal.
-		# # TODO: Explain this!
-		# self.soln.specsqL_[0] /= 2
-		
-		# # Show spectrum if requested
-		# if show_plot_spec:
-			
-		# 	# Limit plot window
-		# 	f_min_plot = 1e9
-		# 	f_max_plot = self.freq*10
-		# 	idx_start = find_nearest(spec_freqs, f_min_plot)
-		# 	idx_end = find_nearest(spec_freqs, f_max_plot)
-			
-		# 	# Plot Data
-		# 	plt.semilogy(spec_freqs[idx_start:idx_end]/1e9, spec[idx_start:idx_end], label="Full Spectrum", color=(0, 0, 0.7))
-		# 	plt.scatter(self.freq/1e9*self.harms, self.soln.specsqL_, label="Selected Points (Includes loss)", color=(0.8, 0, 0))
-		# 	plt.xlabel("Frequency (GHz)")
-		# 	plt.ylabel("sqL_ [sq(H/m)]")
-		# 	plt.title("Solution Spectrum")
-		# 	plt.grid()
-		# 	plt.legend()
-			
-		# 	plt.show()
-		
-		# if show_plot_td:
-		# 	plot_Ts = 5
-		# 	idx_end = find_nearest(self.t, plot_Ts/self.freq)
-			
-		# 	# Reconstruct TD from FFT to test result
-		# 	sqL_recon = self.soln.specsqL_[0]
-		# 	for idx, h in enumerate(self.harms):
-				
-		# 		# Skip DC
-		# 		if h == 0:
-		# 			continue
-				
-		# 		sqL_recon = sqL_recon + self.soln.specsqL_[idx]*np.sin(self.freq*h*2*PI*self.t[:idx_end]+PI)
-				
-			
-		# 	plt.plot(self.t[:idx_end]*1e9, self.soln.sqL_[:idx_end], label="Original sqrt(L_)")
-		# 	plt.plot(self.t[:idx_end]*1e9, sqL_recon, label="Reconstructed sqrt(L_) from FFT")
-		# 	# plt.plot(self.t[:idx_end]*1e9, self.soln.L_[:idx_end], label="L_")
-		# 	plt.xlabel("Time (ns)")
-		# 	plt.ylabel("sqL_  [sqrt(H/M)]")
-		# 	plt.title("Solution Iteration Time Domain Plot")
-		# 	plt.grid()
-		# 	plt.legend()
-			
-		# 	# ax = plt.gca()
-		# 	# yl = ax.get_ylim()
-		# 	# plt.ylim([0, yl[1]])
-			
-		# 	plt.show()
-		
-		# Save to result. Note the solve function expects no DC case
-		self.soln.Iac_result_spec = abs(Ig)
-		self.soln.Ix_result_spec = abs(Ix)
-		self.soln.Vx_result_spec = abs(Vx)
-		self.soln.IL_result_spec = abs(IL)
+		self.soln.spec_Ix_full = abs(Ix_tuple[0])
+		self.soln.spec_freqs = Ix_tuple[3]
+		self.soln.spec_freqs_full = Ix_tuple[1]
 		
 	def plot_solution(self, s:LKSolution=None):
 		
@@ -577,13 +464,16 @@ class LKSystem:
 		
 		# Limit plot window
 		f_max_plot = self.freq*np.max([10, np.max(self.harms)])
-		idx_end = find_nearest(s.specsqL_freqs, f_max_plot)
+		idx_end = find_nearest(s.spec_freqs_full, f_max_plot)
+		
+		print(len(s.spec_freqs))
+		print(len(s.spec_Ix))
 		
 		# Plot Spectrum
 		fig1 = plt.figure(1)
 		plt.subplot(1, 3, 1)
-		plt.semilogy(s.specsqL_freqs[:idx_end]/1e9, self.soln.specsqL_full[:idx_end], label="Full Spectrum", color=(0, 0, 0.8))
-		plt.scatter(s.freq/1e9*self.harms, self.soln.specsqL_, label="Selected Points", color=(0.8, 0, 0))
+		plt.semilogy(s.spec_freqs_full[:idx_end]/1e9, self.soln.spec_Ix_full[:idx_end], label="Full Spectrum", color=(0, 0, 0.8))
+		plt.scatter(s.spec_freqs/1e9, self.soln.spec_Ix, label="Selected Points", color=(0.8, 0, 0))
 		plt.xlabel("Frequency (GHz)")
 		plt.ylabel("sqL_ [sq(H/m)]")
 		plt.title("Solution Spectrum")
@@ -645,10 +535,10 @@ class LKSystem:
 				self.soln.num_iter += 1
 				
 				# Calculate signed error
-				error = self.soln.Iac_result_spec[1] - Iac_guess
-				denom = np.min([self.soln.Iac_result_spec[1], Iac_guess])
+				error = self.soln.spec_Ig[1] - Iac_guess
+				denom = np.min([self.soln.spec_Ig[1], Iac_guess])
 				if denom != 0:
-					error_pcnt = (np.max([self.soln.Iac_result_spec[1], Iac_guess])/denom-1)*100
+					error_pcnt = (np.max([self.soln.spec_Ig[1], Iac_guess])/denom-1)*100
 					did_converge = (error_pcnt < self.opt.tol_pcnt) and ( abs(error) < self.opt.tol_abs )
 				else:
 					error_pcnt = None
@@ -684,12 +574,12 @@ class LKSystem:
 						
 						print(f"{label_color}Solution:{Style.RESET_ALL}")
 						print(f"{label_color}\tharms:{Style.RESET_ALL} {rdl(new_soln.harms)}")
-						# print(f"{label_color}\tsqL_ (sq(nH/M)):{Style.RESET_ALL} {rdl(new_soln.specsqL_*1e9)}")
-						print(f"{label_color}\tZ0 (ohms):{Style.RESET_ALL} {rdl(new_soln.Zchip)}")
-						print(f"{label_color}\tbetaL (deg):{Style.RESET_ALL} {rdl(new_soln.betaL)}")
-						print(f"{label_color}\tIL (mA):{Style.RESET_ALL} {rdl(new_soln.IL_result_spec*1e3)}")
-						print(f"{label_color}\tIx (mA):{Style.RESET_ALL} {rdl(new_soln.Ix_result_spec*1e3)}")
-						print(f"{label_color}\tIg (mA):{Style.RESET_ALL} {rdl(new_soln.Iac_result_spec*1e3)}")
+						# # print(f"{label_color}\tsqL_ (sq(nH/M)):{Style.RESET_ALL} {rdl(new_soln.specsqL_*1e9)}")
+						# print(f"{label_color}\tZ0 (ohms):{Style.RESET_ALL} {rdl(new_soln.Zchip)}")
+						# print(f"{label_color}\tbetaL (deg):{Style.RESET_ALL} {rdl(new_soln.betaL)}")
+						print(f"{label_color}\tIL (mA):{Style.RESET_ALL} {rdl(new_soln.spec_IL*1e3)}")
+						print(f"{label_color}\tIx (mA):{Style.RESET_ALL} {rdl(new_soln.spec_Ix*1e3)}")
+						print(f"{label_color}\tIg (mA):{Style.RESET_ALL} {rdl(new_soln.spec_Ig*1e3)}")
 						
 						if new_soln.Iac < 1e-3:
 							self.plot_solution(new_soln)
