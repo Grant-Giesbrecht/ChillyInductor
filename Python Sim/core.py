@@ -190,7 +190,7 @@ class LKSystem:
 		self.solution = [] # List of solution data
 		self.bias_points = [] # List of bias values corresponding to solution data
 		
-		self.configure_time_domain(2000, 3, 40)
+		self.configure_time_domain(1000, 3, 30)
 	
 	def configure_tickle(self, Itickle:float, freq_tickle:float, num_periods:float=20):
 		""" This function configures the tickle variables, enabling a tickle signal to be
@@ -323,6 +323,7 @@ class LKSystem:
 		
 		# Iterate over all harmonics
 		spectrum = []
+		DC_idx = 0
 		for h_idx, h in enumerate(self.harms):
 			
 			# Find closest datapoint to target frequency
@@ -347,8 +348,16 @@ class LKSystem:
 					logging.warning("Spectrum selected edge-element for fundamental")
 				Iac_hx = spec[idx]
 			
+			# Record DC index
+			if h_idx == 0:
+				speclist = list(spec)
+				DC_idx = speclist.index(Iac_hx)
+			else: # Add DC component to harmonic component
+				Iac_hx += spec[DC_idx]
+			
 			# Apply system loss
 			if (self.opt.use_S21_loss) and (self.system_loss is not None):
+				logging.error("Need to apply system loss to power, not LK!!!")
 				Iac_hx *= self.system_loss[h_idx]
 		
 			# Save to solution set
@@ -500,7 +509,6 @@ class LKSystem:
 		
 		fig1.set_size_inches((14, 3))
 		
-		
 		plt.show()
 	
 	def solve(self, Ibias_vals:list, show_plot_on_conv=False):
@@ -562,20 +570,26 @@ class LKSystem:
 						new_soln.P0 = []
 						new_soln.theta = []
 						new_soln.Zin = []
-						new_soln.Iac_result_rms = []
-						new_soln.Iac_result_td = []
+						# new_soln.Iac_result_rms = []
+						# new_soln.Iac_result_td = []
 						
 					if self.opt.print_soln_on_converge:
-						print(f"{Fore.LIGHTBLUE_EX}Solution:{Style.RESET_ALL}")
-						print(f"{Fore.LIGHTBLUE_EX}\tharms:{Style.RESET_ALL} {rdl(new_soln.harms)}")
-						print(f"{Fore.LIGHTBLUE_EX}\tsqL_ (sq(nH/M)):{Style.RESET_ALL} {rdl(new_soln.specsqL_*1e9)}")
-						print(f"{Fore.LIGHTBLUE_EX}\tZ0 (ohms):{Style.RESET_ALL} {rdl(new_soln.Zchip)}")
-						print(f"{Fore.LIGHTBLUE_EX}\tbetaL (deg):{Style.RESET_ALL} {rdl(new_soln.betaL)}")
-						print(f"{Fore.LIGHTBLUE_EX}\tIL (mA):{Style.RESET_ALL} {rdl(new_soln.IL_result_spec*1e3)}")
-						print(f"{Fore.LIGHTBLUE_EX}\tIx (mA):{Style.RESET_ALL} {rdl(new_soln.Ix_result_spec*1e3)}")
-						print(f"{Fore.LIGHTBLUE_EX}\tIg (mA):{Style.RESET_ALL} {rdl(new_soln.Iac_result_spec*1e3)}")
 						
-						self.plot_solution(new_soln)
+						label_color = Fore.LIGHTBLUE_EX
+						if new_soln.Iac < 1e-3:
+							label_color = Fore.RED
+						
+						print(f"{label_color}Solution:{Style.RESET_ALL}")
+						print(f"{label_color}\tharms:{Style.RESET_ALL} {rdl(new_soln.harms)}")
+						print(f"{label_color}\tsqL_ (sq(nH/M)):{Style.RESET_ALL} {rdl(new_soln.specsqL_*1e9)}")
+						print(f"{label_color}\tZ0 (ohms):{Style.RESET_ALL} {rdl(new_soln.Zchip)}")
+						print(f"{label_color}\tbetaL (deg):{Style.RESET_ALL} {rdl(new_soln.betaL)}")
+						print(f"{label_color}\tIL (mA):{Style.RESET_ALL} {rdl(new_soln.IL_result_spec*1e3)}")
+						print(f"{label_color}\tIx (mA):{Style.RESET_ALL} {rdl(new_soln.Ix_result_spec*1e3)}")
+						print(f"{label_color}\tIg (mA):{Style.RESET_ALL} {rdl(new_soln.Iac_result_spec*1e3)}")
+						
+						if new_soln.Iac < 1e-3:
+							self.plot_solution(new_soln)
 					
 					# Add solution to list
 					self.solution.append(new_soln)
@@ -609,8 +623,8 @@ class LKSystem:
 						new_soln.P0 = []
 						new_soln.theta = []
 						new_soln.Zin = []
-						new_soln.Iac_result_rms = []
-						new_soln.Iac_result_td = []
+						# new_soln.Iac_result_rms = []
+						# new_soln.Iac_result_td = []
 					
 					# Add solution to list
 					self.solution.append(new_soln)
