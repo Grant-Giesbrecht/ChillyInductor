@@ -5,7 +5,7 @@ Pgen = 0 # dBm
 C_ = 121e-12
 l_phys = 0.5
 freq = 10e9
-q = .19
+q = 1e6
 L0 = 1e-6
 Ibias = .02
 
@@ -32,13 +32,13 @@ for Iac in Iac_list:
 	
 	# Get errors
 	e1 = lks.soln.spec_Ig[1] - lks.soln.Iac
-	e2 = lks.soln.spec_Ig_check[0] - lks.soln.spec_IL[1]
+	# e2 = lks.soln.spec_Ig_check[0] - lks.soln.spec_IL[1]
 	
 	error1.append(e1)
-	error2.append(e2)
+	# error2.append(e2)
 	
 plt.plot(Iac_list*1e3, np.array(error1)*1e3, linestyle='dashed', marker='+', color=(0.7, 0, 0), label="Error 1")
-plt.plot(Iac_list*1e3, np.array(error2)*1e3, linestyle='dashed', marker='+', color=(0.3, 0, 0.7), label="Error 2")
+# plt.plot(Iac_list*1e3, np.array(error2)*1e3, linestyle='dashed', marker='+', color=(0.3, 0, 0.7), label="Error 2")
 plt.xlabel("AC Current Guess (mA)")
 plt.ylabel("Current Error (mA)")
 plt.title(f"Error Evolution at Ibias = {Ibias*1e3} mA")
