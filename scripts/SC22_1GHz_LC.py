@@ -144,9 +144,20 @@ if __name__ == "__main__":
 	# Read S21 loss data
 	with open(os.path.join("..", "Python Sim", "cryostat_sparams.pkl"), 'rb') as fh:
 		S21_data = pickle.load(fh)
+	
+	f_GHz = np.array(S21_data['freq_Hz'])/1e9
+	S21 = np.array(S21_data['S21_dB'])
+	S11 = np.array(S21_data['S11_dB'])
+	
+	idx_end = find_nearest(f_GHz, 1.5)
 		
-	# plt.plot(np.array(S21_data['freq_Hz'])/1e9, np.array(S21_data['S21_dB']))
-	# plt.show()
+	plt.plot(f_GHz[:idx_end], S11[:idx_end], color=(0.7, 0, 0), label="S11", linestyle='dashed', marker='+')
+	plt.plot(f_GHz[:idx_end], S21[:idx_end], color=(0, 0, 0.7), label="S21", linestyle='dashed', marker='+')
+	plt.grid()
+	plt.legend()
+	plt.xlabel("Frequency (MHz)")
+	plt.ylabel("S Parameters (dB)")
+	plt.show()
 	
 	files = ["sweep4_0V.s2p", "sweep5_1V.s2p", "sweep6_2V.s2p", "sweep7_3V.s2p", "sweep8_3v5.s2p"]
 	voltages = [0, 1, 2, 3, 3.5]
