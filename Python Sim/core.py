@@ -78,10 +78,6 @@ class Simopt:
 	# Data Save Options
 	remove_td = False # Prevents all time domain data from being saved in solution data to save space
 	
-	# Debug/display options
-	# print_soln_on_converge = False # Prints a list of stats for the solution when convergence occurs
-	# print_soln_on_fail = False # Print if fail to converge
-	
 @dataclass
 class LKSolution:
 	""" Contains data to represent a solution to the LKsystem problem
@@ -109,13 +105,6 @@ class LKSolution:
 	theta = None # TODO: not saved
 	L_td = None # Inductance per unit length
 	Z0_td = None # Characteristic impedance of chip
-	
-	# # (new) Spectrum Data
-	# spec_Z0 = None
-	# spec_betaL = None
-	# spec_sqL = None
-	# spec_sqL_full = None
-	
 	
 	# Spectrum Data
 	Ix_wf = None
@@ -355,13 +344,6 @@ class LKSystem:
 					logging.warning("Spectrum selected edge-element for fundamental")
 				Iac_hx = fullspec[idx]
 			
-			# # Record DC index
-			# if h_idx == 0:
-			# 	speclist = list(fullspec)
-			# 	DC_idx = speclist.index(Iac_hx)
-			# else: # Add DC component to harmonic component
-			# 	Iac_hx += fullspec[DC_idx]
-			
 			# Apply system loss
 			if (self.opt.use_S21_loss) and (self.system_loss is not None):
 				logging.error("Need to apply system loss to power, not LK!!!")
@@ -419,45 +401,11 @@ class LKSystem:
 		Lk = self.L0 + self.L0/(self.q**2) * (Iin_td**2)
 		self.soln.L_td = Lk/self.l_phys
 		
-		#-------------------- Find Spectral components of Z0, theta ----------------------
-		
-		# # FFT of sqrt(L')
-		# sqL_tup = self.fourier(np.sqrt(self.soln.L_td), plot_result=False)
-		# self.soln.spec_sqL_full = sqL_tup[2]
-		# for i in range(len(self.soln.spec_sqL_full)):
-			
-		# 	if i == 0:
-		# 		continue
-			
-		# 	# self.soln.spec_sqL[i] += self.soln.spec_sqL[0]
-		# self.soln.spec_sqL = self.soln.spec_sqL_full[1:]
-		
 		# Find Z0 of chip
 		self.soln.Z0_td = np.sqrt(self.soln.L_td/self.C_)
 		
-		# # Find electrical length of chip (from phase velocity)
-		# harms_rf = self.harms[1:]
-		# self.soln.spec_betaL = 2*PI*self.l_phys*self.freq*harms_rf*np.sqrt(self.C_)*self.soln.spec_sqL
-		
-		# # Find Z0 of chip
-		# self.soln.Zchip_td = np.sqrt(self.soln.L_td / self.C_)
-		
 		# Find electrical length of chip (from phase velocity)
 		self.soln.betaL_td = 2*PI*self.l_phys*self.freq*np.sqrt(self.C_ * self.soln.L_td)
-		
-		# # FFT of Z0
-		# Z0_tup = self.fourier(self.soln.Zchip_td)
-		# self.soln.spec_Z0 = Z0_tup[2]
-		# for i in range(len(self.soln.spec_Z0)):
-			
-		# 	if i == 0:
-		# 		continue
-			
-		# 	self.soln.spec_Z0[i] += self.soln.spec_Z0[0]
-		
-		# # FFT of betaL
-		# betaL_tup = self.fourier(self.soln.betaL)
-		# self.soln.spec_betaL = betaL_tup[2]
 		
 		# Define ABCD method s.t. calculate current at VNA
 		meas_frac = 1 #Fractional distance from gen towards load at which to meas. Vx and Ix
@@ -473,23 +421,6 @@ class LKSystem:
 		Vx_t = IL_t*self.ZL*np.cos(thetaB_td) + IL_t*j*self.soln.Z0_td*np.sin(thetaB_td)
 		Ix_t = IL_t*self.ZL*j/self.soln.Z0_td*np.sin(thetaB_td) + IL_t*np.cos(thetaB_td)
 		Ig_t = Vx_t*j/self.soln.Z0_td*np.sin(thetaA_td) + Ix_t*np.cos(thetaA_td)
-		
-		#----------------------------- Calculate expected current for resistor divider ---------------------
-		
-		# # # Impedance looking into chip
-		# Zin = xfmr(Z0, self.ZL, self.soln.betaL)
-		# Rin = np.real(Zin)
-		# Xin = np.real(Zin)
-		
-		# Rg = np.real(self.Zg)
-		# Xg = np.imag(self.Zg)
-		
-		# # # Calculate Ig resulting from impedance analysis
-		# # Ig_zcheck = self.Vgen/(self.Zg + Zin)
-		
-		# # Calculate load current from P0
-		# P0 = 1/2 * abs(self.Vgen)**2 * Rin/ ( (Rin + Rg)**2 + (Xin + Xg)**2 )
-		# IL_P0 = np.sqrt(2*P0/self.ZL)
 		
 		#----------------------- CALCULATE SPECTRAL COMPONENTS OF V and I --------------------
 		
@@ -517,75 +448,6 @@ class LKSystem:
 		self.soln.freq_w = Ix_tuple[3]
 		self.soln.freq_wf = Ix_tuple[1]
 		
-		# # Find Z0 of chip
-		# self.solnZchip_td = np.sqrt(self.soln.L_td / self.C_)
-		# Z0 = self.solnZchip_td
-		
-		# # Find electrical length of chip (from phase velocity)
-		# self.soln.betaL = 2*PI*self.l_phys*self.freq*np.sqrt(self.C_ * self.soln.L_td)
-		
-		# # Define ABCD method s.t. calculate current at VNA
-		# meas_frac = 1 #Fractional distance from gen towards source at which to meas. Vx and Ix
-		# thetaA = self.soln.betaL*meas_frac # = betaL
-		# thetaB = self.soln.betaL*(1-meas_frac) # = 0
-		# j = complex(0, 1)
-		
-		# # Solve for IL (Eq. 33,4 in Notebook TAE-33)
-		# M = (self.ZL*np.cos(thetaB) + j*Z0*np.sin(thetaB)) * ( np.cos(thetaA) + j*self.Zg/Z0*np.sin(thetaA))
-		# N = ( self.ZL*j/Z0*np.sin(thetaB + np.cos(thetaB)) ) * ( j*Z0*np.sin(thetaA) + self.Zg*np.cos(thetaB) )
-		
-		# IL_t = self.Vgen/(M+N)
-		# Vx_t = IL_t*self.ZL*np.cos(thetaB) + IL_t*j*Z0*np.sin(thetaB)
-		# Ix_t = IL_t*self.ZL*j/Z0*np.sin(thetaB) + IL_t*np.cos(thetaB)
-		# Ig_t = Vx_t*j/Z0*np.sin(thetaA) + Ix_t*np.cos(thetaA)
-		
-		# #----------------------------- Calculate expected current for resistor divider ---------------------
-		
-		# # # Impedance looking into chip
-		# Zin = xfmr(Z0, self.ZL, self.soln.betaL)
-		# Rin = np.real(Zin)
-		# Xin = np.real(Zin)
-		
-		# Rg = np.real(self.Zg)
-		# Xg = np.imag(self.Zg)
-		
-		# # # Calculate Ig resulting from impedance analysis
-		# # Ig_zcheck = self.Vgen/(self.Zg + Zin)
-		
-		# # Calculate load current from P0
-		# P0 = 1/2 * abs(self.Vgen)**2 * Rin/ ( (Rin + Rg)**2 + (Xin + Xg)**2 )
-		# IL_P0 = np.sqrt(2*P0/self.ZL)
-		
-		# #----------------------- CALCULATE SPECTRAL COMPONENTS OF V and I --------------------
-		
-		# IL_tuple = self.fourier(IL_t, loss_frac=1)
-		# IL = IL_tuple[2]
-		
-		# Vx_tuple = self.fourier(Vx_t, loss_frac=meas_frac)
-		# Vx = Vx_tuple[2]
-		
-		# Ix_tuple = self.fourier(Ix_t, loss_frac=meas_frac)
-		# Ix = Ix_tuple[2]
-		
-		# Ig_tuple = self.fourier(Ig_t, loss_frac=0)
-		# Ig = Ig_tuple[2]
-		
-		# Igzc_tuple = self.fourier(IL_P0, loss_frac=0)
-		# Ig_zc = Igzc_tuple[2]
-		
-		# # Save to result
-		# self.soln.Ig_w = abs(Ig)
-		# self.soln.spec_Ig_check = abs(Ig_zc)
-		# self.soln.Ix_w = abs(Ix)
-		# self.soln.Vx_w = abs(Vx)
-		# self.soln.IL_w = abs(IL)
-		
-		# self.soln.spec_Ix_full = abs(Ix_tuple[0])
-		# self.soln.spec_freqs = Ix_tuple[3]
-		# self.soln.spec_freqs_full = Ix_tuple[1]
-		
-		
-		
 		
 	def plot_solution(self, s:LKSolution=None):
 				
@@ -596,26 +458,6 @@ class LKSystem:
 		# calculate end index
 		plot_Ts = 5
 		idx_end = find_nearest(self.t, plot_Ts/self.freq)
-		
-		# Create time domain figure
-		# plt.figure(1)
-		# plt.plot(self.t[:idx_end]*1e9, np.real(s.Iac_result_td[:idx_end])*1e3, '-b')
-		# plt.plot(self.t[:idx_end]*1e9, np.abs(s.Iac_result_td[:idx_end])*1e3, '-r')
-		# plt.plot(self.t[:idx_end]*1e9, np.sqrt(2)*np.abs(s.Iac_result_rms[:idx_end])*1e3, '-g')
-		# plt.xlabel("Time (ns)")
-		# plt.ylabel("AC Current (mA)")
-		# plt.title(f"Time Domain Data, Idc = {rd(s.Ibias*1e3)} mA")
-		# plt.legend(["TD Real", "TD Abs.", "|Amplitude|"])
-		# plt.grid()
-		
-		# # Create spectrum figure
-		# plt.figure(2)
-		# plt.semilogy(s.spec_freqs/1e9, s.spec*1e3)
-		# plt.xlabel("Frequency (GHz)")
-		# plt.ylabel("AC Current (mA)")
-		# plt.title(f"Current Spectrum, Idc = {rd(s.Ibias*1e3)} mA")
-		# plt.xlim((0, self.freq*5/1e9))
-		# plt.grid()
 		
 		# Limit plot window
 		f_max_plot = self.freq*np.max([10, np.max(self.harms)])
@@ -704,7 +546,6 @@ class LKSystem:
 				self.soln.Iac_guess_history.append(Iac_guess)
 				
 				# Crunch the numbers of this guess value
-				# print(f"{Fore.BLUE}Guessing Iac = {Iac_guess}...{Style.RESET_ALL}")
 				self.crunch(Iac_guess, Idc)
 				self.soln.num_iter += 1
 				
@@ -742,8 +583,6 @@ class LKSystem:
 						new_soln.P0 = []
 						new_soln.theta = []
 						new_soln.Zin = []
-						# new_soln.Iac_result_rms = []
-						# new_soln.Iac_result_td = []
 						
 					if show_plot_on_conv:
 						
@@ -815,8 +654,6 @@ class LKSystem:
 					# Eror is positive, both agree
 					if error > 0:
 						
-						# print(f"{Fore.CYAN}Calculating new guess. Current error = {error}, last_sign = {last_sign} {Style.RESET_ALL}")
-						
 						# First iteration - set sign
 						if last_sign is None:
 							last_sign = np.sign(error)
@@ -832,9 +669,7 @@ class LKSystem:
 					
 					# Error is negative, both agree
 					elif error < 0:
-						
-						# print(f"{Fore.CYAN}Calculating new guess. Current error = {error}, last_sign = {last_sign} {Style.RESET_ALL}")
-						
+												
 						# First iteration - set sign
 						if last_sign is None:
 							last_sign = np.sign(error)
