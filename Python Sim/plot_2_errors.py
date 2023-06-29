@@ -31,8 +31,8 @@ for Iac in Iac_list:
 	lks.crunch(Iac, Ibias, show_plot_td=False, show_plot_spec=True)
 	
 	# Get errors
-	e1 = lks.soln.spec_Ig[1] - lks.soln.Iac
-	# e2 = lks.soln.spec_Ig_check[0] - lks.soln.spec_IL[1]
+	e1 = lks.soln.Ig_w[1] - lks.soln.Iac
+	# e2 = lks.soln.spec_Ig_check[0] - lks.soln.IL_w[1]
 	
 	error1.append(e1)
 	# error2.append(e2)

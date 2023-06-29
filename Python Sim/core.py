@@ -83,37 +83,44 @@ class Simopt:
 
 @dataclass
 class LKSolution:
-	""" Contains data to represent a solution to the LKsystem problem"""
+	""" Contains data to represent a solution to the LKsystem problem
+	
+	Nomenclature:
+	_g: guess that led to this result
+	_c: Condition - system setup value
+	_td: Time domain data
+	_w: Spectral data
+	
+	"""
 	
 	# Scalar/configuration variables
-	Iac = None
-	Ibias = None
+	Iac_g = None
+	Ibias_c = None
 	Zin = None # Impedance looking into chip (from source side)
-	harms = None
-	freq = None # Frequency of fundamnetal tone
-	P0 = None # TODO: Remove?
+	harms_c = None
+	freq_c = None # Frequency of fundamnetal tone
+	Vgen_c = None # Gwenerator voltage
 	
 	# Time domain variables
-	Lk = None
 	Vp = None # Not actually used
-	betaL = None # Electrical length of chip in radians
+	betaL_td = None # Electrical length of chip in radians
 	theta = None # TODO: not saved
-	L_ = None # From Lk
-	Zchip_td = None # From L_, characteristic impedance of chip
+	L_td = None # Inductance per unit length
+	Z0_td = None # Characteristic impedance of chip
 	
-	# (new) Spectrum Data
-	spec_Z0 = None
-	spec_betaL = None
-	spec_sqL = None
-	spec_sqL_full = None
+	# # (new) Spectrum Data
+	# spec_Z0 = None
+	# spec_betaL = None
+	# spec_sqL = None
+	# spec_sqL_full = None
 	
 	
 	# Spectrum Data
 	spec_Ix_full = None
-	spec_Ix = None
-	spec_Vx = None
-	spec_IL = None
-	spec_Ig = None # Iac result as spectrum, shows fundamental, 2harm, and 3harm as touple (idx 0 = fund, ..., 2 = 3rd harm)
+	Ix_w = None
+	Vx_w = None
+	IL_w = None
+	Ig_w = None # Iac result as spectrum, shows fundamental, 2harm, and 3harm as touple (idx 0 = fund, ..., 2 = 3rd harm)
 	spec_Ig_check = None
 	spec_freqs = None
 	spec_freqs_full = None
@@ -392,47 +399,48 @@ class LKSystem:
 		"""
 				
 		# Update Iac in solution
-		self.soln.Iac = Iac
-		self.soln.Ibias = Idc
-		self.soln.harms = self.harms
-		self.soln.freq = self.freq
+		self.soln.Iac_g = Iac
+		self.soln.Ibias_c = Idc
+		self.soln.harms_c = self.harms
+		self.soln.freq_c = self.freq
+		self.soln.Vgen_c = self.Vgen
 		
 		# Solve for inductance (Lk)
 		# Calculate input current waveform
 		if (self.Itickle is not None) and (self.freq_tickle is not None):
-			Iin = Idc + Iac*np.sin(self.freq*2*PI*self.t) + self.Itickle*np.sin(self.freq_tickle*2*PI*self.t)
+			Iin_td = Idc + Iac*np.sin(self.freq*2*PI*self.t) + self.Itickle*np.sin(self.freq_tickle*2*PI*self.t)
 		else:
-			Iin = Idc + Iac*np.sin(self.freq*2*PI*self.t)
+			Iin_td = Idc + Iac*np.sin(self.freq*2*PI*self.t)
 	
 		# Calculate Lk
-		self.soln.Lk = self.L0 + self.L0/(self.q**2) * (Iin**2)
-		self.soln.L_td = self.soln.Lk/self.l_phys
+		Lk = self.L0 + self.L0/(self.q**2) * (Iin_td**2)
+		self.soln.L_td = Lk/self.l_phys
 		
 		#-------------------- Find Spectral components of Z0, theta ----------------------
 		
-		# FFT of sqrt(L')
-		sqL_tup = self.fourier(np.sqrt(self.soln.L_td), plot_result=False)
-		self.soln.spec_sqL_full = sqL_tup[2]
-		for i in range(len(self.soln.spec_sqL_full)):
+		# # FFT of sqrt(L')
+		# sqL_tup = self.fourier(np.sqrt(self.soln.L_td), plot_result=False)
+		# self.soln.spec_sqL_full = sqL_tup[2]
+		# for i in range(len(self.soln.spec_sqL_full)):
 			
-			if i == 0:
-				continue
+		# 	if i == 0:
+		# 		continue
 			
-			# self.soln.spec_sqL[i] += self.soln.spec_sqL[0]
-		self.soln.spec_sqL = self.soln.spec_sqL_full[1:]
+		# 	# self.soln.spec_sqL[i] += self.soln.spec_sqL[0]
+		# self.soln.spec_sqL = self.soln.spec_sqL_full[1:]
 		
 		# Find Z0 of chip
-		self.soln.spec_Z0 = self.soln.spec_sqL/np.sqrt(self.C_)
+		self.soln.Z0_td = np.sqrt(self.soln.L_td/self.C_)
 		
-		# Find electrical length of chip (from phase velocity)
-		harms_rf = self.harms[1:]
-		self.soln.spec_betaL = 2*PI*self.l_phys*self.freq*harms_rf*np.sqrt(self.C_)*self.soln.spec_sqL
+		# # Find electrical length of chip (from phase velocity)
+		# harms_rf = self.harms[1:]
+		# self.soln.spec_betaL = 2*PI*self.l_phys*self.freq*harms_rf*np.sqrt(self.C_)*self.soln.spec_sqL
 		
 		# # Find Z0 of chip
 		# self.soln.Zchip_td = np.sqrt(self.soln.L_td / self.C_)
 		
-		# # Find electrical length of chip (from phase velocity)
-		# self.soln.betaL = 2*PI*self.l_phys*self.freq*np.sqrt(self.C_ * self.soln.L_td)
+		# Find electrical length of chip (from phase velocity)
+		self.soln.betaL_td = 2*PI*self.l_phys*self.freq*np.sqrt(self.C_ * self.soln.L_td)
 		
 		# # FFT of Z0
 		# Z0_tup = self.fourier(self.soln.Zchip_td)
@@ -450,18 +458,18 @@ class LKSystem:
 		
 		# Define ABCD method s.t. calculate current at VNA
 		meas_frac = 1 #Fractional distance from gen towards source at which to meas. Vx and Ix
-		self.soln.spec_thetaA = self.soln.spec_betaL*meas_frac # = betaL
-		self.soln.spec_thetaB = self.soln.spec_betaL*(1-meas_frac) # = 0
+		thetaA_td = self.soln.betaL_td*meas_frac # = betaL
+		thetaB_td = self.soln.betaL_td*(1-meas_frac) # = 0
 		j = complex(0, 1)
 		
 		# Solve for IL (Eq. 33,4 in Notebook TAE-33)
-		M = (self.ZL*np.cos(self.soln.spec_thetaB) + j*self.soln.spec_Z0*np.sin(self.soln.spec_thetaB)) * ( np.cos(self.soln.spec_thetaA) + j*self.Zg/self.soln.spec_Z0*np.sin(self.soln.spec_thetaA))
-		N = ( self.ZL*j/self.soln.spec_Z0*np.sin(self.soln.spec_thetaB + np.cos(self.soln.spec_thetaB)) ) * ( j*self.soln.spec_Z0*np.sin(self.soln.spec_thetaA) + self.Zg*np.cos(self.soln.spec_thetaB) )
+		M = (self.ZL*np.cos(thetaB_td) + j*self.soln.Z0_td*np.sin(thetaB_td)) * ( np.cos(thetaA_td) + j*self.Zg/self.soln.Z0_td*np.sin(thetaA_td))
+		N = ( self.ZL*j/self.soln.Z0_td*np.sin(thetaB_td) + np.cos(thetaB_td) ) * ( j*self.soln.Z0_td*np.sin(thetaA_td) + self.Zg*np.cos(thetaA_td) )
 		
-		IL = self.Vgen/(M+N)
-		Vx = IL*self.ZL*np.cos(self.soln.spec_thetaB) + IL*j*self.soln.spec_Z0*np.sin(self.soln.spec_thetaB)
-		Ix = IL*self.ZL*j/self.soln.spec_Z0*np.sin(self.soln.spec_thetaB) + IL*np.cos(self.soln.spec_thetaB)
-		Ig = Vx*j/self.soln.spec_Z0*np.sin(self.soln.spec_thetaA) + Ix*np.cos(self.soln.spec_thetaA)
+		IL_t = self.Vgen/(M+N)
+		Vx_t = IL_t*self.ZL*np.cos(thetaB_td) + IL_t*j*self.soln.Z0_td*np.sin(thetaB_td)
+		Ix_t = IL_t*self.ZL*j/self.soln.Z0_td*np.sin(thetaB_td) + IL_t*np.cos(thetaB_td)
+		Ig_t = Vx_t*j/self.soln.Z0_td*np.sin(thetaA_td) + Ix_t*np.cos(thetaA_td)
 		
 		#----------------------------- Calculate expected current for resistor divider ---------------------
 		
@@ -482,27 +490,24 @@ class LKSystem:
 		
 		#----------------------- CALCULATE SPECTRAL COMPONENTS OF V and I --------------------
 		
-		# IL_tuple = self.fourier(IL_t, loss_frac=1)
-		# IL = IL_tuple[2]
+		IL_tuple = self.fourier(IL_t, loss_frac=1)
+		IL = IL_tuple[2]
 		
-		# Vx_tuple = self.fourier(Vx_t, loss_frac=meas_frac)
-		# Vx = Vx_tuple[2]
+		Vx_tuple = self.fourier(Vx_t, loss_frac=meas_frac)
+		Vx = Vx_tuple[2]
 		
-		# Ix_tuple = self.fourier(Ix_t, loss_frac=meas_frac)
-		# Ix = Ix_tuple[2]
+		Ix_tuple = self.fourier(Ix_t, loss_frac=meas_frac)
+		Ix = Ix_tuple[2]
 		
-		# Ig_tuple = self.fourier(Ig_t, loss_frac=0)
-		# Ig = Ig_tuple[2]
-		
-		# Igzc_tuple = self.fourier(IL_t, loss_frac=0)
-		# Ig_zc = Igzc_tuple[2]
+		Ig_tuple = self.fourier(Ig_t, loss_frac=0)
+		Ig = Ig_tuple[2]
 		
 		# Save to result
-		self.soln.spec_Ig = abs(Ig)
+		self.soln.Ig_w = abs(Ig)
 		# self.soln.spec_Ig_check = abs(Ig_zc)
-		self.soln.spec_Ix = abs(Ix)
-		self.soln.spec_Vx = abs(Vx)
-		self.soln.spec_IL = abs(IL)
+		self.soln.Ix_w = abs(Ix)
+		self.soln.Vx_w = abs(Vx)
+		self.soln.IL_w = abs(IL)
 		
 		# self.soln.spec_Ix_full = abs(Ix_tuple[0])
 		# self.soln.spec_freqs = Ix_tuple[3]
@@ -565,11 +570,11 @@ class LKSystem:
 		# Ig_zc = Igzc_tuple[2]
 		
 		# # Save to result
-		# self.soln.spec_Ig = abs(Ig)
+		# self.soln.Ig_w = abs(Ig)
 		# self.soln.spec_Ig_check = abs(Ig_zc)
-		# self.soln.spec_Ix = abs(Ix)
-		# self.soln.spec_Vx = abs(Vx)
-		# self.soln.spec_IL = abs(IL)
+		# self.soln.Ix_w = abs(Ix)
+		# self.soln.Vx_w = abs(Vx)
+		# self.soln.IL_w = abs(IL)
 		
 		# self.soln.spec_Ix_full = abs(Ix_tuple[0])
 		# self.soln.spec_freqs = Ix_tuple[3]
@@ -579,6 +584,8 @@ class LKSystem:
 		
 		
 	def plot_solution(self, s:LKSolution=None):
+		
+		return
 		
 		# Pick last solution if none provided
 		if s is None:
@@ -613,13 +620,13 @@ class LKSystem:
 		idx_end = find_nearest(s.spec_freqs_full, f_max_plot)
 		
 		print(len(s.spec_freqs))
-		print(len(s.spec_Ix))
+		print(len(s.Ix_w))
 		
 		# Plot Spectrum
 		fig1 = plt.figure(1)
 		plt.subplot(1, 3, 1)
 		plt.semilogy(s.spec_freqs_full[:idx_end]/1e9, self.soln.spec_Ix_full[:idx_end], label="Full Spectrum", color=(0, 0, 0.8))
-		plt.scatter(s.spec_freqs/1e9, self.soln.spec_Ix, label="Selected Points", color=(0.8, 0, 0))
+		plt.scatter(s.spec_freqs/1e9, self.soln.Ix_w, label="Selected Points", color=(0.8, 0, 0))
 		plt.xlabel("Frequency (GHz)")
 		plt.ylabel("sqL_ [sq(H/m)]")
 		plt.title("Solution Spectrum")
@@ -684,10 +691,10 @@ class LKSystem:
 				self.soln.num_iter += 1
 				
 				# Calculate signed error, check if convergence conditions met
-				error1 = self.soln.spec_Ig[1] - Iac_guess
-				denom1 = np.min([self.soln.spec_Ig[1], Iac_guess])
+				error1 = self.soln.Ig_w[1] - Iac_guess
+				denom1 = np.min([self.soln.Ig_w[1], Iac_guess])
 				if denom1 != 0:
-					error_pcnt1 = (np.max([self.soln.spec_Ig[1], Iac_guess])/denom1-1)*100
+					error_pcnt1 = (np.max([self.soln.Ig_w[1], Iac_guess])/denom1-1)*100
 					did_converge1 = (error_pcnt1 < self.opt.tol_pcnt) and ( abs(error1) < self.opt.tol_abs )
 				else:
 					error_pcnt1 = None
@@ -711,7 +718,7 @@ class LKSystem:
 				error_pcnt = error_pcnt1
 				
 				#TODO: Remove debug prints!
-				# res = self.soln.spec_Ig[1]
+				# res = self.soln.Ig_w[1]
 				# print(f"{Fore.YELLOW}\t-> result = {res}{Style.RESET_ALL}")
 				# print(f"{Fore.YELLOW}\t-> error = {rd(error_pcnt)} %, {rd(error*1e3)} mA{Style.RESET_ALL}")
 					
@@ -740,17 +747,17 @@ class LKSystem:
 					if self.opt.print_soln_on_converge:
 						
 						label_color = Fore.LIGHTBLUE_EX
-						if new_soln.Iac < 1e-3:
+						if new_soln.Iac_g < 1e-3:
 							label_color = Fore.RED
 						
-						print(f"{label_color}Solution:{Style.RESET_ALL}")
-						print(f"{label_color}\tharms:{Style.RESET_ALL} {rdl(new_soln.harms)}")
-						print(f"{label_color}\tZ0 (ohm)):{Style.RESET_ALL} {rdl(new_soln.spec_Z0)}")
-						print(f"{label_color}\tsqL (ohms):{Style.RESET_ALL} {rdl(new_soln.spec_sqL)}")
-						print(f"{label_color}\tbetaL (deg):{Style.RESET_ALL} {rdl(new_soln.spec_betaL)}")
-						print(f"{label_color}\tIL (mA):{Style.RESET_ALL} {rdl(new_soln.spec_IL*1e3)}")
-						print(f"{label_color}\tIx (mA):{Style.RESET_ALL} {rdl(new_soln.spec_Ix*1e3)}")
-						print(f"{label_color}\tIg (mA):{Style.RESET_ALL} {rdl(new_soln.spec_Ig*1e3)}")
+						# print(f"{label_color}Solution:{Style.RESET_ALL}")
+						# print(f"{label_color}\tharms:{Style.RESET_ALL} {rdl(new_soln.harms)}")
+						# print(f"{label_color}\tZ0 (ohm)):{Style.RESET_ALL} {rdl(new_soln.spec_Z0)}")
+						# print(f"{label_color}\tsqL (ohms):{Style.RESET_ALL} {rdl(new_soln.spec_sqL)}")
+						# print(f"{label_color}\tbetaL (deg):{Style.RESET_ALL} {rdl(new_soln.spec_betaL)}")
+						# print(f"{label_color}\tIL (mA):{Style.RESET_ALL} {rdl(new_soln.IL_w*1e3)}")
+						# print(f"{label_color}\tIx (mA):{Style.RESET_ALL} {rdl(new_soln.Ix_w*1e3)}")
+						# print(f"{label_color}\tIg (mA):{Style.RESET_ALL} {rdl(new_soln.Ig_w*1e3)}")
 						
 						# if new_soln.Iac < 1e-3:
 						# 	self.plot_solution(new_soln)

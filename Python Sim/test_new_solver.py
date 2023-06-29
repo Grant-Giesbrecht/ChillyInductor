@@ -42,9 +42,9 @@ for idx, x in enumerate(lks.solution):
 	
 	Iac_plot.append(x.Iac)
 	Idc_plot.append(Idc_A[idx])
-	fund.append(x.spec_IL[1])
-	I2H.append(x.spec_IL[2])
-	I3H.append(x.spec_IL[3])
+	fund.append(x.IL_w[1])
+	I2H.append(x.IL_w[2])
+	I3H.append(x.IL_w[3])
 Iac_plot = np.array(Iac_plot)
 Idc_plot = np.array(Idc_plot)
 fund = np.array(fund)

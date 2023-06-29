@@ -101,7 +101,7 @@ class SimThread(threading.Thread):
 				
 				# Calculate current array
 				Iac = np.array([x.Iac for x in lks.solution])
-				I2h_sim = np.array([x.spec_Ig[1] for x in lks.solution])
+				I2h_sim = np.array([x.Ig_w[1] for x in lks.solution])
 				
 				# Calculate error basic error
 				rmse1 = np.sqrt( np.mean( np.abs(Ifund_A - Iac)**2 ) )

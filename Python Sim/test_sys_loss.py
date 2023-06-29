@@ -33,7 +33,7 @@ lksL.configure_loss(file="cryostat_sparams.pkl")
 lksL.solve(Ibias, show_plot_on_conv=False)
 
 IacL = np.array([x.Iac for x in lksL.solution])
-Iac_2H = np.array([x.spec_Ig[1] for x in lksL.solution])
+Iac_2H = np.array([x.Ig_w[1] for x in lksL.solution])
 
 plt.figure(1)
 plt.plot(Ibias*1e3, Iac*1e3, color='b', linestyle='dashed', marker='o')
