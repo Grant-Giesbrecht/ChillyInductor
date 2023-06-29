@@ -5,6 +5,8 @@ import copy
 from scipy.fft import fft, fftfreq
 import pickle
 
+SIMULATOR_ABCD = 10
+
 @dataclass
 class SimoptABCD:
 	""" Contains simulation options"""
@@ -23,7 +25,7 @@ class SimoptABCD:
 	tol_pcnt = 1 # Tolerance in percent between Iac guesses
 	tol_abs = 0.1e-3 # Tolerance in mA between Iac guesses
 	guess_update_coef = 0.1 # Fraction by which to compromise between guess and result Iac (0=remain at guess, 1=use result; 0.5 recommended)
-	ceof_shrink_factor = 1 # Fraction by which to modify guess_update_coef when sign reverses (good starting point: 0.2)
+	ceof_shrink_factor = 0.5 # Fraction by which to modify guess_update_coef when sign reverses (good starting point: 0.2)
 	
 	# How to pick initial Iac guess
 	start_guess_method = GUESS_ZERO_REFLECTION
@@ -83,35 +85,34 @@ class LKSimABCD:
 	""" This class represents a solution to the nonlinear chip system, give a set of input conditions (things
 	like actual chip length, input power, etc)."""
 	
-	def __init__(self, Pgen_dBm:float, C_:float, l_phys:float, freq:float, q:float, L0:float, max_harm:int=6, ZL=50, Zg=50):
+	def __init__(self, master_sim):
 		""" Initialize system with given conditions """
 		
 		# Simulations options
 		self.opt = SimoptABCD()
 
 		# System Settings
-		self.Pgen = (10**(Pgen_dBm/10))/1000
-		self.C_ = C_
-		self.l_phys = l_phys
-		self.freq = freq
-		self.q = q
-		self.L0 = L0
-		self.Zcable = 50 # Z0 of cable leading into chip
-		self.ZL = ZL # Impedance of load
-		self.Zg = Zg # Impedance of generator
-		self.Vgen  = np.sqrt(self.Pgen*200) # Solve for Generator voltage from power
-		self.max_harm = max_harm # Harmonic number to go up to in spectral domain (plus DC)
-		self.system_loss = None # Tuple containing system loss at each harmonic (linear scale, not dB)
-		self.Itickle = None # Amplitude (A) of tickle signal (Set to none to exclude tickle)
-		self.freq_tickle = None # Amplitude (A) of tickle signal (Set to none to exclude tickle)
-		self.harms = np.array(range(self.max_harm+1)) # List of harmonic numbers to include in spectral analysis
+		self.Pgen = master_sim.Pgen
+		self.C_ = master_sim.C_
+		self.l_phys = master_sim.l_phys
+		self.freq = master_sim.freq
+		self.q = master_sim.q
+		self.L0 = master_sim.L0
+		self.ZL = master_sim.ZL # Impedance of load
+		self.Zg = master_sim.Zg # Impedance of generator
+		self.Vgen = master_sim.Vgen # Solve for Generator voltage from power
+		self.max_harm = master_sim.max_harm # Harmonic number to go up to in spectral domain (plus DC)
+		self.system_loss = master_sim.system_loss # Tuple containing system loss at each harmonic (linear scale, not dB)
+		self.Itickle = master_sim.Itickle # Amplitude (A) of tickle signal (Set to none to exclude tickle)
+		self.freq_tickle = master_sim.freq_tickle # Amplitude (A) of tickle signal (Set to none to exclude tickle)
+		self.harms = master_sim.harms # List of harmonic numbers to include in spectral analysis
 				
 		# Time domain options
-		self.num_periods = None
-		self.num_periods_tickle = None # If tickle is included, this may not be none, in which case this will set the t_max time (greatly extending simulation time)
-		self.max_harm_td = None
-		self.min_points_per_wave = None
-		self.t = []
+		self.num_periods = master_sim.num_periods
+		self.num_periods_tickle = master_sim.num_periods_tickle # If tickle is included, this may not be none, in which case this will set the t_max time (greatly extending simulation time)
+		self.max_harm_td = master_sim.max_harm_td
+		self.min_points_per_wave = master_sim.min_points_per_wave
+		self.t = master_sim.t
 
 		# Create solution object
 		self.soln = LKSolutionABCD() # Current solution data
