@@ -27,7 +27,7 @@ lks.opt.print_soln_on_converge = True
 # lks.crunch(.01, .03, show_plot_td=False, show_plot_spec=True)
 
 
-lks.solve(Idc_A, show_plot_on_conv=False)
+lks.solve(Idc_A, show_plot_on_conv=False,show_plot_on_fail=True)
 
 # Get results
 # Iac = np.array([x.Iac for x in lks.solution])
@@ -40,7 +40,7 @@ for idx, x in enumerate(lks.solution):
 	if x.convergence_failure:
 		continue
 	
-	Iac_plot.append(x.Iac)
+	Iac_plot.append(x.Iac_g)
 	Idc_plot.append(Idc_A[idx])
 	fund.append(x.IL_w[1])
 	I2H.append(x.IL_w[2])
