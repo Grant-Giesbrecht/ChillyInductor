@@ -4,6 +4,7 @@ from base import *
 import logging
 import getopt, sys
 from Simulator_ABCD import *
+from Simulator_P0 import *
 
 
 addLoggingLevel('MAIN', logging.INFO + 5)
@@ -85,6 +86,8 @@ class LKSystem:
 		self.bias_points = [] # List of bias values corresponding to solution data
 		
 		self.sim_abcd = LKSimABCD(self)
+		self.sim_p0 = LKSimP0(self)
+		self.simulators = [self.sim_abcd, self.sim_p0]
 		
 		self.configure_time_domain(1000, 3, 30)
 	
@@ -94,7 +97,8 @@ class LKSystem:
 		
 		# Configure the tickle for each simulator
 		
-		self.sim_abcd.configure_tickle(Itickle, freq_tickle, num_periods)
+		for sim in self.simulators:
+			sim.configure_tickle(Itickle, freq_tickle, num_periods)
 		
 	def configure_time_domain(self, num_periods:float, max_harm_td:int, min_points_per_wave:int=10):
 		""" Configures the time domain settings
@@ -107,7 +111,8 @@ class LKSystem:
 		
 		# Configure time domain for each simulator
 		
-		self.sim_abcd.configure_time_domain(num_periods, max_harm_td, min_points_per_wave)
+		for sim in self.simulators:
+			sim.configure_time_domain(num_periods, max_harm_td, min_points_per_wave)
 		
 	def configure_loss(self, file:str=None, sparam_data:dict=None):
 		""" Reads a pkl file with a dictionary containing variables 'freq_Hz' and 'S21_dB'
@@ -117,16 +122,19 @@ class LKSystem:
 		
 		# Configure loss for each simulator
 		
-		self.sim_abcd.configure_loss(file, sparam_data)
+		for sim in self.simulators:
+			sim.configure_loss(file, sparam_data)
 	
 	def setopt(self, param:str, value):
 		"""Changes a parameter for every simulator."""
 		
 		# List all simulators
-		simulators = [self, self.sim_abcd]
+		simulators_ = [s for s in self.simulators]
+		simulators_.append(self)
+		
 		
 		# Iterate over all simulators
-		for sim in simulators:
+		for sim in simulators_:
 			
 			# Skip simulator if parameter is not present
 			if not hasattr(sim.opt, param):
@@ -139,7 +147,7 @@ class LKSystem:
 		""" Specifies which simulator(s) to use."""
 		
 		# Check that ID is recognized
-		if sim_id != SIMULATOR_ABCD:
+		if sim_id != SIMULATOR_ABCD and sim_id != SIMULATOR_P0:
 			logging.warning("Unrecognized simulator ID provided.")
 			return
 		
@@ -153,6 +161,14 @@ class LKSystem:
 			
 			# Specify simulator
 			sim = self.sim_abcd
+			logging.info(f"Beginning solve with simulator: {Fore.LIGHTBLUE_EX}{sim.NAME}{Style.RESET_ALL}")
+			
+			# Run simulation
+			sim.solve(Ibias_vals)
+		elif self.opt.simulator == SIMULATOR_P0:
+			
+			# Specify simulator
+			sim = self.sim_p0
 			logging.info(f"Beginning solve with simulator: {Fore.LIGHTBLUE_EX}{sim.NAME}{Style.RESET_ALL}")
 			
 			# Run simulation
