@@ -18,7 +18,7 @@ with open("cryostat_sparams.pkl", 'rb') as fh:
 
 ######################### CONFIGURE BASIC SIMULATION ##################
 
-lks = LKSystem(Pgen, C_, l_phys, freq, q, L0)
+lks = LKSimABCD(Pgen, C_, l_phys, freq, q, L0)
 lks.opt.start_guess_method = GUESS_ZERO_REFLECTION
 lks.opt.max_iter = 200
 
