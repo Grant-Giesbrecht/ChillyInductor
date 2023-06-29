@@ -44,28 +44,6 @@ class LKSolution:
 	
 class Simopt:
 	
-	# Simulation options
-	use_S21_loss = True # This option interprets S21 data to determine system loss and incorporates it in the converging simulation
-	
-	# Frequency tolerance flags
-	#   These apply to finding frequencies for the loss estimate, FFT, etc. If
-	#   these tolerances are exceeded, warnings are sent to the log.
-	freq_tol_pcnt = 5 # If the estimate can't match the target freq. within this tolerance, it will send an error. Does not apply to DC
-	freq_tol_Hz = 100e6 # Same as above, but as absolute vale and DOES apply to DC
-	
-	# Convergence options
-	max_iter = 1000 # Max iterations for convergence
-	tol_pcnt = 1 # Tolerance in percent between Iac guesses
-	tol_abs = 0.1e-3 # Tolerance in mA between Iac guesses
-	guess_update_coef = 0.1 # Fraction by which to compromise between guess and result Iac (0=remain at guess, 1=use result; 0.5 recommended)
-	ceof_shrink_factor = 0.5 # Fraction by which to modify guess_update_coef when sign reverses (good starting point: 0.2)
-	
-	# How to pick initial Iac guess
-	start_guess_method = GUESS_ZERO_REFLECTION
-	
-	# Data Save Options
-	remove_td = False # Prevents all time domain data from being saved in solution data to save space
-	
 	# Simulation class to use
 	simulator = SIMULATOR_ABCD
 
@@ -74,7 +52,7 @@ class LKSystem:
 	def __init__(self, Pgen_dBm:float, C_:float, l_phys:float, freq:float, q:float, L0:float, max_harm:int=6, ZL=50, Zg=50):
 		
 		# Simulations options
-		self.opt = SimoptABCD()
+		self.opt = Simopt()
 		
 		# System Settings
 		self.Pgen = (10**(Pgen_dBm/10))/1000
@@ -141,7 +119,7 @@ class LKSystem:
 		
 		self.sim_abcd.configure_loss(file, sparam_data)
 	
-	def set(self, param:str, value):
+	def setopt(self, param:str, value):
 		"""Changes a parameter for every simulator."""
 		
 		# List all simulators
@@ -156,3 +134,28 @@ class LKSystem:
 			
 			# Set value
 			setattr(sim.opt, param, value)
+	
+	def select_simulator(self, sim_id:int):
+		""" Specifies which simulator(s) to use."""
+		
+		# Check that ID is recognized
+		if sim_id != SIMULATOR_ABCD:
+			logging.warning("Unrecognized simulator ID provided.")
+			return
+		
+		# Update simulator
+		self.opt.simulator = sim_id
+	
+	def solve(self, Ibias_vals:list):
+		
+		# Check which simulator is selected
+		if self.opt.simulator == SIMULATOR_ABCD:
+			
+			# Specify simulator
+			sim = self.sim_abcd
+			logging.info(f"Beginning solve with simulator: {Fore.LIGHTBLUE_EX}{sim.NAME}{Style.RESET_ALL}")
+			
+			# Run simulation
+			sim.solve(Ibias_vals)
+		else:
+			logging.warning("Unrecognized simulator selected.")

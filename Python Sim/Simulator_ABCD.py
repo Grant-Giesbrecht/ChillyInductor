@@ -88,6 +88,9 @@ class LKSimABCD:
 	def __init__(self, master_sim):
 		""" Initialize system with given conditions """
 		
+		# Name of simulator
+		self.NAME = "Simulator_ABCD"
+		
 		# Simulations options
 		self.opt = SimoptABCD()
 

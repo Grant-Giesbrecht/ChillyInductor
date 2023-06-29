@@ -18,14 +18,18 @@ with open("cryostat_sparams.pkl", 'rb') as fh:
 
 ######################### CONFIGURE BASIC SIMULATION ##################
 
+# Initialize system
 lks = LKSystem(Pgen, C_, l_phys, freq, q, L0)
-lks.set('start_guess_method', GUESS_ZERO_REFLECTION)
-lks.set('max_iter', 200)
 
-# lks.sim_abcd.opt.start_guess_method = GUESS_ZERO_REFLECTION
-# lks.sim_abcd.opt.max_iter = 200
+# Change options (applies to all simulators)
+lks.setopt('start_guess_method', GUESS_ZERO_REFLECTION)
+lks.setopt('max_iter', 200)
 
-lks.sim_abcd.solve(Idc_A, show_plot_on_conv=False,show_plot_on_fail=True)
+# Select simulator for system to use
+lks.select_simulator(SIMULATOR_ABCD)
+
+# Run simulation
+lks.solve(Idc_A)
 
 # Get results
 # Iac = np.array([x.Iac for x in lks.solution])
