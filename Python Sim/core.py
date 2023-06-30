@@ -37,12 +37,18 @@ for opt, aarg in opts:
 
 logging.basicConfig(format=f'{prime_color}%(levelname)s:{standard_color} %(message)s{quiet_color} | %(asctime)s{Style.RESET_ALL}', level=LOG_LEVEL)
 
-@dataclass
-class LKSolution:
+def simcode_to_str(sim_id:int):
+	""" Accepts a sim code and returns the simulator's name"""
 	
-	# Name of simulator that generated solution
-	source_simulator = None
+	if sim_id == SIMULATOR_ABCD:
+		return LKSimABCD.NAME
+	elif sim_id == SIMULATOR_P0:
+		return LKSimP0.NAME
 	
+	return "?"
+
+
+
 class Simopt:
 	
 	# Simulation class to use
@@ -143,18 +149,45 @@ class LKSystem:
 			# Set value
 			setattr(sim.opt, param, value)
 	
-	def select_simulator(self, sim_id:int):
-		""" Specifies which simulator(s) to use."""
+	def validate_simulator_code(self, sim_id:int):
+		""" Verifies that the code provided indicates a recognized simulator"""
 		
-		# Check that ID is recognized
-		if sim_id != SIMULATOR_ABCD and sim_id != SIMULATOR_P0:
+		if sim_id == SIMULATOR_ABCD:
+			return True
+		
+		if sim_id == SIMULATOR_P0:
+			return True
+		
+		return False
+	
+	def select_simulator(self, sim_id:int):
+		""" Specifies which simulator(s) to use by default. """
+		
+		# Check that valid simulator was provided
+		if not self.validate_simulator_code(sim_id):
 			logging.warning("Unrecognized simulator ID provided.")
 			return
 		
 		# Update simulator
 		self.opt.simulator = sim_id
 	
-	def solve(self, Ibias_vals:list):
+	def solve(self, Ibias_vals:list, simulator:int=None):
+		""" Solve the system at the bias values specified by Ibias_vals.
+		
+		If 'simulator' is specified, this simulator will be used instead of whatever
+		was specified as the default by 'select_simulator()', however it will not modify
+		the default/future function calls.
+		
+		"""
+		# Auto-select simulator
+		use_simulator = self.opt.simulator
+		if simulator is not None:
+			
+			# Verify that a valid simulator was provided
+			if not self.validate_simulator_code(simulator):
+				logging.warning("Unrecognized simulator ID provided. Using default: {}")
+			else:
+				use_simulator = simulator
 		
 		# Check which simulator is selected
 		if self.opt.simulator == SIMULATOR_ABCD:
@@ -175,3 +208,34 @@ class LKSystem:
 			sim.solve(Ibias_vals)
 		else:
 			logging.warning("Unrecognized simulator selected.")
+	
+	def get_solution(self, parameter:str=None, simulator:int=None):
+		""" Returns solution data """
+		
+		# Auto-select simulator
+		use_simulator = self.opt.simulator
+		if simulator is not None:
+			
+			# Verify that a valid simulator was provided
+			if not self.validate_simulator_code(simulator):
+				logging.warning(f"Unrecognized simulator ID provided. Using default: {simcode_to_str(use_simulator)}")
+			else:
+				use_simulator = simulator
+		
+		# Get full dataset
+		if use_simulator == SIMULATOR_ABCD:
+			soln = self.sim_abcd.get_solution()
+		elif use_simulator == SIMULATOR_P0:
+			soln = self.sim_p0.get_solution()
+		else:
+			logging.error("Failed to recognize simulator")
+			return None
+		
+		# If no parameter was requested, return the full dataset
+		if parameter is None:
+			return soln
+		
+		# Return extracted parameter
+		return soln_extract(soln, parameter)
+		
+		
