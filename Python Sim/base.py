@@ -51,6 +51,27 @@ class LKSolution:
 	# Name of simulator that generated solution
 	source_simulator = None
 
+def soln_extract(solution:list, param:str):
+	""" Takes a solution list and extracts the specified parameter as 
+	a numpy array """
+	
+	# Handle empty set
+	if len(solution) < 1:
+		return []
+	
+	# Ensure attribute is present
+	if not hasattr(solution[0], param):
+		logging.warning("Requested attribute is not present")
+		return None
+	
+	# Extract the relevant parameter for each solution point
+	list_data = []
+	for x in solution:
+		list_data.append(getattr(x, param))
+	
+	return np.array(list_data)
+
+
 class CMap:
 	
 	def __init__(self, cmap_name:str, N:int=None, data:list=None):
