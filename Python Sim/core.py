@@ -5,7 +5,7 @@ import logging
 import getopt, sys
 from Simulator_ABCD import *
 from Simulator_P0 import *
-
+import git
 
 addLoggingLevel('MAIN', logging.INFO + 5)
 
@@ -36,6 +36,12 @@ for opt, aarg in opts:
 #-----------------------------------------------------------
 
 logging.basicConfig(format=f'{prime_color}%(levelname)s:{standard_color} %(message)s{quiet_color} | %(asctime)s{Style.RESET_ALL}', level=LOG_LEVEL)
+
+#print git version
+repo = git.Repo(search_parent_directories=True)
+sha = repo.head.object.hexsha
+sha_short = sha[:12]
+logging.info(f"Initializing simulator. {Fore.LIGHTBLACK_EX}[Package state: {Fore.LIGHTBLUE_EX}{repo.active_branch}{Fore.LIGHTBLACK_EX}, commit={Fore.LIGHTBLUE_EX}0x{sha_short}{Fore.LIGHTBLACK_EX}]{Style.RESET_ALL}")
 
 def simcode_to_str(sim_id:int):
 	""" Accepts a sim code and returns the simulator's name"""
