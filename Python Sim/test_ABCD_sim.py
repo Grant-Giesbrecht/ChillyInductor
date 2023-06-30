@@ -18,11 +18,18 @@ with open("cryostat_sparams.pkl", 'rb') as fh:
 
 ######################### CONFIGURE BASIC SIMULATION ##################
 
-lks = LKSimABCD(Pgen, C_, l_phys, freq, q, L0)
-lks.opt.start_guess_method = GUESS_ZERO_REFLECTION
-lks.opt.max_iter = 200
+# Initialize system
+lks = LKSystem(Pgen, C_, l_phys, freq, q, L0)
 
-lks.solve(Idc_A, show_plot_on_conv=False,show_plot_on_fail=True)
+# Change options (applies to all simulators)
+lks.setopt('start_guess_method', GUESS_ZERO_REFLECTION)
+lks.setopt('max_iter', 200)
+
+# Select simulator for system to use
+lks.select_simulator(SIMULATOR_ABCD)
+
+# Run simulation
+lks.solve(Idc_A)
 
 # Get results
 # Iac = np.array([x.Iac for x in lks.solution])
@@ -31,7 +38,7 @@ Idc_plot = []
 fund = []
 I2H = []
 I3H = []
-for idx, x in enumerate(lks.solution):
+for idx, x in enumerate(lks.sim_abcd.solution):
 	if x.convergence_failure:
 		continue
 	
