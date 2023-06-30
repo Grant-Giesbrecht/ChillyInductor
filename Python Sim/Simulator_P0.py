@@ -505,3 +505,5 @@ class LKSimP0:
 			
 			# Append to output list
 			fmt_solution.append(ns)
+		
+		return fmt_solution

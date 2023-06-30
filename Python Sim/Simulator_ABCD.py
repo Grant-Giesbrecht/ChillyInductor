@@ -614,8 +614,8 @@ class LKSimABCD:
 			ns = LKSolution()
 			
 			# Populate with solution data
-			ns.Iac_g = s.Iac
-			ns.Ibias_c = s.Ibias
+			ns.Iac_g = s.Iac_g
+			ns.Ibias_c = s.Ibias_c
 			ns.Vgen_c = s.Vgen_c
 			
 			ns.Ig_w = s.Ig_w
@@ -640,3 +640,5 @@ class LKSimABCD:
 			
 			# Append to output list
 			fmt_solution.append(ns)
+		
+		return fmt_solution
