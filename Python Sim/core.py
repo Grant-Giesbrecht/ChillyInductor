@@ -185,12 +185,12 @@ class LKSystem:
 			
 			# Verify that a valid simulator was provided
 			if not self.validate_simulator_code(simulator):
-				logging.warning("Unrecognized simulator ID provided. Using default: {}")
+				logging.warning(f"Unrecognized simulator ID provided. Using default: {simcode_to_str(self.opt.simulator)}")
 			else:
 				use_simulator = simulator
 		
 		# Check which simulator is selected
-		if self.opt.simulator == SIMULATOR_ABCD:
+		if use_simulator == SIMULATOR_ABCD:
 			
 			# Specify simulator
 			sim = self.sim_abcd
@@ -198,7 +198,7 @@ class LKSystem:
 			
 			# Run simulation
 			sim.solve(Ibias_vals)
-		elif self.opt.simulator == SIMULATOR_P0:
+		elif use_simulator == SIMULATOR_P0:
 			
 			# Specify simulator
 			sim = self.sim_p0
@@ -209,8 +209,15 @@ class LKSystem:
 		else:
 			logging.warning("Unrecognized simulator selected.")
 	
-	def get_solution(self, parameter:str=None, simulator:int=None):
-		""" Returns solution data """
+	def get_solution(self, parameter:str=None, simulator:int=None, conv_only:bool=True):
+		""" Returns solution data 
+		
+		simulator: Which simulator to select solution data from. Defaults to that in master options (self.opt.simulator).
+		parameter: Parameter to extract as a numpy array. If is None, will return all data as general solution structs.
+		conv_only: Only include data points that did converge
+		
+		
+		"""
 		
 		# Auto-select simulator
 		use_simulator = self.opt.simulator
@@ -233,9 +240,11 @@ class LKSystem:
 		
 		# If no parameter was requested, return the full dataset
 		if parameter is None:
+			print(f"{Fore.LIGHTMAGENTA_EX}Returning basic 'soln'{Style.RESET_ALL}")
 			return soln
 		
 		# Return extracted parameter
-		return soln_extract(soln, parameter)
+		f"{Fore.LIGHTMAGENTA_EX}Returning main thing{Style.RESET_ALL}"
+		return soln_extract(soln, parameter, conv_only=conv_only)
 		
 		

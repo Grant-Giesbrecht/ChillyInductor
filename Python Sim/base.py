@@ -51,7 +51,7 @@ class LKSolution:
 	# Name of simulator that generated solution
 	source_simulator = None
 
-def soln_extract(solution:list, param:str):
+def soln_extract(solution:list, param:str, conv_only:bool=True):
 	""" Takes a solution list and extracts the specified parameter as 
 	a numpy array """
 	
@@ -67,6 +67,12 @@ def soln_extract(solution:list, param:str):
 	# Extract the relevant parameter for each solution point
 	list_data = []
 	for x in solution:
+		
+		# Skip non-converged points
+		if conv_only and (x.convergence_failure):
+			continue
+		
+		# Add data
 		list_data.append(getattr(x, param))
 	
 	return np.array(list_data)
