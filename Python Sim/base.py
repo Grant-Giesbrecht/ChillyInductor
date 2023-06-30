@@ -59,8 +59,6 @@ def soln_extract(solution:list, param:str, conv_only:bool=True, element:int=None
 	if len(solution) < 1:
 		return []
 	
-	print(f"{Fore.LIGHTMAGENTA_EX}element = {element}{Style.RESET_ALL}")
-	
 	# Ensure attribute is present
 	if not hasattr(solution[0], param):
 		logging.warning("Requested attribute is not present")
@@ -83,10 +81,6 @@ def soln_extract(solution:list, param:str, conv_only:bool=True, element:int=None
 				logging.warning("Failed to observe 'element' parameter; out of bounds.")
 			else:
 				new_data = new_data[element]
-		else:
-			print(f"\tis instance: {isinstance(new_data, list)}, type = {type(new_data)}")
-		
-		print(f"\tappending: {Fore.LIGHTYELLOW_EX}{new_data}{Style.RESET_ALL}")
 		
 		# Add data
 		list_data.append(new_data)
