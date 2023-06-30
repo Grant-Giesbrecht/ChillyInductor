@@ -82,11 +82,11 @@ class LKSimABCD:
 	""" This class represents a solution to the nonlinear chip system, give a set of input conditions (things
 	like actual chip length, input power, etc)."""
 	
+	# Name of simulator
+	NAME = "Simulator_ABCD"
+	
 	def __init__(self, master_sim):
 		""" Initialize system with given conditions """
-		
-		# Name of simulator
-		self.NAME = "Simulator_ABCD"
 		
 		# Simulations options
 		self.opt = SimoptABCD()

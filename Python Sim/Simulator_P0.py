@@ -492,8 +492,8 @@ class LKSimP0:
 			ns.VL_w = []
 			ns.VL_wf = []
 			
-			ns.freq_w = s.spec_freqs
-			ns.freq_wf = []
+			ns.freq_w = [self.freq, self.freq*2, self.freq*3]
+			ns.freq_wf = s.spec_freqs
 			
 			ns.convergence_failure = s.convergence_failure
 			ns.num_iter = s.num_iter

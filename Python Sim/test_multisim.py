@@ -8,7 +8,7 @@ freq = 10e9
 q = .19
 L0 = 1e-6
 
-Ibias = np.linspace(1, 30, 16)*1e-3
+Ibias = np.linspace(24.2, 26.1, 2)*1e-3
 
 ######################### CONFIGURE BASIC SIMULATION ##################
 
@@ -34,8 +34,8 @@ f_P0 = lks.get_solution(simulator=SIMULATOR_P0, parameter='freq_w')
 
 # Make plot
 plt.figure(1)
-plt.plot(f_ABCD/1e9, abs(Ig_ABCD*1e3), linestyle='dashed', marker='o', color=(0.7, 0, 0), label="ABCD-Simulator")
-plt.plot(f_P0/1e9, abs(Ig_P0*1e3), linestyle='dashed', marker='o', color=(0, 0, 0.7), label="P0-Simulator")
+plt.plot(f_ABCD/1e9, Ig_ABCD*1e3, linestyle='dashed', marker='o', color=(0.7, 0, 0), label="ABCD-Simulator")
+plt.plot(f_P0/1e9, Ig_P0*1e3, linestyle='dashed', marker='o', color=(0, 0, 0.7), label="P0-Simulator")
 plt.grid()
 plt.xlabel("Bias Current (mA)")
 plt.ylabel("Current Amplitude (mA)")
