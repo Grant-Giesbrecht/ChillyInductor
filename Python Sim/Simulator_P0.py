@@ -1,6 +1,5 @@
 from base import *
 
-from dataclasses import dataclass
 import copy
 from scipy.fft import fft, fftfreq
 import pickle
@@ -60,11 +59,11 @@ class LKSimP0:
 	""" This class represents a solution to the nonlinear chip system, give a set of input conditions (things
 	like actual chip length, input power, etc)."""
 	
+	# Name of simulator
+	NAME = "Simulator_P0"
+	
 	def __init__(self, master_sim):
 		""" Initialize system with given conditions """
-		
-		# Name of simulator
-		self.NAME = "Simulator_P0"
 		
 		# Simulations options
 		self.opt = SimoptP0()
@@ -468,3 +467,41 @@ class LKSimP0:
 						Iac_guess = Iac_guess + error * guess_coef
 					
 					logging.debug(f"Last guess produced {cspecial}error={error}{standard_color}. Updated guess to {cspecial}Iac={Iac_guess}{standard_color}. [{cspecial}iter={self.soln.num_iter}{standard_color}]")
+	
+	def get_solution(self):
+		""" Returns the solution in generalized format """
+		
+		# Iterate over solution data, copy into new format
+		fmt_solution = []
+		for s in self.solution:
+			
+			# Create solution object
+			ns = LKSolution()
+			
+			# Populate with solution data
+			ns.Iac_g = s.Iac
+			ns.Ibias_c = s.Ibias
+			ns.Vgen_c = self.Vgen
+			
+			ns.Ig_w = s.Iac_result_spec
+			ns.Ig_wf = []
+			
+			ns.IL_w = []
+			ns.IL_wf = []
+			
+			ns.VL_w = []
+			ns.VL_wf = []
+			
+			ns.freq_w = s.spec_freqs
+			ns.freq_wf = []
+			
+			ns.convergence_failure = s.convergence_failure
+			ns.num_iter = s.num_iter
+			
+			ns.Iac_guess_history = []
+			ns.guess_coef_history = []
+			ns.error_history = []
+			ns.error_history_pcnt = []
+			
+			# Append to output list
+			fmt_solution.append(ns)
