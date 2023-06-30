@@ -209,13 +209,15 @@ class LKSystem:
 		else:
 			logging.warning("Unrecognized simulator selected.")
 	
-	def get_solution(self, parameter:str=None, simulator:int=None, conv_only:bool=True):
+	def get_solution(self, parameter:str=None, simulator:int=None, conv_only:bool=True, element=None):
 		""" Returns solution data 
 		
 		simulator: Which simulator to select solution data from. Defaults to that in master options (self.opt.simulator).
 		parameter: Parameter to extract as a numpy array. If is None, will return all data as general solution structs.
 		conv_only: Only include data points that did converge
-		
+		element: If parameter is an array for each datapoint, element=None will return a 2D array (each array element is the pertinent array)
+				 or, if element is an integer, it will return that integer element of each solutoin's array. For example element=1 could pick
+				 out first harmonic data.
 		
 		"""
 		
@@ -240,11 +242,9 @@ class LKSystem:
 		
 		# If no parameter was requested, return the full dataset
 		if parameter is None:
-			print(f"{Fore.LIGHTMAGENTA_EX}Returning basic 'soln'{Style.RESET_ALL}")
 			return soln
 		
 		# Return extracted parameter
-		f"{Fore.LIGHTMAGENTA_EX}Returning main thing{Style.RESET_ALL}"
-		return soln_extract(soln, parameter, conv_only=conv_only)
+		return soln_extract(soln, parameter, conv_only=conv_only, element=element)
 		
 		

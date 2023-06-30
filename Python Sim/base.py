@@ -51,13 +51,15 @@ class LKSolution:
 	# Name of simulator that generated solution
 	source_simulator = None
 
-def soln_extract(solution:list, param:str, conv_only:bool=True):
+def soln_extract(solution:list, param:str, conv_only:bool=True, element:int=None):
 	""" Takes a solution list and extracts the specified parameter as 
 	a numpy array """
 	
 	# Handle empty set
 	if len(solution) < 1:
 		return []
+	
+	print(f"{Fore.LIGHTMAGENTA_EX}element = {element}{Style.RESET_ALL}")
 	
 	# Ensure attribute is present
 	if not hasattr(solution[0], param):
@@ -72,8 +74,22 @@ def soln_extract(solution:list, param:str, conv_only:bool=True):
 		if conv_only and (x.convergence_failure):
 			continue
 		
+		# Get data
+		new_data = getattr(x, param)
+		if (isinstance(new_data, list) or isinstance(new_data, np.ndarray)) and (element is not None):
+			
+			# Check bounds, else modify new_data
+			if len(new_data) <= element:
+				logging.warning("Failed to observe 'element' parameter; out of bounds.")
+			else:
+				new_data = new_data[element]
+		else:
+			print(f"\tis instance: {isinstance(new_data, list)}, type = {type(new_data)}")
+		
+		print(f"\tappending: {Fore.LIGHTYELLOW_EX}{new_data}{Style.RESET_ALL}")
+		
 		# Add data
-		list_data.append(getattr(x, param))
+		list_data.append(new_data)
 	
 	return np.array(list_data)
 

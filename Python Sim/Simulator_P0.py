@@ -231,7 +231,6 @@ class LKSimP0:
 		self.soln.P0 = np.abs(self.Vgen)**2 * Rin * 0.5 / ((Rin + self.Rsrc)**2 + (Xin + self.Xsrc)**2)
 		
 		# Find resulting Iac and error
-		logging.warning(f"{Fore.RED}ERROR: Power calculation ignored higher order terms.{standard_color}")
 		self.soln.Iac_result_rms = np.sqrt(2*self.soln.P0/np.cos(self.theta)/self.soln.Zin)
 		self.soln.Iac_result_td = np.sqrt(2)*self.soln.Iac_result_rms*np.sin(2*PI*self.freq*self.t) #TODO: Need a factor of sqrt(2)
 		# err_list = np.abs(self.soln.Iac_result_rms - self.soln.Iac) # Error in signal *amplitude* at each time point
@@ -363,6 +362,8 @@ class LKSimP0:
 		
 		Iac_crude_guess = np.abs(self.Vgen)**2 / 50 # Crude guess for AC current (Assume 50 ohm looking into chip)
 		
+		logging.warning(f"{Fore.RED}Power calculation ignores higher order terms.{standard_color}")
+		
 		# Scan over each bias value
 		for Idc in Ibias_vals:
 			
@@ -483,7 +484,7 @@ class LKSimP0:
 			ns.Ibias_c = s.Ibias
 			ns.Vgen_c = self.Vgen
 			
-			ns.Ig_w = s.Iac_result_spec
+			ns.Ig_w = np.array(s.Iac_result_spec)
 			ns.Ig_wf = []
 			
 			ns.IL_w = []
@@ -492,8 +493,8 @@ class LKSimP0:
 			ns.VL_w = []
 			ns.VL_wf = []
 			
-			ns.freq_w = [self.freq, self.freq*2, self.freq*3]
-			ns.freq_wf = s.spec_freqs
+			ns.freq_w = np.array([self.freq, self.freq*2, self.freq*3])
+			ns.freq_wf = np.array(s.spec_freqs)
 			
 			ns.convergence_failure = s.convergence_failure
 			ns.num_iter = s.num_iter
