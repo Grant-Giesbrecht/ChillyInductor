@@ -1,6 +1,5 @@
 from base import *
 
-from dataclasses import dataclass
 import copy
 from scipy.fft import fft, fftfreq
 import pickle
@@ -68,10 +67,8 @@ class LKSolutionABCD:
 	Vx_w = None
 	IL_w = None
 	Ig_w = None # Iac result as spectrum, shows fundamental, 2harm, and 3harm as touple (idx 0 = fund, ..., 2 = 3rd harm)
-	spec_Ig_check = None
 	freq_w = None
 	freq_wf = None
-	rmse = None # |Iac_result - Iac|
 	
 	# Convergence data
 	convergence_failure = None # Set as True if fails to converge
@@ -605,3 +602,41 @@ class LKSimABCD:
 						Iac_guess = Iac_guess + error * guess_coef
 					
 					logging.debug(f"Last guess produced {cspecial}error={error}{standard_color}. Updated guess to {cspecial}Iac={Iac_guess}{standard_color}. [{cspecial}iter={self.soln.num_iter}{standard_color}]")
+	
+	def get_solution(self):
+		""" Returns the solution in generalized format """
+		
+		# Iterate over solution data, copy into new format
+		fmt_solution = []
+		for s in self.solution:
+			
+			# Create solution object
+			ns = LKSolution()
+			
+			# Populate with solution data
+			ns.Iac_g = s.Iac
+			ns.Ibias_c = s.Ibias
+			ns.Vgen_c = s.Vgen_c
+			
+			ns.Ig_w = s.Ig_w
+			ns.Ig_wf = s.Ig_wf
+			
+			ns.IL_w = s.IL_w
+			ns.IL_wf = []
+			
+			ns.VL_w = []
+			ns.VL_wf = []
+			
+			ns.freq_w = s.freq_w
+			ns.freq_wf = s.freq_wf
+			
+			ns.convergence_failure = s.convergence_failure
+			ns.num_iter = s.num_iter
+			
+			ns.Iac_guess_history = s.Iac_guess_history
+			ns.guess_coef_history = s.guess_coef_history
+			ns.error_history = s.error_history
+			ns.error_history_pcnt = s.error_history_pcnt
+			
+			# Append to output list
+			fmt_solution.append(ns)
