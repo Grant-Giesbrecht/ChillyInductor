@@ -3,6 +3,7 @@ import logging
 import math
 from colorama import Fore, Style
 import numpy as np
+from dataclasses import dataclass
 
 tabchar = "    "
 prime_color = Fore.YELLOW
@@ -15,6 +16,40 @@ PI = 3.1415926535
 # Starting Iac guess options
 GUESS_ZERO_REFLECTION = 1
 GUESS_USE_LAST = 2
+
+@dataclass
+class LKSolution:
+	""" General solution class. Each simulator can use its own solution object 
+	to save data specific about its solving process, but all classes need to 
+	translate their results to this format for compatability and comparison."""
+	
+	# Scalar/configuration variables
+	Iac_g = None
+	Ibias_c = None
+	Vgen_c = None
+	
+	# Spectrum Data
+	Ig_w = None
+	Ig_wf = None
+	
+	IL_w = None
+	IL_wf = None
+	VL_w = None
+	VL_wf = None
+	
+	freq_w = None
+	freq_wf = None
+	
+	# Convergence data
+	convergence_failure = None # Set as True if fails to converge
+	num_iter = None # Number of iterations completed
+	Iac_guess_history = None # List of all Iac guesses
+	guess_coef_history = None # List of all guess_coefficeints
+	error_history = None # List of all error values during converge
+	error_history_pcnt = None # List of all error values during converge
+	
+	# Name of simulator that generated solution
+	source_simulator = None
 
 class CMap:
 	
