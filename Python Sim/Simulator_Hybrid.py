@@ -4,33 +4,17 @@ import copy
 from scipy.fft import fft, fftfreq
 import pickle
 
+from Simulator_ABCD import *
+from Simulator_P0 import *
+
 SIMULATOR_HYBRID = 30
 
 @dataclass
 class SimoptHybrid:
 	""" Contains simulation options"""
 	
-	# Simulation options
-	use_S21_loss = True # This option interprets S21 data to determine system loss and incorporates it in the converging simulation
-	
-	# Frequency tolerance flags
-	#   These apply to finding frequencies for the loss estimate, FFT, etc. If
-	#   these tolerances are exceeded, warnings are sent to the log.
-	freq_tol_pcnt = 5 # If the estimate can't match the target freq. within this tolerance, it will send an error. Does not apply to DC
-	freq_tol_Hz = 100e6 # Same as above, but as absolute vale and DOES apply to DC
-	
-	# Convergence options
-	max_iter = 1000 # Max iterations for convergence
-	tol_pcnt = 1 # Tolerance in percent between Iac guesses
-	tol_abs = 0.1e-3 # Tolerance in mA between Iac guesses
-	guess_update_coef = 0.1 # Fraction by which to compromise between guess and result Iac (0=remain at guess, 1=use result; 0.5 recommended)
-	ceof_shrink_factor = 0.5 # Fraction by which to modify guess_update_coef when sign reverses (good starting point: 0.2)
-	
-	# How to pick initial Iac guess
-	start_guess_method = GUESS_ZERO_REFLECTION
-	
-	# Data Save Options
-	remove_td = False # Prevents all time domain data from being saved in solution data to save space
+	convergence_sim = SIMULATOR_P0 # This is the simulator used to find Iac for convergence
+	result_sim = SIMULATOR_ABCD # This is the simulator used to print the result
 	
 @dataclass
 class LKSolutionHybrid:
@@ -85,34 +69,37 @@ class LKSimHybrid:
 	# Name of simulator
 	NAME = "Simulator_Hybrid"
 	
-	def __init__(self, master_sim):
+	def __init__(self, master_sim, sim_abcd, sim_p0):
 		""" Initialize system with given conditions """
 		
 		# Simulations options
 		self.opt = SimoptHybrid()
+		
+		self.sim_abcd = sim_abcd
+		self.sim_p0 = sim_p0
 
-		# System Settings
-		self.Pgen = master_sim.Pgen
-		self.C_ = master_sim.C_
-		self.l_phys = master_sim.l_phys
-		self.freq = master_sim.freq
-		self.q = master_sim.q
-		self.L0 = master_sim.L0
-		self.ZL = master_sim.ZL # Impedance of load
-		self.Zg = master_sim.Zg # Impedance of generator
-		self.Vgen = master_sim.Vgen # Solve for Generator voltage from power
-		self.max_harm = master_sim.max_harm # Harmonic number to go up to in spectral domain (plus DC)
-		self.system_loss = master_sim.system_loss # Tuple containing system loss at each harmonic (linear scale, not dB)
-		self.Itickle = master_sim.Itickle # Amplitude (A) of tickle signal (Set to none to exclude tickle)
-		self.freq_tickle = master_sim.freq_tickle # Amplitude (A) of tickle signal (Set to none to exclude tickle)
-		self.harms = master_sim.harms # List of harmonic numbers to include in spectral analysis
+		# # System Settings
+		# self.Pgen = master_sim.Pgen
+		# self.C_ = master_sim.C_
+		# self.l_phys = master_sim.l_phys
+		# self.freq = master_sim.freq
+		# self.q = master_sim.q
+		# self.L0 = master_sim.L0
+		# self.ZL = master_sim.ZL # Impedance of load
+		# self.Zg = master_sim.Zg # Impedance of generator
+		# self.Vgen = master_sim.Vgen # Solve for Generator voltage from power
+		# self.max_harm = master_sim.max_harm # Harmonic number to go up to in spectral domain (plus DC)
+		# self.system_loss = master_sim.system_loss # Tuple containing system loss at each harmonic (linear scale, not dB)
+		# self.Itickle = master_sim.Itickle # Amplitude (A) of tickle signal (Set to none to exclude tickle)
+		# self.freq_tickle = master_sim.freq_tickle # Amplitude (A) of tickle signal (Set to none to exclude tickle)
+		# self.harms = master_sim.harms # List of harmonic numbers to include in spectral analysis
 				
-		# Time domain options
-		self.num_periods = master_sim.num_periods
-		self.num_periods_tickle = master_sim.num_periods_tickle # If tickle is included, this may not be none, in which case this will set the t_max time (greatly extending simulation time)
-		self.max_harm_td = master_sim.max_harm_td
-		self.min_points_per_wave = master_sim.min_points_per_wave
-		self.t = master_sim.t
+		# # Time domain options
+		# self.num_periods = master_sim.num_periods
+		# self.num_periods_tickle = master_sim.num_periods_tickle # If tickle is included, this may not be none, in which case this will set the t_max time (greatly extending simulation time)
+		# self.max_harm_td = master_sim.max_harm_td
+		# self.min_points_per_wave = master_sim.min_points_per_wave
+		# self.t = master_sim.t
 
 		# Create solution object
 		self.soln = LKSolutionHybrid() # Current solution data
@@ -120,7 +107,7 @@ class LKSimHybrid:
 		self.solution = [] # List of solution data
 		self.bias_points = [] # List of bias values corresponding to solution data
 		
-		self.configure_time_domain(1000, 3, 30)
+		# self.configure_time_domain(1000, 3, 30)
 	
 	def configure_tickle(self, Itickle:float, freq_tickle:float, num_periods:float=20):
 		""" This function configures the tickle variables, enabling a tickle signal to be
@@ -144,23 +131,7 @@ class LKSimHybrid:
 		  
 		"""
 		
-		# Save options
-		self.num_periods = num_periods
-		self.max_harm_td = max_harm_td
-		self.min_points_per_wave = min_points_per_wave
-		
-		# Calculate max 
-		if self.num_periods_tickle is None: # Calculate t_max and num_points the standard way
-			t_max = num_periods/self.freq
-			num_points = min_points_per_wave*max_harm_td*num_periods+1
-		else: # Greatly extend number of points to simulate low-freq tickle accurately
-			t_max = self.num_periods_tickle/self.freq_tickle
-			num_points = min_points_per_wave*int(max_harm_td*self.freq/self.freq_tickle)*num_periods+1
-		
-		# Create t array
-		self.t = np.linspace(0, t_max, num_points)
-		
-		logging.info(f"Configured time domain with {cspecial}{len(self.t)}{standard_color} points.")
+		pass
 		
 	def configure_loss(self, file:str=None, sparam_data:dict=None):
 		""" Reads a pkl file with a dictionary containing variables 'freq_Hz' and 'S21_dB'
@@ -168,44 +139,7 @@ class LKSimHybrid:
 		without specifying a filename by using the sparam_data argument.
 		"""
 		
-		# Read file if no data provided
-		if sparam_data is None:
-			
-			# Open File
-			with open(file, 'rb') as fh:
-				sparam_data = pickle.load(fh)
-		
-		# Access frequency and S21 data
-		try:
-			freq = sparam_data['freq_Hz']
-			S21 = sparam_data['S21_dB']
-		except:
-			logging.error(f"{Fore.RED}Invalid S-parameter data provided when configuring system loss!{Style.RESET_ALL}")
-			logging.main("Simulating wihtout system loss")
-			return
-		
-		# Scan over all included harmonics and find loss
-		self.system_loss = []
-		for h in self.harms:
-			
-			target_freq = self.freq*h
-			
-			f_idx = find_nearest(freq, target_freq) # Find index
-			
-			# Send warning if target frequency missed by substatial margin
-			freq_err = np.abs(freq[f_idx]-target_freq)
-			if target_freq == 0:
-				if freq_err > self.opt.freq_tol_Hz:
-					logging.warning(f"Failed to find loss data within absolute tolerance of target frequency. (Error = {freq_err/1e6} MHz, target = DC")
-			elif freq_err/target_freq*100 > self.opt.freq_tol_pcnt:
-				logging.warning(f"Failed to find loss data within (%) tolerance of target frequency. (Error = {freq_err/target_freq*100} %, target = {target_freq/1e9} GHz")
-			elif freq_err > self.opt.freq_tol_Hz:
-				logging.warning(f"Failed to find loss data within absolute tolerance of target frequency. (Error = {freq_err/1e6} MHz, target = {target_freq/1e9} GHz")
-			
-			loss = (10**(S21[f_idx]/20)) # Calculate loss (convert from dB)
-			self.system_loss.append(loss) # Add to list
-		
-		logging.main(f"Configured system loss.")
+		pass
 			
 	def fourier(self, y:list, loss_frac:float=0, plot_result:bool=False):
 		""" Takes the fourier transform of 'y and returns both the full spectrum, and
@@ -368,7 +302,7 @@ class LKSimHybrid:
 		self.soln.freq_wf = Ix_tuple[1]
 		
 	def plot_solution(self, s:LKSolutionHybrid=None):
-				
+		
 		# Pick last solution if none provided
 		if s is None:
 			s = self.soln
@@ -433,175 +367,202 @@ class LKSimHybrid:
 		
 		logging.info(f"Beginning iterative solve for {cspecial}{len(Ibias_vals)}{standard_color} bias points.")
 		
-		Iac_crude_guess = np.abs(self.Vgen) / 50 # Crude guess for AC current (Assume 50 ohm looking into chip)
+		# Get convergence simulator
+		if self.opt.convergence_sim == SIMULATOR_ABCD:
+			conv_sim = self.sim_abcd
+		elif self.opt.convergence_sim == SIMULATOR_P0:
+			conv_sim = self.sim_p0
+		
+		# Get result simulator
+		if self.opt.result_sim == SIMULATOR_ABCD:
+			res_sim = self.sim_abcd
+		elif self.opt.result_sim == SIMULATOR_P0:
+			res_sim = self.sim_p0
 		
 		# Scan over each bias value
 		for Idc in Ibias_vals:
 			
-			# Reset solution data
-			last_sign = None # Sign of last change
-			self.soln.num_iter = 0	# Reset iteration counter
-			self.soln.Iac_guess_history = []
-			self.soln.guess_coef_history = []
-			self.soln.error_history = []
-			self.soln.error_history_pcnt = []
-			guess_coef = self.opt.guess_update_coef # Reset guess_coef
+			# Solve for this bias point using the convergence simulator
+			conv_sim.solve([Idc], show_plot_on_conv=show_plot_on_conv, show_plot_on_fail=show_plot_on_fail)
 			
-			# Prepare initial guess
-			if self.opt.start_guess_method == GUESS_ZERO_REFLECTION:
-				Iac_guess = Iac_crude_guess
-			elif self.opt.start_guess_method == GUESS_USE_LAST:
-				if len(self.solution) > 0:
-					Iac_guess = self.solution[-1].Iac
-				else:
-					Iac_guess = Iac_crude_guess
+			# Get solution data
+			soln = conv_sim.get_solution()
+			Iac_g = soln_extract(soln, "Iac_g", conv_only=True)
+			
+			print(f"{Fore.CYAN} Iac_g = {Iac_g}{Style.RESET_ALL}")
+			
+			# Check for convergence failure
+			
+			# Run converged data point in result simulator
+		
+		# Iac_crude_guess = np.abs(self.Vgen) / 50 # Crude guess for AC current (Assume 50 ohm looking into chip)
+		
+		
+			
+		# 	# Reset solution data
+		# 	last_sign = None # Sign of last change
+		# 	self.soln.num_iter = 0	# Reset iteration counter
+		# 	self.soln.Iac_guess_history = []
+		# 	self.soln.guess_coef_history = []
+		# 	self.soln.error_history = []
+		# 	self.soln.error_history_pcnt = []
+		# 	guess_coef = self.opt.guess_update_coef # Reset guess_coef
+			
+		# 	# Prepare initial guess
+		# 	if self.opt.start_guess_method == GUESS_ZERO_REFLECTION:
+		# 		Iac_guess = Iac_crude_guess
+		# 	elif self.opt.start_guess_method == GUESS_USE_LAST:
+		# 		if len(self.solution) > 0:
+		# 			Iac_guess = self.solution[-1].Iac
+		# 		else:
+		# 			Iac_guess = Iac_crude_guess
 				
-			# Loop until converge
-			while True:
+		# 	# Loop until converge
+		# 	while True:
 				
-				#Add to solution history
-				self.soln.guess_coef_history.append(guess_coef)
-				self.soln.Iac_guess_history.append(Iac_guess)
+		# 		#Add to solution history
+		# 		self.soln.guess_coef_history.append(guess_coef)
+		# 		self.soln.Iac_guess_history.append(Iac_guess)
 				
-				# Crunch the numbers of this guess value
-				self.crunch(Iac_guess, Idc)
-				self.soln.num_iter += 1
+		# 		# Crunch the numbers of this guess value
+		# 		self.crunch(Iac_guess, Idc)
+		# 		self.soln.num_iter += 1
 				
-				# Calculate signed error, check if convergence conditions met
-				# error = self.soln.Ig_w[0] + self.soln.Ig_w[1] + self.soln.Ig_w[2] - Iac_guess
-				error = self.soln.Ig_w[1] - Iac_guess
-				denom = np.min([self.soln.Ig_w[1], Iac_guess])
-				if denom != 0:
-					error_pcnt = (np.max([self.soln.Ig_w[1], Iac_guess])/denom-1)*100
-					did_converge = (error_pcnt < self.opt.tol_pcnt) and ( abs(error) < self.opt.tol_abs )
-				else:
-					error_pcnt = None
-					did_converge = ( abs(error) < self.opt.tol_abs )
+		# 		# Calculate signed error, check if convergence conditions met
+		# 		# error = self.soln.Ig_w[0] + self.soln.Ig_w[1] + self.soln.Ig_w[2] - Iac_guess
+		# 		error = self.soln.Ig_w[1] - Iac_guess
+		# 		denom = np.min([self.soln.Ig_w[1], Iac_guess])
+		# 		if denom != 0:
+		# 			error_pcnt = (np.max([self.soln.Ig_w[1], Iac_guess])/denom-1)*100
+		# 			did_converge = (error_pcnt < self.opt.tol_pcnt) and ( abs(error) < self.opt.tol_abs )
+		# 		else:
+		# 			error_pcnt = None
+		# 			did_converge = ( abs(error) < self.opt.tol_abs )
 				
-				# Add to history
-				self.soln.error_history.append(error)
-				self.soln.error_history_pcnt.append(error_pcnt)
+		# 		# Add to history
+		# 		self.soln.error_history.append(error)
+		# 		self.soln.error_history_pcnt.append(error_pcnt)
 				
-				# Check for convergence
-				if did_converge: #------------- Solution has converged ---------------------------------
+		# 		# Check for convergence
+		# 		if did_converge: #------------- Solution has converged ---------------------------------
 					
-					# Add to logger
-					logging.info(f"Datapoint ({cspecial}Idc={rd(Idc*1e3)} mA{standard_color}),({cspecial}Iac={rd(Iac_guess*1e3, 3)} mA{standard_color}) converged with {cspecial}error={rd(error_pcnt, 3)}%{standard_color} after {cspecial}{self.soln.num_iter}{standard_color} iterations ")
+		# 			# Add to logger
+		# 			logging.info(f"Datapoint ({cspecial}Idc={rd(Idc*1e3)} mA{standard_color}),({cspecial}Iac={rd(Iac_guess*1e3, 3)} mA{standard_color}) converged with {cspecial}error={rd(error_pcnt, 3)}%{standard_color} after {cspecial}{self.soln.num_iter}{standard_color} iterations ")
 					
-					# Create deep
-					new_soln = copy.deepcopy(self.soln)
-					new_soln.convergence_failure = False
+		# 			# Create deep
+		# 			new_soln = copy.deepcopy(self.soln)
+		# 			new_soln.convergence_failure = False
 					
-					if self.opt.remove_td:
-						new_soln.Lk = []
-						new_soln.Vp = []
-						new_soln.betaL = []
-						new_solnZchip_td = []
-						new_soln.L_td = []
-						new_soln.P0 = []
-						new_soln.theta = []
-						new_soln.Zin = []
+		# 			if self.opt.remove_td:
+		# 				new_soln.Lk = []
+		# 				new_soln.Vp = []
+		# 				new_soln.betaL = []
+		# 				new_solnZchip_td = []
+		# 				new_soln.L_td = []
+		# 				new_soln.P0 = []
+		# 				new_soln.theta = []
+		# 				new_soln.Zin = []
 						
-					if show_plot_on_conv:
+		# 			if show_plot_on_conv:
 						
-						label_color = Fore.LIGHTBLUE_EX
-						if new_soln.Iac_g < 1e-3:
-							label_color = Fore.RED
+		# 				label_color = Fore.LIGHTBLUE_EX
+		# 				if new_soln.Iac_g < 1e-3:
+		# 					label_color = Fore.RED
 						
-						# print(f"{label_color}Solution:{Style.RESET_ALL}")
-						# print(f"{label_color}\tharms:{Style.RESET_ALL} {rdl(new_soln.harms)}")
-						# print(f"{label_color}\tZ0 (ohm)):{Style.RESET_ALL} {rdl(new_soln.spec_Z0)}")
-						# print(f"{label_color}\tsqL (ohms):{Style.RESET_ALL} {rdl(new_soln.spec_sqL)}")
-						# print(f"{label_color}\tbetaL (deg):{Style.RESET_ALL} {rdl(new_soln.spec_betaL)}")
-						# print(f"{label_color}\tIL (mA):{Style.RESET_ALL} {rdl(new_soln.IL_w*1e3)}")
-						# print(f"{label_color}\tIx (mA):{Style.RESET_ALL} {rdl(new_soln.Ix_w*1e3)}")
-						# print(f"{label_color}\tIg (mA):{Style.RESET_ALL} {rdl(new_soln.Ig_w*1e3)}")
+		# 				# print(f"{label_color}Solution:{Style.RESET_ALL}")
+		# 				# print(f"{label_color}\tharms:{Style.RESET_ALL} {rdl(new_soln.harms)}")
+		# 				# print(f"{label_color}\tZ0 (ohm)):{Style.RESET_ALL} {rdl(new_soln.spec_Z0)}")
+		# 				# print(f"{label_color}\tsqL (ohms):{Style.RESET_ALL} {rdl(new_soln.spec_sqL)}")
+		# 				# print(f"{label_color}\tbetaL (deg):{Style.RESET_ALL} {rdl(new_soln.spec_betaL)}")
+		# 				# print(f"{label_color}\tIL (mA):{Style.RESET_ALL} {rdl(new_soln.IL_w*1e3)}")
+		# 				# print(f"{label_color}\tIx (mA):{Style.RESET_ALL} {rdl(new_soln.Ix_w*1e3)}")
+		# 				# print(f"{label_color}\tIg (mA):{Style.RESET_ALL} {rdl(new_soln.Ig_w*1e3)}")
 						
-						# if new_soln.Iac < 1e-3:
-						# 	self.plot_solution(new_soln)
+		# 				# if new_soln.Iac < 1e-3:
+		# 				# 	self.plot_solution(new_soln)
 					
-					# Add solution to list
-					self.solution.append(new_soln)
+		# 			# Add solution to list
+		# 			self.solution.append(new_soln)
 					
-					# Add bias point to list
-					self.bias_points.append(Idc)
+		# 			# Add bias point to list
+		# 			self.bias_points.append(Idc)
 					
-					# Plot result if requested
-					if show_plot_on_conv:
-						self.plot_solution()
+		# 			# Plot result if requested
+		# 			if show_plot_on_conv:
+		# 				self.plot_solution()
 					
-					# Exit convergence loop
-					break
+		# 			# Exit convergence loop
+		# 			break
 					
-				# Check for exceed max iterations
-				elif self.soln.num_iter >= self.opt.max_iter:  #-------- Not converged, has exceeded hax iterations! ---------
+		# 		# Check for exceed max iterations
+		# 		elif self.soln.num_iter >= self.opt.max_iter:  #-------- Not converged, has exceeded hax iterations! ---------
 					
-					# Add to logger
-					logging.warning(f"Failed to converge for point ({cspecial}Idc={rd(Idc*1e3)} mA{standard_color}).")
+		# 			# Add to logger
+		# 			logging.warning(f"Failed to converge for point ({cspecial}Idc={rd(Idc*1e3)} mA{standard_color}).")
 					
-					# Create deep copy
-					new_soln = copy.deepcopy(self.soln)
-					new_soln.convergence_failure = True
+		# 			# Create deep copy
+		# 			new_soln = copy.deepcopy(self.soln)
+		# 			new_soln.convergence_failure = True
 					
-					# Purge time domain data if requested
-					if self.opt.remove_td:
-						new_soln.Lk = []
-						new_soln.Vp = []
-						new_soln.betaL = []
-						new_solnZchip_td = []
-						new_soln.L_td = []
-						new_soln.P0 = []
-						new_soln.theta = []
-						new_soln.Zin = []
-						# new_soln.Iac_result_rms = []
-						# new_soln.Iac_result_td = []
+		# 			# Purge time domain data if requested
+		# 			if self.opt.remove_td:
+		# 				new_soln.Lk = []
+		# 				new_soln.Vp = []
+		# 				new_soln.betaL = []
+		# 				new_solnZchip_td = []
+		# 				new_soln.L_td = []
+		# 				new_soln.P0 = []
+		# 				new_soln.theta = []
+		# 				new_soln.Zin = []
+		# 				# new_soln.Iac_result_rms = []
+		# 				# new_soln.Iac_result_td = []
 					
-					# Add solution to list
-					self.solution.append(new_soln)
+		# 			# Add solution to list
+		# 			self.solution.append(new_soln)
 					
-					# Print convergence data if requested
-					if show_plot_on_fail:
-						self.plot_solution(new_soln)
+		# 			# Print convergence data if requested
+		# 			if show_plot_on_fail:
+		# 				self.plot_solution(new_soln)
 					
-					# Exit convergence loop
-					break
+		# 			# Exit convergence loop
+		# 			break
 				
-				# Else update guess
-				else: #---------------------- Not converged, calcualte a new guess ------------------------------
+		# 		# Else update guess
+		# 		else: #---------------------- Not converged, calcualte a new guess ------------------------------
 					
-					# Eror is positive, both agree
-					if error > 0:
+		# 			# Eror is positive, both agree
+		# 			if error > 0:
 						
-						# First iteration - set sign
-						if last_sign is None:
-							last_sign = np.sign(error)
-						# Last change was in different direction
-						elif last_sign < 0:
-							guess_coef *= self.opt.ceof_shrink_factor # Change update size
-							logging.info(f"iter: {self.soln.num_iter} Changing guess coef from {rd(guess_coef*1e5)}e-5 to {rd(guess_coef*1e5)}e-5. Shrink factor: {rd(self.opt.ceof_shrink_factor)}")
-							last_sign = 1 # Update change direction
-							logging.debug(f"Error sign changed. Changing guess update coefficient to {cspecial}{guess_coef}{standard_color}")
+		# 				# First iteration - set sign
+		# 				if last_sign is None:
+		# 					last_sign = np.sign(error)
+		# 				# Last change was in different direction
+		# 				elif last_sign < 0:
+		# 					guess_coef *= self.opt.ceof_shrink_factor # Change update size
+		# 					logging.info(f"iter: {self.soln.num_iter} Changing guess coef from {rd(guess_coef*1e5)}e-5 to {rd(guess_coef*1e5)}e-5. Shrink factor: {rd(self.opt.ceof_shrink_factor)}")
+		# 					last_sign = 1 # Update change direction
+		# 					logging.debug(f"Error sign changed. Changing guess update coefficient to {cspecial}{guess_coef}{standard_color}")
 						
-						# Update guess
-						Iac_guess = Iac_guess + error * guess_coef
+		# 				# Update guess
+		# 				Iac_guess = Iac_guess + error * guess_coef
 					
-					# Error is negative, both agree
-					elif error < 0:
+		# 			# Error is negative, both agree
+		# 			elif error < 0:
 												
-						# First iteration - set sign
-						if last_sign is None:
-							last_sign = np.sign(error)
-						# Last change was in different direction
-						elif last_sign > 0:
-							guess_coef *= self.opt.ceof_shrink_factor # Change update size
-							logging.info(f"iter: {self.soln.num_iter} Changing guess coef from {rd(guess_coef*1e5)}e-5 to {rd(guess_coef*1e5)}e-5. Shrink factor: {rd(self.opt.ceof_shrink_factor)}")
-							last_sign = -1 # Update change direction
-							logging.debug(f"Error sign changed. Changing guess update coefficient to {cspecial}{guess_coef}{standard_color}")
+		# 				# First iteration - set sign
+		# 				if last_sign is None:
+		# 					last_sign = np.sign(error)
+		# 				# Last change was in different direction
+		# 				elif last_sign > 0:
+		# 					guess_coef *= self.opt.ceof_shrink_factor # Change update size
+		# 					logging.info(f"iter: {self.soln.num_iter} Changing guess coef from {rd(guess_coef*1e5)}e-5 to {rd(guess_coef*1e5)}e-5. Shrink factor: {rd(self.opt.ceof_shrink_factor)}")
+		# 					last_sign = -1 # Update change direction
+		# 					logging.debug(f"Error sign changed. Changing guess update coefficient to {cspecial}{guess_coef}{standard_color}")
 							
-						# Update guess
-						Iac_guess = Iac_guess + error * guess_coef
+		# 				# Update guess
+		# 				Iac_guess = Iac_guess + error * guess_coef
 					
-					logging.debug(f"Last guess produced {cspecial}error={error}{standard_color}. Updated guess to {cspecial}Iac={Iac_guess}{standard_color}. [{cspecial}iter={self.soln.num_iter}{standard_color}]")
+		# 			logging.debug(f"Last guess produced {cspecial}error={error}{standard_color}. Updated guess to {cspecial}Iac={Iac_guess}{standard_color}. [{cspecial}iter={self.soln.num_iter}{standard_color}]")
 	
 	def get_solution(self):
 		""" Returns the solution in generalized format """

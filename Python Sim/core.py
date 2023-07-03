@@ -3,9 +3,11 @@ from base import *
 
 import logging
 import getopt, sys
+import git
+
 from Simulator_ABCD import *
 from Simulator_P0 import *
-import git
+from Simulator_Hybrid import *
 
 addLoggingLevel('MAIN', logging.INFO + 5)
 
@@ -50,6 +52,8 @@ def simcode_to_str(sim_id:int):
 		return LKSimABCD.NAME
 	elif sim_id == SIMULATOR_P0:
 		return LKSimP0.NAME
+	elif sim_id == SIMULATOR_HYBRID:
+		return LKSimHybrid.NAME
 	
 	return "?"
 
@@ -99,7 +103,8 @@ class LKSystem:
 		
 		self.sim_abcd = LKSimABCD(self)
 		self.sim_p0 = LKSimP0(self)
-		self.simulators = [self.sim_abcd, self.sim_p0]
+		self.sim_hybrid = LKSimHybrid(self, self.sim_abcd, self.sim_p0)
+		self.simulators = [self.sim_abcd, self.sim_p0, self.sim_hybrid]
 		
 		self.configure_time_domain(1000, 3, 30)
 	
@@ -144,7 +149,6 @@ class LKSystem:
 		simulators_ = [s for s in self.simulators]
 		simulators_.append(self)
 		
-		
 		# Iterate over all simulators
 		for sim in simulators_:
 			
@@ -162,6 +166,9 @@ class LKSystem:
 			return True
 		
 		if sim_id == SIMULATOR_P0:
+			return True
+		
+		if sim_id == SIMULATOR_HYBRID:
 			return True
 		
 		return False
@@ -212,6 +219,14 @@ class LKSystem:
 			
 			# Run simulation
 			sim.solve(Ibias_vals)
+		elif use_simulator == SIMULATOR_HYBRID:
+			
+			# Specify simulator
+			sim = self.sim_hybrid
+			logging.info(f"Beginning solve with simulator: {Fore.LIGHTBLUE_EX}{sim.NAME}{Style.RESET_ALL}")
+			
+			# Run simulation
+			sim.solve(Ibias_vals)
 		else:
 			logging.warning("Unrecognized simulator selected.")
 	
@@ -242,6 +257,8 @@ class LKSystem:
 			soln = self.sim_abcd.get_solution()
 		elif use_simulator == SIMULATOR_P0:
 			soln = self.sim_p0.get_solution()
+		elif use_simulator == SIMULATOR_HYBRID:
+			soln = self.sim_hybrid.get_solution()
 		else:
 			logging.error("Failed to recognize simulator")
 			return None

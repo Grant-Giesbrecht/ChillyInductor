@@ -354,9 +354,12 @@ class LKSimP0:
 		
 		plt.show()
 	
-	def solve(self, Ibias_vals:list, show_plot_on_conv=False):
+	def solve(self, Ibias_vals:list, show_plot_on_conv=False, show_plot_on_fail=False):
 		""" Takes a list of bias values, plugs them in for Idc, and solves for
 		the AC current s.t. error is within tolerance. """
+		
+		if show_plot_on_fail:
+			logging.warning(f"{Fore.YELLOW}Feature: {Fore.LIGHTMAGENTA_EX}'show_plot_on_fail'{Fore.YELLOW} not implemented for simulator {Fore.LIGHTMAGENTA_EX}{SimoptP0.NAME}{Fore.YELLOW}.{Style.RESET_ALL}")
 		
 		logging.info(f"Beginning iterative solve for {cspecial}{len(Ibias_vals)}{standard_color} bias points.")
 		
