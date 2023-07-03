@@ -41,7 +41,7 @@ logging.basicConfig(format=f'{prime_color}%(levelname)s:{standard_color} %(messa
 repo = git.Repo(search_parent_directories=True)
 sha = repo.head.object.hexsha
 sha_short = sha[:12]
-logging.info(f"Initializing simulator. {Fore.LIGHTBLACK_EX}[Package state: {Fore.LIGHTBLUE_EX}{repo.active_branch}{Fore.LIGHTBLACK_EX}, commit={Fore.LIGHTBLUE_EX}0x{sha_short}{Fore.LIGHTBLACK_EX}]{Style.RESET_ALL}")
+logging.info(f"Initializing simulator. {Fore.LIGHTBLACK_EX}[Active Branch: {Fore.LIGHTBLUE_EX}{repo.active_branch}{Fore.LIGHTBLACK_EX}, commit={Fore.LIGHTBLUE_EX}0x{sha_short}{Fore.LIGHTBLACK_EX}]{Style.RESET_ALL}")
 
 def simcode_to_str(sim_id:int):
 	""" Accepts a sim code and returns the simulator's name"""
