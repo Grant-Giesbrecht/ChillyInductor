@@ -13,6 +13,10 @@ cspecial = Fore.GREEN # COlor used to highlight content inside logging messages
 
 PI = 3.1415926535
 
+SIMULATOR_ABCD = 10
+SIMULATOR_P0 = 20
+SIMULATOR_HYBRID = 30
+
 # Starting Iac guess options
 GUESS_ZERO_REFLECTION = 1
 GUESS_USE_LAST = 2
@@ -87,6 +91,17 @@ def soln_extract(solution:list, param:str, conv_only:bool=True, element:int=None
 	
 	return np.array(list_data)
 
+def simcode_to_str(sim_id:int):
+	""" Accepts a sim code and returns the simulator's name"""
+	
+	if sim_id == SIMULATOR_ABCD:
+		return "Simulator_ABCD"
+	elif sim_id == SIMULATOR_P0:
+		return "Simulator_P0"
+	elif sim_id == SIMULATOR_HYBRID:
+		return "Simulator_Hybrid"
+	
+	return "?"
 
 class CMap:
 	

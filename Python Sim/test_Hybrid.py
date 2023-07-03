@@ -18,20 +18,19 @@ lks = LKSystem(Pgen, C_, l_phys, freq, q, L0)
 # Change options (applies to all simulators)
 lks.setopt('start_guess_method', GUESS_ZERO_REFLECTION)
 lks.setopt('max_iter', 200)
+lks.setopt('convergence_sim', SIMULATOR_P0)
+lks.setopt('result_sim', SIMULATOR_ABCD)
 
 # Select simulator for system to use
 lks.select_simulator(SIMULATOR_HYBRID)
 
-# Run simulation - ABCD
+# Run hybrid simulation
 lks.solve(Ibias)
-Ig_ABCD = lks.get_solution(parameter='Ig_w')
-Ig1_ABCD = lks.get_solution(parameter='Ig_w', element=1)
-f_ABCD = lks.get_solution(parameter='freq_w')
 
-exit()
-
-# Run simulation - P0
-lks.solve(Ibias, simulator=SIMULATOR_P0)
+# Get solutions from both simulators
+Ig_ABCD = lks.get_solution(simulator=SIMULATOR_ABCD, parameter='Ig_w')
+Ig1_ABCD = lks.get_solution(simulator=SIMULATOR_ABCD, parameter='Ig_w', element=1)
+f_ABCD = lks.get_solution(simulator=SIMULATOR_ABCD, parameter='freq_w')
 Ig_P0 = lks.get_solution(simulator=SIMULATOR_P0, parameter='Ig_w')
 Ig1_P0 = lks.get_solution(simulator=SIMULATOR_P0, parameter='Ig_w', element=1)
 f_P0 = lks.get_solution(simulator=SIMULATOR_P0, parameter='freq_w')

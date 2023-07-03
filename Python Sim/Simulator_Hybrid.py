@@ -7,8 +7,6 @@ import pickle
 from Simulator_ABCD import *
 from Simulator_P0 import *
 
-SIMULATOR_HYBRID = 30
-
 @dataclass
 class SimoptHybrid:
 	""" Contains simulation options"""
@@ -378,191 +376,38 @@ class LKSimHybrid:
 			res_sim = self.sim_abcd
 		elif self.opt.result_sim == SIMULATOR_P0:
 			res_sim = self.sim_p0
+			
+		# Solve for this bias point using the convergence simulator
+		conv_sim.solve(Ibias_vals, show_plot_on_conv=show_plot_on_conv, show_plot_on_fail=show_plot_on_fail)
 		
-		# Scan over each bias value
-		for Idc in Ibias_vals:
-			
-			# Solve for this bias point using the convergence simulator
-			conv_sim.solve([Idc], show_plot_on_conv=show_plot_on_conv, show_plot_on_fail=show_plot_on_fail)
-			
-			# Get solution data
-			soln = conv_sim.get_solution()
-			Iac_g = soln_extract(soln, "Iac_g", conv_only=True)
-			
-			print(f"{Fore.CYAN} Iac_g = {Iac_g}{Style.RESET_ALL}")
-			
-			# Check for convergence failure
-			
-			# Run converged data point in result simulator
+		# Get solution data
+		soln = conv_sim.get_solution()
+		Iac_g = soln_extract(soln, "Iac_g", conv_only=True)
+		Ibias_c = soln_extract(soln, "Ibias_c", conv_only=True)
+		logging.info(f"Found {Fore.CYAN}{len(Iac_g)}{Fore.WHITE} converged values ranging from {Fore.CYAN}{rd(min(Iac_g*1e3))}{Fore.WHITE} mA to {Fore.CYAN}{rd(max(Iac_g*1e3))}{Fore.WHITE} mA.")
 		
-		# Iac_crude_guess = np.abs(self.Vgen) / 50 # Crude guess for AC current (Assume 50 ohm looking into chip)
+		# Run solution data through results simulator
+		
+		logging.info(f"Beginning results calculation with simulator: {Fore.LIGHTBLUE_EX}{simcode_to_str(self.opt.result_sim)}{Style.RESET_ALL}")
+		Iac_r = []
+		for idx, Iac in enumerate(Iac_g):
+			
+			# Crunch the numbers in the alternative simulator
+			res_sim.crunch(Iac, Ibias_c[idx])
+			Iac_r.append(res_sim.soln.Ig_w[1])
+		
+			# Add to result-simulator's solution
+			new_soln = copy.deepcopy(res_sim.soln)
+			new_soln.convergence_failure = False
+			
+			# Add solution to list
+			res_sim.solution.append(new_soln)
+			
+			# Add bias point to list
+			res_sim.bias_points.append(Ibias_c[idx])
 		
 		
-			
-		# 	# Reset solution data
-		# 	last_sign = None # Sign of last change
-		# 	self.soln.num_iter = 0	# Reset iteration counter
-		# 	self.soln.Iac_guess_history = []
-		# 	self.soln.guess_coef_history = []
-		# 	self.soln.error_history = []
-		# 	self.soln.error_history_pcnt = []
-		# 	guess_coef = self.opt.guess_update_coef # Reset guess_coef
-			
-		# 	# Prepare initial guess
-		# 	if self.opt.start_guess_method == GUESS_ZERO_REFLECTION:
-		# 		Iac_guess = Iac_crude_guess
-		# 	elif self.opt.start_guess_method == GUESS_USE_LAST:
-		# 		if len(self.solution) > 0:
-		# 			Iac_guess = self.solution[-1].Iac
-		# 		else:
-		# 			Iac_guess = Iac_crude_guess
-				
-		# 	# Loop until converge
-		# 	while True:
-				
-		# 		#Add to solution history
-		# 		self.soln.guess_coef_history.append(guess_coef)
-		# 		self.soln.Iac_guess_history.append(Iac_guess)
-				
-		# 		# Crunch the numbers of this guess value
-		# 		self.crunch(Iac_guess, Idc)
-		# 		self.soln.num_iter += 1
-				
-		# 		# Calculate signed error, check if convergence conditions met
-		# 		# error = self.soln.Ig_w[0] + self.soln.Ig_w[1] + self.soln.Ig_w[2] - Iac_guess
-		# 		error = self.soln.Ig_w[1] - Iac_guess
-		# 		denom = np.min([self.soln.Ig_w[1], Iac_guess])
-		# 		if denom != 0:
-		# 			error_pcnt = (np.max([self.soln.Ig_w[1], Iac_guess])/denom-1)*100
-		# 			did_converge = (error_pcnt < self.opt.tol_pcnt) and ( abs(error) < self.opt.tol_abs )
-		# 		else:
-		# 			error_pcnt = None
-		# 			did_converge = ( abs(error) < self.opt.tol_abs )
-				
-		# 		# Add to history
-		# 		self.soln.error_history.append(error)
-		# 		self.soln.error_history_pcnt.append(error_pcnt)
-				
-		# 		# Check for convergence
-		# 		if did_converge: #------------- Solution has converged ---------------------------------
-					
-		# 			# Add to logger
-		# 			logging.info(f"Datapoint ({cspecial}Idc={rd(Idc*1e3)} mA{standard_color}),({cspecial}Iac={rd(Iac_guess*1e3, 3)} mA{standard_color}) converged with {cspecial}error={rd(error_pcnt, 3)}%{standard_color} after {cspecial}{self.soln.num_iter}{standard_color} iterations ")
-					
-		# 			# Create deep
-		# 			new_soln = copy.deepcopy(self.soln)
-		# 			new_soln.convergence_failure = False
-					
-		# 			if self.opt.remove_td:
-		# 				new_soln.Lk = []
-		# 				new_soln.Vp = []
-		# 				new_soln.betaL = []
-		# 				new_solnZchip_td = []
-		# 				new_soln.L_td = []
-		# 				new_soln.P0 = []
-		# 				new_soln.theta = []
-		# 				new_soln.Zin = []
-						
-		# 			if show_plot_on_conv:
-						
-		# 				label_color = Fore.LIGHTBLUE_EX
-		# 				if new_soln.Iac_g < 1e-3:
-		# 					label_color = Fore.RED
-						
-		# 				# print(f"{label_color}Solution:{Style.RESET_ALL}")
-		# 				# print(f"{label_color}\tharms:{Style.RESET_ALL} {rdl(new_soln.harms)}")
-		# 				# print(f"{label_color}\tZ0 (ohm)):{Style.RESET_ALL} {rdl(new_soln.spec_Z0)}")
-		# 				# print(f"{label_color}\tsqL (ohms):{Style.RESET_ALL} {rdl(new_soln.spec_sqL)}")
-		# 				# print(f"{label_color}\tbetaL (deg):{Style.RESET_ALL} {rdl(new_soln.spec_betaL)}")
-		# 				# print(f"{label_color}\tIL (mA):{Style.RESET_ALL} {rdl(new_soln.IL_w*1e3)}")
-		# 				# print(f"{label_color}\tIx (mA):{Style.RESET_ALL} {rdl(new_soln.Ix_w*1e3)}")
-		# 				# print(f"{label_color}\tIg (mA):{Style.RESET_ALL} {rdl(new_soln.Ig_w*1e3)}")
-						
-		# 				# if new_soln.Iac < 1e-3:
-		# 				# 	self.plot_solution(new_soln)
-					
-		# 			# Add solution to list
-		# 			self.solution.append(new_soln)
-					
-		# 			# Add bias point to list
-		# 			self.bias_points.append(Idc)
-					
-		# 			# Plot result if requested
-		# 			if show_plot_on_conv:
-		# 				self.plot_solution()
-					
-		# 			# Exit convergence loop
-		# 			break
-					
-		# 		# Check for exceed max iterations
-		# 		elif self.soln.num_iter >= self.opt.max_iter:  #-------- Not converged, has exceeded hax iterations! ---------
-					
-		# 			# Add to logger
-		# 			logging.warning(f"Failed to converge for point ({cspecial}Idc={rd(Idc*1e3)} mA{standard_color}).")
-					
-		# 			# Create deep copy
-		# 			new_soln = copy.deepcopy(self.soln)
-		# 			new_soln.convergence_failure = True
-					
-		# 			# Purge time domain data if requested
-		# 			if self.opt.remove_td:
-		# 				new_soln.Lk = []
-		# 				new_soln.Vp = []
-		# 				new_soln.betaL = []
-		# 				new_solnZchip_td = []
-		# 				new_soln.L_td = []
-		# 				new_soln.P0 = []
-		# 				new_soln.theta = []
-		# 				new_soln.Zin = []
-		# 				# new_soln.Iac_result_rms = []
-		# 				# new_soln.Iac_result_td = []
-					
-		# 			# Add solution to list
-		# 			self.solution.append(new_soln)
-					
-		# 			# Print convergence data if requested
-		# 			if show_plot_on_fail:
-		# 				self.plot_solution(new_soln)
-					
-		# 			# Exit convergence loop
-		# 			break
-				
-		# 		# Else update guess
-		# 		else: #---------------------- Not converged, calcualte a new guess ------------------------------
-					
-		# 			# Eror is positive, both agree
-		# 			if error > 0:
-						
-		# 				# First iteration - set sign
-		# 				if last_sign is None:
-		# 					last_sign = np.sign(error)
-		# 				# Last change was in different direction
-		# 				elif last_sign < 0:
-		# 					guess_coef *= self.opt.ceof_shrink_factor # Change update size
-		# 					logging.info(f"iter: {self.soln.num_iter} Changing guess coef from {rd(guess_coef*1e5)}e-5 to {rd(guess_coef*1e5)}e-5. Shrink factor: {rd(self.opt.ceof_shrink_factor)}")
-		# 					last_sign = 1 # Update change direction
-		# 					logging.debug(f"Error sign changed. Changing guess update coefficient to {cspecial}{guess_coef}{standard_color}")
-						
-		# 				# Update guess
-		# 				Iac_guess = Iac_guess + error * guess_coef
-					
-		# 			# Error is negative, both agree
-		# 			elif error < 0:
-												
-		# 				# First iteration - set sign
-		# 				if last_sign is None:
-		# 					last_sign = np.sign(error)
-		# 				# Last change was in different direction
-		# 				elif last_sign > 0:
-		# 					guess_coef *= self.opt.ceof_shrink_factor # Change update size
-		# 					logging.info(f"iter: {self.soln.num_iter} Changing guess coef from {rd(guess_coef*1e5)}e-5 to {rd(guess_coef*1e5)}e-5. Shrink factor: {rd(self.opt.ceof_shrink_factor)}")
-		# 					last_sign = -1 # Update change direction
-		# 					logging.debug(f"Error sign changed. Changing guess update coefficient to {cspecial}{guess_coef}{standard_color}")
-							
-		# 				# Update guess
-		# 				Iac_guess = Iac_guess + error * guess_coef
-					
-		# 			logging.debug(f"Last guess produced {cspecial}error={error}{standard_color}. Updated guess to {cspecial}Iac={Iac_guess}{standard_color}. [{cspecial}iter={self.soln.num_iter}{standard_color}]")
+		
 	
 	def get_solution(self):
 		""" Returns the solution in generalized format """

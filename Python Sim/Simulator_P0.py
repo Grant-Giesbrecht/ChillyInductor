@@ -4,8 +4,6 @@ import copy
 from scipy.fft import fft, fftfreq
 import pickle
 
-SIMULATOR_P0 = 20
-
 @dataclass
 class SimoptP0:
 	""" Contains simulation options"""

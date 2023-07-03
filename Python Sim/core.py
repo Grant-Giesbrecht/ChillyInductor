@@ -45,19 +45,6 @@ sha = repo.head.object.hexsha
 sha_short = sha[:12]
 logging.info(f"Initializing simulator. {Fore.LIGHTBLACK_EX}[Active Branch: {Fore.LIGHTBLUE_EX}{repo.active_branch}{Fore.LIGHTBLACK_EX}, commit={Fore.LIGHTBLUE_EX}0x{sha_short}{Fore.LIGHTBLACK_EX}]{Style.RESET_ALL}")
 
-def simcode_to_str(sim_id:int):
-	""" Accepts a sim code and returns the simulator's name"""
-	
-	if sim_id == SIMULATOR_ABCD:
-		return LKSimABCD.NAME
-	elif sim_id == SIMULATOR_P0:
-		return LKSimP0.NAME
-	elif sim_id == SIMULATOR_HYBRID:
-		return LKSimHybrid.NAME
-	
-	return "?"
-
-
 
 class Simopt:
 	
