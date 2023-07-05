@@ -36,6 +36,7 @@ lks.solve([0])
 Ig_ABCD = lks.get_solution(simulator=SIMULATOR_ABCD, parameter='Ig_w')
 Ig1_ABCD = lks.get_solution(simulator=SIMULATOR_ABCD, parameter='Ig_w', element=0)
 f_ABCD = lks.get_solution(simulator=SIMULATOR_ABCD, parameter='freq_w')
+
 Ig_P0 = lks.get_solution(simulator=SIMULATOR_P0, parameter='Ig_w')
 Ig1_P0 = lks.get_solution(simulator=SIMULATOR_P0, parameter='Ig_w', element=0)
 f_P0 = lks.get_solution(simulator=SIMULATOR_P0, parameter='freq_w')
