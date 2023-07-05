@@ -49,7 +49,7 @@ class LKSolutionABCD:
 	Zin = None # Impedance looking into chip (from source side)
 	harms_c = None
 	freq_c = None # Frequency of fundamnetal tone
-	Vgen_c = None # Gwenerator voltage
+	Vgen_c = None # Generator voltage
 	
 	# Time domain variables
 	Vp = None # Not actually used

@@ -68,7 +68,7 @@ class LKSystem:
 		self.Zcable = 50 # Z0 of cable leading into chip
 		self.ZL = ZL # Impedance of load
 		self.Zg = Zg # Impedance of generator
-		self.Vgen  = np.sqrt(self.Pgen*200) # Solve for Generator voltage from power
+		self.Vgen = np.sqrt(self.Pgen*200) # Solve for Generator voltage from power
 		self.max_harm = max_harm # Harmonic number to go up to in spectral domain (plus DC)
 		self.system_loss = None # Tuple containing system loss at each harmonic (linear scale, not dB)
 		self.Itickle = None # Amplitude (A) of tickle signal (Set to none to exclude tickle)
