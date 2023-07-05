@@ -34,11 +34,13 @@ lks.solve([0])
 
 # Get solutions from both simulators
 Ig_ABCD = lks.get_solution(simulator=SIMULATOR_ABCD, parameter='Ig_w')
-Ig1_ABCD = lks.get_solution(simulator=SIMULATOR_ABCD, parameter='Ig_w', element=1)
+Ig1_ABCD = lks.get_solution(simulator=SIMULATOR_ABCD, parameter='Ig_w', element=0)
 f_ABCD = lks.get_solution(simulator=SIMULATOR_ABCD, parameter='freq_w')
 Ig_P0 = lks.get_solution(simulator=SIMULATOR_P0, parameter='Ig_w')
-Ig1_P0 = lks.get_solution(simulator=SIMULATOR_P0, parameter='Ig_w', element=1)
+Ig1_P0 = lks.get_solution(simulator=SIMULATOR_P0, parameter='Ig_w', element=0)
 f_P0 = lks.get_solution(simulator=SIMULATOR_P0, parameter='freq_w')
+
+IL_ABCD = lks.get_solution(simulator=SIMULATOR_ABCD, parameter='IL_w', element=0)
 
 print(f"Sim_ABCD Vgen = {lks.sim_abcd.Vgen} V")
 print(f"Sim_P0 Vgen = {lks.sim_p0.Vgen} V")
@@ -60,6 +62,14 @@ plt.grid()
 plt.legend()
 plt.xlabel("Bias Current (mA)")
 plt.ylabel("Current Amplitude (mA)")
-plt.title("Current vs Bias at Fundamental")
+plt.title("Generator Current")
+
+plt.figure(3)
+plt.plot([0], IL_ABCD*1e3, linestyle='dashed', marker='+', color=(0.5, 0, 0), label="ABCD-Simulator")
+plt.grid()
+plt.legend()
+plt.xlabel("Bias Current (mA)")
+plt.ylabel("Current Amplitude (mA)")
+plt.title("Load Current")
 
 plt.show()

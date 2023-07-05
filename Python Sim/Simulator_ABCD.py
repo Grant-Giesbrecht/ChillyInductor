@@ -316,7 +316,10 @@ class LKSimABCD:
 	
 		# Calculate Lk
 		Lk = self.L0 + self.L0/(self.q**2) * (Iin_td**2)
+		
 		self.soln.L_td = Lk/self.l_phys
+		
+		print(f"Lk = {(np.mean(self.soln.L_td))}, stdev={(np.std(self.soln.L_td))}")
 		
 		# Find Z0 of chip
 		self.soln.Z0_td = np.sqrt(self.soln.L_td/self.C_)
@@ -324,33 +327,61 @@ class LKSimABCD:
 		# Find electrical length of chip (from phase velocity)
 		self.soln.betaL_td = 2*PI*self.l_phys*self.freq*np.sqrt(self.C_ * self.soln.L_td)
 		
+		print(f"Z0 = {(np.mean(self.soln.Z0_td))}, stdev={(np.std(self.soln.L_td))}")
+		print(f"theta = {(np.mean(self.soln.betaL_td))}, stdev={(np.std(self.soln.L_td))}")
+		
 		# Define ABCD method s.t. calculate current at VNA
 		meas_frac = 1 #Fractional distance from gen towards load at which to meas. Vx and Ix
 		thetaA_td = self.soln.betaL_td*meas_frac # = betaL
 		thetaB_td = self.soln.betaL_td*(1-meas_frac) # = 0
 		j = complex(0, 1)
 		
+		print(f"thetaA = {(np.mean(thetaA_td))}, stdev={(np.std(thetaA_td))}")
+		print(f"thetaB = {(np.mean(thetaB_td))}, stdev={(np.std(thetaB_td))}")
+		
 		# Solve for IL (Eq. 33,4 in Notebook TAE-33)
 		M = (self.ZL*np.cos(thetaB_td) + j*self.soln.Z0_td*np.sin(thetaB_td)) * ( np.cos(thetaA_td) + j*self.Zg/self.soln.Z0_td*np.sin(thetaA_td))
 		N = ( self.ZL*j/self.soln.Z0_td*np.sin(thetaB_td) + np.cos(thetaB_td) ) * ( j*self.soln.Z0_td*np.sin(thetaA_td) + self.Zg*np.cos(thetaA_td) )
+		
+		print(f"M = {(np.mean(M))}, stdev={(np.std(M))}")
+		print(f"N = {(np.mean(N))}, stdev={(np.std(N))}")
 		
 		IL_t = self.Vgen/(M+N)
 		Vx_t = IL_t*self.ZL*np.cos(thetaB_td) + IL_t*j*self.soln.Z0_td*np.sin(thetaB_td)
 		Ix_t = IL_t*self.ZL*j/self.soln.Z0_td*np.sin(thetaB_td) + IL_t*np.cos(thetaB_td)
 		Ig_t = Vx_t*j/self.soln.Z0_td*np.sin(thetaA_td) + Ix_t*np.cos(thetaA_td)
 		
+		print(f"IL_t = {(np.mean(IL_t))}, stdev={(np.std(IL_t))}")
+		print(f"Vx_t = {(np.mean(Vx_t))}, stdev={(np.std(Vx_t))}")
+		print(f"Ix_t = {(np.mean(Ix_t))}, stdev={(np.std(Ix_t))}")
+		print(f"Ig_t = {(np.mean(Ig_t))}, stdev={(np.std(Ig_t))}")
+		
 		#----------------------- CALCULATE SPECTRAL COMPONENTS OF V and I --------------------
 		
-		IL_tuple = self.fourier(IL_t, loss_frac=1)
+		do_plot = False
+		
+		IL_tuple = self.fourier(IL_t, loss_frac=1, plot_result=do_plot)
 		IL = IL_tuple[2]
 		
-		Vx_tuple = self.fourier(Vx_t, loss_frac=meas_frac)
+		print("IL Spectrum:")
+		f = IL_tuple[3]
+		s = IL_tuple[2]
+		print(f"\tFreqs: {f}")
+		print(f"\tSpec: {s}")
+		
+		Vx_tuple = self.fourier(Vx_t, loss_frac=meas_frac, plot_result=do_plot)
 		Vx = Vx_tuple[2]
 		
-		Ix_tuple = self.fourier(Ix_t, loss_frac=meas_frac)
+		print("Vx Spectrum:")
+		f = Vx_tuple[3]
+		s = Vx_tuple[2]
+		print(f"\tFreqs: {f}")
+		print(f"\tSpec: {s}")
+		
+		Ix_tuple = self.fourier(Ix_t, loss_frac=meas_frac, plot_result=do_plot)
 		Ix = Ix_tuple[2]
 		
-		Ig_tuple = self.fourier(Ig_t, loss_frac=0)
+		Ig_tuple = self.fourier(Ig_t, loss_frac=0, plot_result=do_plot)
 		Ig = Ig_tuple[2]
 		
 		# Save to result
