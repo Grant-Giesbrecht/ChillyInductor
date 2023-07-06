@@ -7,8 +7,10 @@ Pgen = 0 # dBm
 C_ = 150.2e-12
 l_phys = 0.5
 freq = 10e9
-L0 = 900e-9*l_phys
+L0 = 850e-9*l_phys
 qs = [0.185, 0.19, 0.195, 0.20, 0.205, 0.21]
+# q = 0.19
+# L0s = [750e-9, 800e-9, 850-9, 900e-9, 950e-9, 1000e-9]
 
 
 filename = "last_simulation.pkl"
@@ -25,6 +27,7 @@ Ifund_A = Ifund_mA/1e3
 mid_idx = int(np.floor(len(Idc_A)/2))
 
 for q in qs:
+# for L0 in L0s:
 	
 	logging.info(f"Beginning sweep for q={Fore.GREEN}{rd(q*1e3)}{Style.RESET_ALL} mA")
 	
@@ -45,16 +48,19 @@ for q in qs:
 
 	IL_mA = lks.get_solution(simulator=SIMULATOR_ABCD, parameter='IL_w', element=0)*1e3
 	IL_mAp0 = lks.get_solution(simulator=SIMULATOR_P0, parameter='Ig_w', element=0)*1e3
+	Idc_ABCD = lks.get_solution(simulator=SIMULATOR_ABCD, parameter='Ibias_c')*1e3
+	Idc_P0 = lks.get_solution(simulator=SIMULATOR_P0, parameter='Ibias_c')*1e3
 	
 	plt.cla()
-	plt.plot(Idc_A, Ifund_mA, color=(0.7, 0, 0), label="Measurement", linestyle='dashed', marker='o')
-	plt.plot(Idc_A, IL_mA, color=(0, .7, 0.4), label="ABCD Simulation", linestyle='dashed', marker='o')
-	plt.plot(Idc_A, IL_mAp0, color=(0, 0.4, 0.7), label="P0 Simulation", linestyle='dashed', marker='o')
+	plt.plot(Idc_A*1e3, Ifund_mA, color=(0.7, 0, 0), label="Measurement", linestyle='dashed', marker='o')
+	plt.plot(Idc_ABCD, IL_mA, color=(0, .7, 0.4), label="ABCD Simulation", linestyle='dashed', marker='o')
+	plt.plot(Idc_P0, IL_mAp0, color=(0, 0.4, 0.7), label="P0 Simulation", linestyle='dashed', marker='o')
 	plt.grid()
 	plt.legend()
 	plt.xlabel("Bias Current (mA)")
 	plt.ylabel("AC Current Amplitude (mA)")
-	plt.title(f"ABCD vs Measurement")
+	plt.title(f"Fundamental at VNA, q={rd(q*1e3)}mA")
+	# plt.title(f"Fundamental at VNA, L0={rd(L0*1e9)} nH")
 	plt.legend()
 	
 	# Force0y
@@ -62,6 +68,7 @@ for q in qs:
 	yl = ax.get_ylim()
 	ax.set_ylim([0, yl[1]])
 	
-	plt.savefig(os.path.join("q sweep", f"plot_q={q}mA.png"))
+	plt.savefig(os.path.join("q sweep", f"plot_q={rd(q*1e3)}mA.png"))
+	# plt.savefig(os.path.join("L0 sweep", f"plot_L0={rd(L0*1e9)}nH.png"))
 
 
