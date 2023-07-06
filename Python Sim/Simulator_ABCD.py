@@ -606,8 +606,9 @@ class LKSimABCD:
 							last_sign = np.sign(error)
 						# Last change was in different direction
 						elif last_sign < 0:
+							guess_coef_old = guess_coef
 							guess_coef *= self.opt.ceof_shrink_factor # Change update size
-							logging.info(f"iter: {self.soln.num_iter} Changing guess coef from {rd(guess_coef*1e5)}e-5 to {rd(guess_coef*1e5)}e-5. Shrink factor: {rd(self.opt.ceof_shrink_factor)}")
+							logging.info(f"iter: {self.soln.num_iter} Changing guess coef from {rd(guess_coef_old*1e5)}e-5 to {rd(guess_coef*1e5)}e-5. Shrink factor: {rd(self.opt.ceof_shrink_factor)}")
 							last_sign = 1 # Update change direction
 							logging.debug(f"Error sign changed. Changing guess update coefficient to {cspecial}{guess_coef}{standard_color}")
 						
@@ -653,7 +654,7 @@ class LKSimABCD:
 			ns.IL_w = s.IL_w
 			ns.IL_wf = []
 			
-			ns.VL_w = []
+			ns.VL_w = s.IL_w*self.ZL
 			ns.VL_wf = []
 			
 			ns.freq_w = s.freq_w
