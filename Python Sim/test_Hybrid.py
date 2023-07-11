@@ -6,9 +6,9 @@ C_ = 121e-12
 l_phys = 0.5
 freq = 10e9
 q = .19
-L0 = 1e-6
+L0 = 890e-9
 
-Ibias = np.linspace(24.2, 26.1, 2)*1e-3
+Ibias = np.linspace(-30, 30, 61)*1e-3
 
 ######################### CONFIGURE BASIC SIMULATION ##################
 
@@ -18,8 +18,8 @@ lks = LKSystem(Pgen, C_, l_phys, freq, q, L0)
 # Change options (applies to all simulators)
 lks.setopt('start_guess_method', GUESS_ZERO_REFLECTION)
 lks.setopt('max_iter', 200)
-lks.setopt('convergence_sim', SIMULATOR_P0)
-lks.setopt('result_sim', SIMULATOR_ABCD)
+lks.setopt('convergence_sim', SIMULATOR_ABCD)
+lks.setopt('result_sim', SIMULATOR_P0)
 
 # Select simulator for system to use
 lks.select_simulator(SIMULATOR_HYBRID)

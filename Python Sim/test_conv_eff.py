@@ -6,7 +6,7 @@ C_ = 121e-12
 l_phys = 0.5
 freq = 10e9
 q = .19
-L0 = 1e-6
+L0 = 890e-9
 
 Ibias = np.linspace(1, 60, 61)*1e-3
 
@@ -20,11 +20,11 @@ with open("cryostat_sparams.pkl", 'rb') as fh:
 
 # Initialize system
 lks = LKSystem(Pgen, C_, l_phys, freq, q, L0)
+lks.configure_loss(sparam_data=S21_data)
 
 # Change options (applies to all simulators)
 lks.setopt('start_guess_method', GUESS_ZERO_REFLECTION)
 lks.setopt('max_iter', 200)
-lks.configure_loss()
 
 # Select simulator for system to use
 lks.select_simulator(SIMULATOR_ABCD)
@@ -57,6 +57,5 @@ plt.legend()
 plt.xlabel("Bias Current (mA)")
 plt.ylabel("Efficiency (%)")
 plt.title("Conversion Efficiency")
-plt.show()
 
 plt.show()

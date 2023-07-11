@@ -53,6 +53,7 @@ class Simopt:
 
 class LKSystem:
 	
+	# Parameters to calculate from solution data
 	CPARAM_CONVERSION_EFFIC = 1
 	
 	def __init__(self, Pgen_dBm:float, C_:float, l_phys:float, freq:float, q:float, L0:float, max_harm:int=6, ZL=50, Zg=50):
