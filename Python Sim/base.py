@@ -210,4 +210,6 @@ def xfmr(Z0, ZL, betaL):
 	impedance Z0, terminated in load ZL, and electrical length betaL (radians)"""
 	return Z0 * (ZL + 1j*Z0*np.tan(betaL))/(Z0 + 1j*ZL*np.tan(betaL))
 
-
+def lin2dB(x, base:int=20):
+	
+	return base*np.log10(x)
