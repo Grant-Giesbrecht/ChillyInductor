@@ -147,7 +147,7 @@ for pwr = pwr_all
 % 	plot(Ibias, V_port2, 'Marker', '+', 'LineStyle', ':', 'LineWidth', 1.3, 'Color', CM(idx,:));
 % 	hold on;
 % 
-% 	legend_list = [legend_list(:)', {strcat("P = ", num2str(pwr), " dBm")}];
+	legend_list = [legend_list(:)', {strcat("P = ", num2str(pwr), " dBm")}];
 % 	
 % 	%skip the baddies
 % 	if pwr > 7

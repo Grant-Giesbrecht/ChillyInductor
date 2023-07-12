@@ -18,8 +18,8 @@ lks = LKSystem(Pgen, C_, l_phys, freq, q, L0)
 # Change options (applies to all simulators)
 lks.setopt('start_guess_method', GUESS_ZERO_REFLECTION)
 lks.setopt('max_iter', 200)
-lks.setopt('convergence_sim', SIMULATOR_ABCD)
-lks.setopt('result_sim', SIMULATOR_P0)
+lks.setopt('convergence_sim', SIMULATOR_P0)
+lks.setopt('result_sim', SIMULATOR_ABCD)
 
 # Select simulator for system to use
 lks.select_simulator(SIMULATOR_HYBRID)

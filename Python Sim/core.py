@@ -54,7 +54,10 @@ class Simopt:
 class LKSystem:
 	
 	# Parameters to calculate from solution data
-	CPARAM_CONVERSION_EFFIC = 1
+	CPARAM_CONVERSION_EFFIC1 = 1
+	CPARAM_CONVERSION_EFFIC2 = 2
+	CPARAM_TOTAL_LOAD_POWER  = 3
+	CPARAM_HARM_LOAD_POWER   = 4
 	
 	def __init__(self, Pgen_dBm:float, C_:float, l_phys:float, freq:float, q:float, L0:float, max_harm:int=6, ZL=50, Zg=50):
 		
@@ -260,13 +263,13 @@ class LKSystem:
 		# Return extracted parameter
 		return soln_extract(soln, parameter, conv_only=conv_only, element=element)
 	
-	def calculate(self, parameter:str=None, simulator:int=None, conv_only:bool=True):
+	def calculate(self, parameter:str=None, simulator:int=None, conv_only:bool=True, param2=None):
 		""" Calculates a parameter from solution data. This differs from 'get_solution()' in that
 		it is not just reporting solution from one of the simulators, but performs calculations on that data.
 		"""
 		
 		# Check which parameter is requested
-		if parameter == LKSystem.CPARAM_CONVERSION_EFFIC: # Conversion efficiency
+		if parameter == LKSystem.CPARAM_CONVERSION_EFFIC1: # Conversion efficiency
 			
 			# Calulate input power at fundamental
 			Iin_w = self.get_solution(simulator=simulator, parameter='Iac_g', conv_only=conv_only, element=0)
@@ -277,10 +280,46 @@ class LKSystem:
 			IL_w = self.get_solution(simulator=simulator, parameter='IL_w', conv_only=conv_only, element=1)
 			VL_w = self.get_solution(simulator=simulator, parameter='VL_w', conv_only=conv_only, element=1)
 			PL_w = IL_w*VL_w
+						
+			# Conversion efficiency
+			return PL_w/Pin_w*100
+		elif parameter == LKSystem.CPARAM_CONVERSION_EFFIC2: # Conversion efficiency
+						
+			# Calculate total power at load
+			Pin_w = self.calculate(parameter=LKSystem.CPARAM_TOTAL_LOAD_POWER, simulator=simulator, conv_only=conv_only)
 			
+			# Calculate power at load at 2nd harmonic
+			IL_w = self.get_solution(simulator=simulator, parameter='IL_w', conv_only=conv_only, element=1)
+			VL_w = self.get_solution(simulator=simulator, parameter='VL_w', conv_only=conv_only, element=1)
+			PL_w = IL_w*VL_w
+						
 			# Conversion efficiency
 			return PL_w/Pin_w*100
 		
+		elif parameter == LKSystem.CPARAM_TOTAL_LOAD_POWER: # Conversion efficiency
+			
+			# Calculate total power at load
+			Pin_w = 0
+			for hi in range(5): #TODO: Sense total number of stored harmonics
+				IL_w = self.get_solution(simulator=simulator, parameter='IL_w', conv_only=conv_only, element=hi)
+				VL_w = self.get_solution(simulator=simulator, parameter='VL_w', conv_only=conv_only, element=hi)
+				Pin_w += IL_w*VL_w
+			
+			return Pin_w
+		
+		elif parameter == LKSystem.CPARAM_HARM_LOAD_POWER: # Conversion efficiency
+			
+			if param2 is None:
+				logging.error("CPARAM_HARM_LOAD_POWER requires param2 to specify harmonic index. (1=fund, 2=2nd, etc.)")
+				return None
+			param2 = int(param2) - 1
+			
+			# Calculate output power at 2nd Harmonic
+			IL_w = self.get_solution(simulator=simulator, parameter='IL_w', conv_only=conv_only, element=param2)
+			VL_w = self.get_solution(simulator=simulator, parameter='VL_w', conv_only=conv_only, element=param2)
+			PL_w = IL_w*VL_w
+			
+			return PL_w
 		else:
 			logging.error(f"Unrecognized parameter code: {parameter}. Aborting.")
 			
