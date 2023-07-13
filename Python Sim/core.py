@@ -6,6 +6,7 @@ import getopt, sys
 import git
 
 from Simulator_ABCD import *
+from Simulator_ABCDv1 import *
 from Simulator_P0 import *
 from Simulator_Hybrid import *
 
@@ -95,9 +96,10 @@ class LKSystem:
 		self.bias_points = [] # List of bias values corresponding to solution data
 		
 		self.sim_abcd = LKSimABCD(self)
+		self.sim_abcdv1 = LKSimABCDv1(self)
 		self.sim_p0 = LKSimP0(self)
 		self.sim_hybrid = LKSimHybrid(self, self.sim_abcd, self.sim_p0)
-		self.simulators = [self.sim_abcd, self.sim_p0, self.sim_hybrid]
+		self.simulators = [self.sim_abcd, self.sim_p0, self.sim_hybrid, self.sim_abcdv1]
 		
 		self.configure_time_domain(1000, 3, 30)
 	
@@ -158,6 +160,9 @@ class LKSystem:
 		if sim_id == SIMULATOR_ABCD:
 			return True
 		
+		if sim_id == SIMULATOR_ABCDV1:
+			return True
+		
 		if sim_id == SIMULATOR_P0:
 			return True
 		
@@ -200,6 +205,15 @@ class LKSystem:
 			
 			# Specify simulator
 			sim = self.sim_abcd
+			logging.info(f"Beginning solve with simulator: {Fore.LIGHTBLUE_EX}{sim.NAME}{Style.RESET_ALL}")
+			
+			# Run simulation
+			sim.solve(Ibias_vals)
+		# Check which simulator is selected
+		if use_simulator == SIMULATOR_ABCDV1:
+			
+			# Specify simulator
+			sim = self.sim_abcdv1
 			logging.info(f"Beginning solve with simulator: {Fore.LIGHTBLUE_EX}{sim.NAME}{Style.RESET_ALL}")
 			
 			# Run simulation
@@ -248,6 +262,8 @@ class LKSystem:
 		# Get full dataset
 		if use_simulator == SIMULATOR_ABCD:
 			soln = self.sim_abcd.get_solution()
+		elif use_simulator == SIMULATOR_ABCDV1:
+			soln = self.sim_abcdv1.get_solution()
 		elif use_simulator == SIMULATOR_P0:
 			soln = self.sim_p0.get_solution()
 		elif use_simulator == SIMULATOR_HYBRID:

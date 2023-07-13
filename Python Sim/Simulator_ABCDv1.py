@@ -5,7 +5,7 @@ from scipy.fft import fft, fftfreq
 import pickle
 
 @dataclass
-class SimoptABCD:
+class SimoptABCDv1:
 	""" Contains simulation options"""
 	
 	# Simulation options
@@ -31,7 +31,7 @@ class SimoptABCD:
 	remove_td = False # Prevents all time domain data from being saved in solution data to save space
 	
 @dataclass
-class LKSolutionABCD:
+class LKSolutionABCDv1:
 	""" Contains data to represent a solution to the LKsystem problem
 	
 	Nomenclature:
@@ -57,7 +57,6 @@ class LKSolutionABCD:
 	theta = None # TODO: not saved
 	L_td = None # Inductance per unit length
 	Z0_td = None # Characteristic impedance of chip
-	Vgen_td = None # Time domain generator output voltage
 	
 	# Spectrum Data
 	Ix_wf = None
@@ -77,18 +76,18 @@ class LKSolutionABCD:
 	error_history = None # List of all error values during converge
 	error_history_pcnt = None # List of all error values during converge
 
-class LKSimABCD:
+class LKSimABCDv1:
 	""" This class represents a solution to the nonlinear chip system, give a set of input conditions (things
 	like actual chip length, input power, etc)."""
 	
 	# Name of simulator
-	NAME = "Simulator_ABCD"
+	NAME = "Simulator_ABCDv1"
 	
 	def __init__(self, master_sim):
 		""" Initialize system with given conditions """
 		
 		# Simulations options
-		self.opt = SimoptABCD()
+		self.opt = SimoptABCDv1()
 
 		# System Settings
 		self.Pgen = master_sim.Pgen
@@ -114,7 +113,7 @@ class LKSimABCD:
 		self.t = master_sim.t
 
 		# Create solution object
-		self.soln = LKSolutionABCD() # Current solution data
+		self.soln = LKSolutionABCDv1() # Current solution data
 		
 		self.solution = [] # List of solution data
 		self.bias_points = [] # List of bias values corresponding to solution data
@@ -307,7 +306,6 @@ class LKSimABCD:
 		self.soln.harms_c = self.harms
 		self.soln.freq_c = self.freq
 		self.soln.Vgen_c = self.Vgen
-		self.soln.Vgen_td = self.Vgen*np.sin(self.freq*2*PI*self.t)
 		
 		# Solve for inductance (Lk)
 		# Calculate input current waveform
@@ -348,7 +346,7 @@ class LKSimABCD:
 		# print(f"M = {(np.mean(M))}, stdev={(np.std(M))}")
 		# print(f"N = {(np.mean(N))}, stdev={(np.std(N))}")
 		
-		IL_t = self.soln.Vgen_td/(M+N)
+		IL_t = self.Vgen/(M+N)
 		Vx_t = IL_t*self.ZL*np.cos(thetaB_td) + IL_t*j*self.soln.Z0_td*np.sin(thetaB_td)
 		Ix_t = IL_t*self.ZL*j/self.soln.Z0_td*np.sin(thetaB_td) + IL_t*np.cos(thetaB_td)
 		Ig_t = Vx_t*j/self.soln.Z0_td*np.sin(thetaA_td) + Ix_t*np.cos(thetaA_td)
@@ -398,7 +396,7 @@ class LKSimABCD:
 		self.soln.freq_w = Ix_tuple[3]
 		self.soln.freq_wf = Ix_tuple[1]
 		
-	def plot_solution(self, s:LKSolutionABCD=None):
+	def plot_solution(self, s:LKSolutionABCDv1=None):
 				
 		# Pick last solution if none provided
 		if s is None:
@@ -500,14 +498,10 @@ class LKSimABCD:
 				
 				# Calculate signed error, check if convergence conditions met
 				# error = self.soln.Ig_w[0] + self.soln.Ig_w[1] + self.soln.Ig_w[2] - Iac_guess
-				
-				# Pick component that is fundamental
-				Ifund = self.soln.Ig_w[1]
-				
-				error = Ifund - Iac_guess
-				denom = np.min([Ifund, Iac_guess])
+				error = self.soln.Ig_w[0] - Iac_guess
+				denom = np.min([self.soln.Ig_w[0], Iac_guess])
 				if denom != 0:
-					error_pcnt = (np.max([Ifund, Iac_guess])/denom-1)*100
+					error_pcnt = (np.max([self.soln.Ig_w[0], Iac_guess])/denom-1)*100
 					did_converge = (error_pcnt < self.opt.tol_pcnt) and ( abs(error) < self.opt.tol_abs )
 				else:
 					error_pcnt = None

@@ -41,17 +41,26 @@ lks.select_simulator(SIMULATOR_ABCD)
 # Run hybrid simulation
 lks.solve(Idc_A)
 lks.solve(Idc_A, simulator=SIMULATOR_P0)
+lks.solve(Idc_A, simulator=SIMULATOR_ABCDV1)
 
 IL_mA = lks.get_solution(simulator=SIMULATOR_ABCD, parameter='IL_w', element=1)*1e3
 IL_mAp0 = lks.get_solution(simulator=SIMULATOR_P0, parameter='Ig_w', element=0)*1e3
+IL_mAv1 = lks.get_solution(simulator=SIMULATOR_ABCDV1, parameter='Ig_w', element=0)*1e3
 
 IL2_mA = lks.get_solution(simulator=SIMULATOR_ABCD, parameter='IL_w', element=2)*1e3
 IL2_mAp0 = lks.get_solution(simulator=SIMULATOR_P0, parameter='Ig_w', element=1)*1e3
+IL2_mAv1 = lks.get_solution(simulator=SIMULATOR_ABCDV1, parameter='Ig_w', element=1)*1e3
+
+cmeas = (0.2, 0.2, 0.2)
+cabcd = (0, .3, .6)
+cp = (0.6, 0, 0)
+cv1 = (0.2, 0.2, 0.5)
 
 plt.figure(1)
-plt.plot(Idc_A, Ifund_mA, color=(0.7, 0, 0), label="Measurement", linestyle='dashed', marker='o')
-plt.plot(Idc_A, IL_mA, color=(0, .7, 0.4), label="ABCD Simulation", linestyle='dashed', marker='o')
-plt.plot(Idc_A, IL_mAp0, color=(0, 0.4, 0.7), label="P0 Simulation", linestyle='dashed', marker='o')
+plt.plot(Idc_A, Ifund_mA, color=cmeas, label="Measurement", linestyle='dashed', marker='o')
+plt.plot(Idc_A, IL_mA, color=cabcd, label="ABCD Simulation", linestyle='dashed', marker='o')
+plt.plot(Idc_A, IL_mAp0, color=cp, label="P0 Simulation", linestyle='dashed', marker='o')
+plt.plot(Idc_A, IL_mAv1, color=cv1, label="ABCD-v1 Simulation", linestyle='dashed', marker='o')
 plt.grid()
 plt.legend()
 plt.xlabel("Bias Current (mA)")
@@ -60,9 +69,10 @@ plt.title(f"Load Current at Fundamental")
 plt.legend()
 
 plt.figure(2)
-plt.plot(Idc_A, I2H_matlab*1e3, color=(0.7, 0, 0), label="Measurement", linestyle='dashed', marker='+')
-plt.plot(Idc_A, IL2_mA, color=(0, .7, 0.4), label="ABCD Simulation", linestyle='dashed', marker='+')
-plt.plot(Idc_A, IL2_mAp0, color=(0, 0.4, 0.7), label="P0 Simulation", linestyle='dashed', marker='+')
+plt.plot(Idc_A, I2H_matlab, color=cmeas, label="Measurement", linestyle='dashed', marker='+')
+plt.plot(Idc_A, IL2_mA, color=cabcd, label="ABCD Simulation", linestyle='dashed', marker='+')
+plt.plot(Idc_A, IL2_mAp0, color=cp, label="P0 Simulation", linestyle='dashed', marker='+')
+plt.plot(Idc_A, IL2_mAv1, color=cv1, label="ABCD-v1 Simulation", linestyle='dashed', marker='+')
 plt.grid()
 plt.legend()
 plt.xlabel("Bias Current (mA)")
