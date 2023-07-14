@@ -536,18 +536,6 @@ class LKSimABCDv1:
 						label_color = Fore.LIGHTBLUE_EX
 						if new_soln.Iac_g < 1e-3:
 							label_color = Fore.RED
-						
-						# print(f"{label_color}Solution:{Style.RESET_ALL}")
-						# print(f"{label_color}\tharms:{Style.RESET_ALL} {rdl(new_soln.harms)}")
-						# print(f"{label_color}\tZ0 (ohm)):{Style.RESET_ALL} {rdl(new_soln.spec_Z0)}")
-						# print(f"{label_color}\tsqL (ohms):{Style.RESET_ALL} {rdl(new_soln.spec_sqL)}")
-						# print(f"{label_color}\tbetaL (deg):{Style.RESET_ALL} {rdl(new_soln.spec_betaL)}")
-						# print(f"{label_color}\tIL (mA):{Style.RESET_ALL} {rdl(new_soln.IL_w*1e3)}")
-						# print(f"{label_color}\tIx (mA):{Style.RESET_ALL} {rdl(new_soln.Ix_w*1e3)}")
-						# print(f"{label_color}\tIg (mA):{Style.RESET_ALL} {rdl(new_soln.Ig_w*1e3)}")
-						
-						# if new_soln.Iac < 1e-3:
-						# 	self.plot_solution(new_soln)
 					
 					# Add solution to list
 					self.solution.append(new_soln)

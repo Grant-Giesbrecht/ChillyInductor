@@ -4,10 +4,10 @@ import pickle
 import os
 
 Pgen = 0 # dBm
-C_ = 150.2e-12
+C_ = 150e-12
 l_phys = 0.5
 freq = 10e9
-L0 = 900e-9*l_phys
+L0 = 890e-9*l_phys
 q = 0.19
 
 
@@ -51,16 +51,24 @@ IL2_mA = lks.get_solution(simulator=SIMULATOR_ABCD, parameter='IL_w', element=2)
 IL2_mAp0 = lks.get_solution(simulator=SIMULATOR_P0, parameter='Ig_w', element=1)*1e3
 IL2_mAv1 = lks.get_solution(simulator=SIMULATOR_ABCDV1, parameter='Ig_w', element=1)*1e3
 
+Idc_Ap0 = lks.get_solution(simulator=SIMULATOR_P0, parameter='Ibias_c')
+
 cmeas = (0.2, 0.2, 0.2)
-cabcd = (0, .3, .6)
-cp = (0.6, 0, 0)
-cv1 = (0.2, 0.2, 0.5)
+cabcd = (0, 0, 0.8)
+cv1 = (0, 0.6, 0)
+cp = (0.8, 0, 0)
+
+
+# cmeas = (0.2, 0.2, 0.2)
+# cabcd = (0, .4, .7)
+# cp = (0.6, 0, 0)
+# cv1 = (0.4, 0.4, 0.6)
 
 plt.figure(1)
 plt.plot(Idc_A, Ifund_mA, color=cmeas, label="Measurement", linestyle='dashed', marker='o')
-plt.plot(Idc_A, IL_mA, color=cabcd, label="ABCD Simulation", linestyle='dashed', marker='o')
-plt.plot(Idc_A, IL_mAp0, color=cp, label="P0 Simulation", linestyle='dashed', marker='o')
-plt.plot(Idc_A, IL_mAv1, color=cv1, label="ABCD-v1 Simulation", linestyle='dashed', marker='o')
+plt.plot(Idc_A, IL_mA, color=cabcd, label="ABCD Simulation", linestyle='dotted', marker='+')
+plt.plot(Idc_Ap0, IL_mAp0, color=cp, label="P0 Simulation", linestyle='dotted', marker='+')
+plt.plot(Idc_A, IL_mAv1, color=cv1, label="ABCD-v1 Simulation", linestyle='dotted', marker='+')
 plt.grid()
 plt.legend()
 plt.xlabel("Bias Current (mA)")
@@ -69,18 +77,16 @@ plt.title(f"Load Current at Fundamental")
 plt.legend()
 
 plt.figure(2)
-plt.plot(Idc_A, I2H_matlab, color=cmeas, label="Measurement", linestyle='dashed', marker='+')
-plt.plot(Idc_A, IL2_mA, color=cabcd, label="ABCD Simulation", linestyle='dashed', marker='+')
-plt.plot(Idc_A, IL2_mAp0, color=cp, label="P0 Simulation", linestyle='dashed', marker='+')
-plt.plot(Idc_A, IL2_mAv1, color=cv1, label="ABCD-v1 Simulation", linestyle='dashed', marker='+')
+plt.plot(Idc_A, I2H_matlab*1e3, color=cmeas, label="Measurement", linestyle='dashed', marker='o')
+plt.plot(Idc_A, IL2_mA, color=cabcd, label="ABCD Simulation", linestyle='dotted', marker='+')
+plt.plot(Idc_Ap0, IL2_mAp0, color=cp, label="P0 Simulation", linestyle='dotted', marker='+')
+plt.plot(Idc_A, IL2_mAv1, color=cv1, label="ABCD-v1 Simulation", linestyle='dotted', marker='+')
 plt.grid()
 plt.legend()
 plt.xlabel("Bias Current (mA)")
 plt.ylabel("AC Current Amplitude (mA)")
 plt.title(f"Load Current at 2nd Harmonic")
 plt.legend()
-
-plt
 
 # Force0y
 ax = plt.gca()
