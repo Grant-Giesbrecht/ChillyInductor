@@ -1,4 +1,4 @@
 // This file holds configuration options for the ChillyInductor project
 
 // This is where to look for datasets
-data_dir = /Users/grantgiesbrecht/MEGA/NIST Datasets/group1
+data_dir = C:\Users\Grant Giesbrecht\MEGA\NIST Datasets\group1

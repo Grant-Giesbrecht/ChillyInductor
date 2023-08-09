@@ -7,6 +7,8 @@ function full_path = dataset_path(filename)
 % 	conf = load_gconf(fullfile("..", "chilly.gconf"));
 	conf = load_gconf(fullfile(gethomedir(), "Documents" , "GitHub", "ChillyInductor", "chilly.gconf"));
 	
+% 	d = dir(conf.data_dir)
+	
 	% Append filename
 	full_path = fullfile(conf.data_dir, filename);
 
