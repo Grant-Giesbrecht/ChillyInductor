@@ -95,8 +95,8 @@ plot(Vdc, h3+S21_h3, 'LineStyle', ':', 'LineWidth', lw, 'Marker', 'o', 'Color', 
 grid on;
 legend("Meas. Fundamental", " Meas. 2nd Harmonic", " Meas. 3rd Harmonic", "Sim. Fundamental", "Sim. 2nd Harmonic", "Sim. 3rd Harmonic");
 xlabel("DC Bias Current (mA)");
-ylabel("Voltage (V)");
-title("Comparison of 0 dBm measurement to 100K ADS Simulation");
+ylabel("Power (dBm)");
+title("Comparison of "+num2str(c.SG_power)+" dBm measurement to 100K ADS Simulation");
 
 % Find all points, exclude -100 (zero power), and calculate minimum point
 % for Y-limits.

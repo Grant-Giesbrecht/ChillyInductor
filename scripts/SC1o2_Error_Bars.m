@@ -12,9 +12,9 @@ iv_conv = 9.5e-3; % A/V
 load(dataset_path("DS1_FOS-1.mat"));
 
 % analysis_freqs = [1, 5, 50].*1e9; % Frequencies to plot [GHz]
-% analysis_freqs = [1, 5, 10, 15].*1e9; % Frequencies to plot [GHz]
+analysis_freqs = [1, 5, 10, 15].*1e9; % Frequencies to plot [GHz]
 % analysis_freqs = [1,2, 3, 4, 5, 10, 15, 20, 30, 40, 50].*1e9; % Frequencies to plot [GHz]
-analysis_freqs = (1:50).*1e9;
+% analysis_freqs = (1:50).*1e9;
 
 remove_outliers = true;
 f_remove =[11, 13, 15, 16, 24, 28, 31, 32, 35, 36, 37, 41, 43, 44, 45, 46, 47, 48, 49].*1e9;

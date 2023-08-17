@@ -43,7 +43,7 @@ load(dataset_path("DS5_FinePower_PO-1.mat"));
 iv_conv = 9.5e-3; % A/V
 c = struct('SG_power', -10);
 c.Vnorm = 2e-3;
-c.SG_power = 0;
+c.SG_power = -6;
 
 % Calculate harmonics over bias sweep
 [harms, norm, Vdcs] = getHarmonicSweep(ld, c);
@@ -74,7 +74,9 @@ plot(Ibias_A.*1e3, cvrt(V_f3.^2.*conv, 'W', 'dBm'), 'LineStyle', ':', 'LineWidth
 grid on;
 legend("Meas. Fundamental", " Meas. 2nd Harmonic", " Meas. 3rd Harmonic", "Sim. Fundamental", "Sim. 2nd Harmonic", "Sim. 3rd Harmonic");
 xlabel("DC Bias Current (mA)");
-ylabel("Voltage (V)");
+ylabel("Power (dBm)");
+
+title("Crude Model vs Measurement (scale coef="+num2str(conv)+")");
 
 % figure(2);
 % hold off;
