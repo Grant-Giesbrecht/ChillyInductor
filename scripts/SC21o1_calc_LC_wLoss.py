@@ -7,8 +7,6 @@ import math
 import getopt, sys
 import pyddf
 
-from colorama import Fore, Style
-
 #-----------------------------------------------------------
 # Parse arguments
 argv = sys.argv[1:]
@@ -91,6 +89,11 @@ def TAE34_LC(filename, plot=False, loss=None):
 	fdt = np.array([fdt1, fdt2, fdt3])
 	S11dt = []
 	for f in fdt:
+		
+		if loss is not None:
+			idx_loss = find_nearest(loss['freq_Hz'], f)
+			S21
+		
 		idx_f = find_nearest(freqs, f)
 		S11dt.append(abs(S11[idx_f]))
 	S11dt = np.array(S11dt)
@@ -202,24 +205,11 @@ if __name__ == "__main__":
 	
 	plt.suptitle(f'Phys. Length = {l_phys} m', fontsize=16)
 	
-	# Convert to list of floats
-	Ls_nH = [float(x*1e9) for x in Ls]
-	Cs_pF = [float(x*1e12) for x in Cs]
-		
+	plt.show()
 	
-	ddf_fn = os.path.join("script_assets", "SC20", "distributed_reactance.ddf")
 	kv = pyddf.DDFIO();
 	kv.add(voltages, "V", "Bias voltage [V]")
-	kv.add(Ls_nH, "L_nH", "Distributed inductance [nH/m]")
-	kv.add(Cs_pF, "C_pF", "Distributed capacitance [pF/m]")
-	kv.setHeader("Data calcualted in SC21_.py")
-	kv.write(ddf_fn)
-	print(f"{Fore.BLUE}Wrote data to DDF file: {Fore.LIGHTGREEN_EX}{ddf_fn}{Style.RESET_ALL}")
-	
-	print(f"Error 1: {kv.err()}")
-	print(f"Error 2: {kv.err()}")
-	print(f"Error 3: {kv.err()}")
-	
-	# plt.show()
-	
-	
+	kv.add(Ls*1e9, "L_nH", "Distributed inductance [nH/m]")
+	kv.add(Cs*1e12, "C_pF", "Distributed capacitance [pF/m]")
+	kv.header("Data calcualted in SC21o1_<x>.py")
+	kv.write(os.path.join("..", "Python Sim", "distributed_reactance.ddf"))

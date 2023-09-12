@@ -77,13 +77,18 @@ I3 = (freqs > split_freqs(2));
 % Duplicate power data
 Pload_scaled = Pload_dBm;
 
+S21_meas = cvrt(b1(I1).^2, 'W', 'dBm')-6;
+S21_meas_lossremoved = S21_meas;
+
 S21_applied = Pload_dBm;
+S21_applied_meas = S21_meas;
 
 if USE_LOSS
 	
 	displ("Use loss!");
 	
-	% Look up closest S21 measurement for each point, and scale appropriately
+	% Look up closest S21 measurement for each point, and scale
+	% appropriately (for simulation)
 	idx = 0;
 	for f = freq_GHz
 		idx = idx+1;
@@ -96,8 +101,22 @@ if USE_LOSS
 			S21_applied(idx) = S21_dB(find_idx);
 			Pload_scaled(idx) = Pload_scaled(idx)+S21_applied(idx);
 		end
+	end
+	
+	% Look up closest S21 measurement for each point, and scale
+	% appropriately (for measurement)
+	idx = 0;
+	for f = freqs(I1)
+		idx = idx+1;
+		find_idx = findClosest(freq_Hz, f);
 		
-		
+		if INTERPOLATE_LOSS
+			S21_applied_meas(idx) = interp1(freq_Hz, S21_dB, f);
+			S21_meas_lossremoved(idx) = S21_meas_lossremoved(idx)-S21_applied_meas(idx);
+		else
+			S21_applied_meas(idx) = S21_dB(find_idx);
+			S21_meas_lossremoved(idx) = S21_meas_lossremoved(idx)-S21_applied_meas(idx);
+		end
 	end
 end
 
@@ -134,6 +153,19 @@ grid on;
 xlabel("Frequency (GHz)");
 ylabel("S_{21} (dBm)")
 title("Simulation versus Measurement, Inlcuding Measured Loss")
+legend("Measurement", "ADS Simulation");
+xlim([9.8, 10.2]);
+
+figure(2);
+subplot(1, 2, 1);
+hold off;
+plot(freqs(I1)./1e9, S21_meas_lossremoved, 'LineStyle', ':', 'Marker', '.', 'LineWidth', lw_meas, 'Color', c_meas, 'MarkerSize', mkz_meas);
+hold on;
+plot(freq_GHz, Pload_dBm, 'LineStyle', '-.', 'Marker', 'o', 'LineWidth', lw_ads, 'MarkerSize', mkz_ads, 'Color', c_ads);
+grid on;
+xlabel("Frequency (GHz)");
+ylabel("S_{21} (dBm)")
+title("Simulation versus Measurement, Removing Measured Loss")
 legend("Measurement", "ADS Simulation");
 xlim([9.8, 10.2]);
 
@@ -180,10 +212,73 @@ ylabel("Phase (^\circ)");
 title("ADS vs Measurement Phase Comparison, P_{RF} = 4 dBm");
 xlim([0, 3]);
 
+figure(2);
+subplot(1, 2, 2);
+hold off;
+plot(Vdcs, theta-theta(floor(numel(theta)/2)+1), 'LineStyle', ':', 'Marker', '.', 'LineWidth', lw_meas, 'Color', c_meas, 'MarkerSize', mkz_meas);
+hold on;
+plot(Vdc, phase_deg-phase_deg(1), 'LineStyle', '-.', 'Marker', 'o', 'LineWidth', lw_ads, 'MarkerSize', mkz_ads, 'Color', c_ads);
+grid on;
+legend("Measured", "ADS Simulation");
+xlabel("DC Bias Voltage (V)");
+ylabel("Phase (^\circ)");
+title("ADS vs Measurement Phase Comparison, P_{RF} = 4 dBm");
+xlim([0, 3]);
+
+%% Generate error plot
+
+figure(3);
+subplot(1, 2, 1);
 
 
+error = [];
+
+all_freqs_GHz = unique([freqs(I1)./1e9, freq_GHz]);
+for f = all_freqs_GHz
+	
+	val_meas = interp1(freqs(I1), S21_meas, f*1e9);
+	val_sim = interp1(freq_GHz, Pload_scaled, f);
+	
+	error = addTo(error, val_meas - val_sim);
+	
+end
+
+plot(all_freqs_GHz, error, 'Marker', '.', 'LineStyle', ':', 'Color', [0, 0.6, 0]);
+xlabel("Frequency (GHz)");
+ylabel("S_{21} Error (dB)");
+grid on;
+title("Loss addded to simulation");
+xlim([9.8, 10.2]);
+% , cvrt(b1(I1).^2, 'W', 'dBm')-6, 'LineStyle', ':', 'Marker', '.', 'LineWidth', lw_meas, 'Color', c_meas, 'MarkerSize', mkz_meas);
+% hold on;
+% plot(freq_GHz, Pload_scaled, 'LineStyle', '-.', 'Marker', 'o', 'LineWidth', lw_ads, 'MarkerSize', mkz_ads, 'Color', c_ads);
+
+figure(3);
+subplot(1, 2, 2);
 
 
+error2 = [];
+
+all_freqs_GHz = unique([freqs(I1)./1e9, freq_GHz]);
+for f = all_freqs_GHz
+	
+	val_meas = interp1(freqs(I1), S21_meas_lossremoved, f*1e9);
+	val_sim = interp1(freq_GHz, Pload_dBm, f);
+	
+	error2 = addTo(error2, val_meas - val_sim);
+	
+end
+
+plot(all_freqs_GHz, error2, 'Marker', '.', 'LineStyle', ':', 'Color', [0, 0.6, 0]);
+xlabel("Frequency (GHz)");
+ylabel("S_{21} Error (dB)");
+grid on;
+title("Loss removed from measurement");
+xlim([9.8, 10.2]);
+
+% plot(freqs(I1)./1e9, S21_meas_lossremoved, 'LineStyle', ':', 'Marker', '.', 'LineWidth', lw_meas, 'Color', c_meas, 'MarkerSize', mkz_meas);
+% hold on;
+% plot(freq_GHz, Pload_dBm, 'LineStyle', '-.', 'Marker', 'o', 'LineWidth', lw_ads, 'MarkerSize', mkz_ads, 'Color', c_ads);
 
 
 

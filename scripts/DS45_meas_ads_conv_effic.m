@@ -84,9 +84,26 @@ pchip_s1 = h1+S21_h1 - S21_h1/2;
 pchip_s2 = h2+S21_h2 - S21_h2/2;
 pchip_s3 = h3+S21_h3 - S21_h3/2;
 
-pchip_mCE = dB2lin(pchip_m2, 10)./(dB2lin(pchip_m1,10) + dB2lin(pchip_m2,10) + dB2lin(pchip_m3,10) ).*100;
-pvna_mCE = dB2lin(VNA2dBm(abs(harms.h2)), 10)./(dB2lin(VNA2dBm(abs(harms.h1)),10) + dB2lin(VNA2dBm(abs(harms.h2)),10) + dB2lin(VNA2dBm(abs(harms.h3)), 10)).*100;
-pchip_sCE = dB2lin(h2, 10)./(dB2lin(h1, 10)+dB2lin(h2, 10)+dB2lin(h3, 10)).*100;
+pin_m1 = VNA2dBm(abs(harms.h1)) - S21_h1;
+pin_m2 = VNA2dBm(abs(harms.h2)) - S21_h2;
+pin_m3 = VNA2dBm(abs(harms.h3)) - S21_h3;
+
+pin_s1 = h1+S21_h1 - S21_h1;
+pin_s2 = h2+S21_h2 - S21_h2;
+pin_s3 = h3+S21_h3 - S21_h3;
+
+% pchip_mCE = dB2lin(pchip_m2, 10)./(dB2lin(pchip_m1,10) + dB2lin(pchip_m2,10) + dB2lin(pchip_m3,10) ).*100;
+% pvna_mCE = dB2lin(VNA2dBm(abs(harms.h2)), 10)./(dB2lin(VNA2dBm(abs(harms.h1)),10) + dB2lin(VNA2dBm(abs(harms.h2)),10) + dB2lin(VNA2dBm(abs(harms.h3)), 10)).*100;
+% pchip_sCE = dB2lin(h2, 10)./(dB2lin(h1, 10)+dB2lin(h2, 10)+dB2lin(h3, 10)).*100;
+
+pchip_mCE = cvrt(pchip_m2, 'dBm', 'W')./(cvrt(pchip_m1, 'dBm', 'W') + cvrt(pchip_m2, 'dBm', 'W') + cvrt(pchip_m3, 'dBm', 'W') ).*100;
+pvna_mCE = cvrt(VNA2dBm(abs(harms.h2)), 'dBm', 'W')./(cvrt(VNA2dBm(abs(harms.h1)), 'dBm', 'W') + cvrt(VNA2dBm(abs(harms.h2)), 'dBm', 'W') + cvrt(VNA2dBm(abs(harms.h3)), 'dBm', 'W')).*100;
+pchip_sCE = cvrt(h2, 'dBm', 'W')./(cvrt(h1, 'dBm', 'W')+cvrt(h2, 'dBm', 'W')+cvrt(h3, 'dBm', 'W')).*100;
+pchip_mCE_fixRFin = cvrt(pchip_m2, 'dBm', 'W')./cvrt(0, 'dBm', 'W').*100;
+pchip_mCE_chip_over_in = cvrt(pchip_m2, 'dBm', 'W')./(cvrt(pin_m1, 'dBm', 'W') + cvrt(pin_m2, 'dBm', 'W') + cvrt(pin_m3, 'dBm', 'W')).*100;
+
+pchip_mCE3 = cvrt(pchip_m3, 'dBm', 'W')./(cvrt(pchip_m1, 'dBm', 'W') + cvrt(pchip_m2, 'dBm', 'W') + cvrt(pchip_m3, 'dBm', 'W') ).*100;
+pchip_sCE3 = cvrt(h3, 'dBm', 'W')./(cvrt(h1, 'dBm', 'W')+cvrt(h2, 'dBm', 'W')+cvrt(h3, 'dBm', 'W')).*100;
 
 %% Plot Standard data
 
@@ -156,11 +173,13 @@ hold off
 plot(Vdcs, pchip_mCE, 'LineStyle', '--', 'LineWidth', lw, 'Marker', mk_conv, 'Color', c_conv, 'MarkerSize', mkz_conv);
 hold on;
 plot(Vdc, pchip_sCE, 'LineStyle', ':', 'LineWidth', lw, 'Marker', 'o', 'Color', c_conv, 'MarkerSize', 10);
+plot(Vdcs, pchip_mCE_fixRFin, 'LineStyle', '--', 'LineWidth', lw, 'Marker', 'o', 'Color', [0.6, 0, 0], 'MarkerSize', 8);
+plot(Vdcs, pchip_mCE_chip_over_in, 'LineStyle', '--', 'LineWidth', lw, 'Marker', 'o', 'Color', [0, 0, 0.6], 'MarkerSize', 8);
 grid on;
 xlabel("DC Bias Current (mA)");
 ylabel("Conversion Efficiency (%)");
 title("Chip Plane Measured Conversion Efficiency");
-legend("Measurement", "Simulated");
+legend("Measurement", "Simulated", "measured vs SG-power", "measured vs Input Plane");
 
 %% Linear Scale
 
@@ -190,6 +209,59 @@ ax = gca;
 ax.YColor = 'k';
 ylim([0, 0.05]);
 yyaxis left;
+
+%% 3rd harmonic conversion efficiency
+
+c_conv3 = [0, 0.6, 0];
+mkz_conv = 20;
+figure(4);
+hold off
+plot(Vdcs.*iv_conv.*1e3, pchip_mCE, 'LineStyle', '--', 'LineWidth', lw, 'Marker', mk_conv, 'Color', c_conv, 'MarkerSize', mkz_conv);
+hold on;
+plot(Vdc.*iv_conv.*1e3, pchip_sCE, 'LineStyle', ':', 'LineWidth', lw, 'Marker', 'o', 'Color', c_conv, 'MarkerSize', 10);
+plot(Vdcs.*iv_conv.*1e3, pchip_mCE3, 'LineStyle', '--', 'LineWidth', lw, 'Marker', mk_conv, 'Color', c_conv3, 'MarkerSize', mkz_conv);
+plot(Vdc.*iv_conv.*1e3, pchip_sCE3, 'LineStyle', ':', 'LineWidth', lw, 'Marker', 'o', 'Color', c_conv3, 'MarkerSize', 10);
+% plot(Vdcs, pchip_mCE_fixRFin, 'LineStyle', '--', 'LineWidth', lw, 'Marker', 'o', 'Color', [0.6, 0, 0], 'MarkerSize', 8);
+% plot(Vdcs, pchip_mCE_chip_over_in, 'LineStyle', '--', 'LineWidth', lw, 'Marker', 'o', 'Color', [0, 0, 0.6], 'MarkerSize', 8);
+grid on;
+xlabel("DC Bias Current (mA)");
+ylabel("Conversion Efficiency (%)");
+title("2nd and 3rd Harmonic Conversion Efficiency, P_{RF} = 0 dBm");
+legend("Measurement, 2f_0", "Simulated, 2f_0", "Measurement, 3f_0", "Simulation, 3f_0");
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 
 
 

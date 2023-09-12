@@ -1,5 +1,5 @@
 function ld = pickle2mat(pickle_fn, mat_fn)
-
+	
 	% Check compatible version
 	try
 		vstr = version('-release'); % Get release version
@@ -13,8 +13,8 @@ function ld = pickle2mat(pickle_fn, mat_fn)
 	elseif version_year < 2022
 		warning("This function may not be compatible with this version of MATLAB. Known to work with 2022b");
 	end
-
-
+	
+	
 	fid = py.open(pickle_fn, 'rb');
 	data = py.pickle.load(fid);
 	
