@@ -5,4 +5,6 @@ function pwr_w = VNA2W(harm)
 	
 	pwr_w = (abs(harm).*a2).^2;
 	
+	pwr_w = polcomplex(pwr_w, angle(harm));
+	
 end

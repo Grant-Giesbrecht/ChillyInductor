@@ -4,26 +4,9 @@ load(fullfile(DATA_PATH, 'beta_12Sept2023.mat'));
 
 %%-- Convert V2 Data format to expected format for SC1
 
-analysis_freqs = [1, 5, 10, 15].*1e9; % Frequencies to plot [GHz]
-
 datapoint_index = [];
 Pb1a2 = [];
 Vbias = [];
-temps = [];
-
-for af = analysis_freqs
-	c = defaultConditions();
-	c.SG_power = 0;
-	c.f0 = 1e9;
-	c.harms = 1;
-	c.Vdc = 0.1;
-	c.convert_to_W = true;
-	c.Vnorm = 0.002;
-	
-	[harm_struct, normal, Vsweep, temp] = getHarmonicSweep_v2(ds, c, true);
-end
-
-
 
 %%-----------------------------
 
@@ -39,7 +22,7 @@ Vp0 = 86.207e6; % m/s
 iv_conv = 9.5e-3; % A/V
 
 % analysis_freqs = [1, 5, 50].*1e9; % Frequencies to plot [GHz]
-
+analysis_freqs = [1, 5, 10, 15].*1e9; % Frequencies to plot [GHz]
 % analysis_freqs = [1,2, 3, 4, 5, 10, 15, 20, 30, 40, 50].*1e9; % Frequencies to plot [GHz]
 % analysis_freqs = (1:50).*1e9;
 
