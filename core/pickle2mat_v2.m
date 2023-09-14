@@ -85,7 +85,7 @@ function ds = pickle2mat_v2(pickle_fn, mat_fn)
 		% Save as a list of structs instead of cells, because cells are
 		% annoying.
 		if idx == 1
-			ld(numel(cd)) = cd{idx};
+			ld(numel(cd)) = cd{idx}; % This is (as far as I can tell) the only way to pre-allocate an array of structs
 			ld(1)= cd{idx};
 		else
 			ld(idx)= cd{idx};
