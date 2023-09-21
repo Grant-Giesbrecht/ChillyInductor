@@ -36,7 +36,7 @@ for f = analysis_freqs
 	phase_s = phase(fIdx);
 	
 	% Apply drift correction, unwrap phase, and normalize
-	[cp, vb] = correctData(phase_s, vbias_s, dp_idx_s, f, true, true, false);
+	[cp, vb] = correctData(phase_s, vbias_s, dp_idx_s, f, true, true, true);
 	
 	% Get bias currents
 	I = iv_conv.*vb;

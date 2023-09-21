@@ -1,4 +1,10 @@
-%% Built off of DS37 to estimate conversion efficiency
+%% SC25
+%
+% Previously named DS45
+%
+% Shows various conversion efficiency estimates/sweeps.
+%
+% Built off of DS37 to estimate conversion efficiency
 
 %% System Parameters
 

@@ -1,3 +1,9 @@
+%% Description of SC23
+% 
+% Previously named: DS42_...
+%
+% Analyzes freqeuncy fundamental sweep and compares to ADS simulation
+% results.
 
 USE_LOSS = true;
 INTERPOLATE_LOSS = true;

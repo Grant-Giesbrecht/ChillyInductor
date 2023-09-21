@@ -1,4 +1,7 @@
-%% Description of DS38
+%% Description of SC22
+%
+% Previously named: DS38_...
+%
 % Same as DS38, but includes 100K and 110K ADS simulations to show how
 % number of stages impacts accuracy.
 %

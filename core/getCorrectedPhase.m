@@ -1,4 +1,4 @@
-function [corrected_phase, data_vbias] = getCorrectedPhase(rich_data, P_RF, f0)
+function [corrected_phase, data_vbias] = getCorrectedPhase(rich_data, P_RF, f0, plot_phase_correction, normalize, take_avg)
 %      phase, vbias, dp_idx, freq, take_avg, normalize, plot_phasecorrection)
 
 % Given a list of phases, bias voltages, and collection indecies, it
@@ -19,7 +19,7 @@ function [corrected_phase, data_vbias] = getCorrectedPhase(rich_data, P_RF, f0)
 		normalize = true;
 	end
 	if ~exist('plot_phase_correction', 'var')
-		plot_phase_correction = false;
+		plot_phase_correction = true;
 	end
 
 	%% Prepare data from V2 format to basic lists
@@ -54,6 +54,8 @@ function [corrected_phase, data_vbias] = getCorrectedPhase(rich_data, P_RF, f0)
 	% Get all bias voltages
 	vbias = [sel_data.offset_V];
 	dp_idx = [sel_data.collection_index];
+	
+	freq = f0;
 	
 	%% Break Data up by Frequency, Control and Main
 	%

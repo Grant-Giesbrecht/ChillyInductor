@@ -1,4 +1,10 @@
-%% Built off of DS37 to estimate conversion efficiency
+%% SC26
+%
+% PReviously named DS46
+%
+% Shows how conversion efficiency depends on input power.
+%
+% Built off of DS37 to estimate conversion efficiency
 
 %% System Parameters
 

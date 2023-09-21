@@ -1,12 +1,37 @@
-DATA_PATH = fullfile('/','Users','grantgiesbrecht','MEGA','NIST Datasets','group3_2023pub','Main_Sweeps');
+%% SC28
+%
+% Accepts a beta sweep and plots q estimates, tables, distribution etc.
+%
+% Previously named DS51
+%
+% Built off of SC1
 
-load(fullfile(DATA_PATH, 'beta_12Sept2023.mat'));
+DATA_PATH = fullfile('/','Users','grantgiesbrecht','MEGA','NIST Datasets','group3_2023pub','Main_Sweeps');
+DATA_PATH2 = fullfile('/','Volumes','NO NAME', 'NIST September data');
+
+% filename = 'beta_12Sept2023.mat'; % This is the file with the disconnected bias cable and thus flat response.
+filename = 'beta_14Sept2023_1600.mat';
+
+load(fullfile(DATA_PATH2, filename));
 
 %%-- Convert V2 Data format to expected format for SC1
 
-datapoint_index = [];
-Pb1a2 = [];
-Vbias = [];
+P_RF = 0;
+
+% analysis_freqs = [1, 5, 10, 15].*1e9; % Frequencies to plot [GHz]
+
+analysis_freqs = ds.configuration.frequency;
+
+% analysis_freqs = (1:1:8).*1e9;
+% invmask = (analysis_freqs == 4e9);
+% analysis_freqs = analysis_freqs(~invmask);
+
+% analysis_freqs = [1, 2, 3, 6].*1e9;
+
+LIMIT_BIAS = true;
+
+bias_max_A = 0.01;
+bias_min_A = -0.01;
 
 %%-----------------------------
 
@@ -21,38 +46,31 @@ len = 0.5; % meters
 Vp0 = 86.207e6; % m/s
 iv_conv = 9.5e-3; % A/V
 
-% analysis_freqs = [1, 5, 50].*1e9; % Frequencies to plot [GHz]
-analysis_freqs = [1, 5, 10, 15].*1e9; % Frequencies to plot [GHz]
-% analysis_freqs = [1,2, 3, 4, 5, 10, 15, 20, 30, 40, 50].*1e9; % Frequencies to plot [GHz]
-% analysis_freqs = (1:50).*1e9;
-
-dp_idx = datapoint_index;
-phase = Pb1a2;
-vbias = Vbias;
-
-% Get unique frequencies
-frequencies = unique(freq);
+CM = resamplecmap('parula', numel(analysis_freqs));
 
 % Process each frequency
 for f = analysis_freqs
 	
-	% Find indecies for this frequency
-	fIdx = (freq == f);
-
 	struct_key = string(strcat('f', num2str(f/1e9)));
 	
-	dp_idx_s = dp_idx(fIdx);
-	vbias_s = vbias(fIdx);
-	phase_s = phase(fIdx);
-	
 	% Apply drift correction, unwrap phase, and normalize
-	[cp, vb] = correctData(phase_s, vbias_s, dp_idx_s, f, true, true, false);
+	[cp, vb] = getCorrectedPhase(ds, P_RF, f, false);
 	
 	% Get bias currents
-	I = iv_conv.*vb;
+	Ibias = iv_conv.*vb;
+	
+	% Limit bias
+	if LIMIT_BIAS
+		
+		Ipass = (Ibias >= bias_min_A) & (Ibias <= bias_max_A);
+		cp = cp(Ipass);
+		vb = vb(Ipass);
+		Ibias = Ibias(Ipass);
+		
+	end
 	
 	% Remove zero point (don't divide by zero)
-	I_calc = I(cp ~= 0);
+	I_calc = Ibias(cp ~= 0);
 	cp_calc = cp(cp ~= 0);
 	
 	% Calculate q
@@ -60,29 +78,8 @@ for f = analysis_freqs
 	
 	% Save to structs
 	q_vals.(struct_key) = q;
-	I_vals.(struct_key) = I;
+	I_vals.(struct_key) = Ibias;
 	phase_vals.(struct_key) = cp;
-	
-	
-% 	figure(1);
-% 	hold off;
-% 	plot(I.*1e3, cp, 'Marker', '*', 'LineStyle', ':');
-% 	grid on;
-% 	xlabel("Bias Current (mA)");
-% 	ylabel("\Delta Phase (deg)");
-% 	title(strcat("Phase Change from Zero-Bias, f=", num2str(f/1e9), " GHz"));
-% 	
-% 	figure(2);
-% 	hold off;
-% 	plot(I_calc.*1e3, q, 'Marker', '*', 'LineStyle', ':');
-% 	grid on;
-% 	xlabel("Bias Current (mA)");
-% 	ylabel("q (A)");
-% 	force0y;
-% 	title(strcat("Nonlinearity Estimate, f=", num2str(f/1e9), " GHz"));
-	
-% 	input("Enter to continue");
-
 end
 
 %% Show summary
@@ -107,14 +104,16 @@ avg_q = [];
 std_q  = [];
 
 % Process each frequency
+idx = 0;
 for f = analysis_freqs
+	idx = idx + 1;
 
 	% Get key
 	struct_key = string(strcat('f', num2str(f/1e9)));
 	
 	% Get data
 	q = q_vals.(struct_key);
-	I = I_vals.(struct_key);
+	Ibias = I_vals.(struct_key);
 	phase = phase_vals.(struct_key);
 	
 	% Add all qs
@@ -124,11 +123,11 @@ for f = analysis_freqs
 	
 	% Add to graphs
 	figure(1);
-	plot(I, phase, 'Marker', '+', 'LineStyle', ':', 'LineWidth', lw, 'MarkerSize', mkz);
+	plot(Ibias, phase, 'Marker', '+', 'LineStyle', ':', 'LineWidth', lw, 'MarkerSize', mkz, 'Color', CM(idx, :));
 	hold on;
 	
 	figure(2);
-	plot(I(phase ~= 0), q, 'Marker', '+', 'LineStyle', ':', 'LineWidth', lw, 'MarkerSize', mkz);
+	plot(Ibias(phase ~= 0), q, 'Marker', '+', 'LineStyle', ':', 'LineWidth', lw, 'MarkerSize', mkz, 'Color', CM(idx, :));
 	hold on;
 	
 	% Add to table

@@ -1,3 +1,10 @@
+%% SC27
+%
+% Previously named: DS50
+%
+% Accepts a set of S2P files and calculates the distributed reactance of
+% the line, including loss (if S21 is given). Written in NC <3
+
 %% Configure data input
 
 %----------------------------- FILE DATA -------------------------------
@@ -26,8 +33,8 @@ l_phys = 0.5;
 
 %---------------------------- MODEL OPTIONS ----------------------------
 
-USE_LOSS_MODEL = true;
-USE_ALT_PLOTTING = true;
+USE_LOSS_MODEL = false;
+USE_ALT_PLOTTING = false;
 
 clr1 = [0, 0, 0.6];
 clr2 = [0, 0.6, 0];
@@ -46,6 +53,15 @@ hold off;
 subplot(1, 2, 2);
 hold off;
 
+if ~USE_ALT_PLOTTING
+	figure(2);
+	hold off;
+	figure(3);
+	hold off;
+	figure(4);
+	hold off;
+end
+
 % Iterate over files
 nf = numel(FILE_POSTFIXES);
 RCM = resamplecmap('winter', nf);
@@ -61,6 +77,7 @@ for idx = 1:nf
 	S21_dB = lin2dB(abs(flatten(S11_raw.Parameters(2, 1, :))));
 	
 	% Add to figure 1
+	figure(1);
 	subplot(1, 2, 1);
 	plot(S11_raw.Frequencies./1e6, S11_dB, 'Color', RCM(idx, :));
 	hold on;

@@ -1,4 +1,9 @@
-%% Merger of DS42 and DS43
+%% SC24_make_ads_verification_figs.m
+%
+% Previously named: DS44
+%
+% Merger of DS42 and DS43. Shows measurement vs ADS for various metrics
+% other than harmonic power.
 
 %% DS42 Copy
 

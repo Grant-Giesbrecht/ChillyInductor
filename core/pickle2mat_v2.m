@@ -14,9 +14,16 @@ function ds = pickle2mat_v2(pickle_fn, mat_fn)
 		warning("This function may not be compatible with this version of MATLAB. Known to work with 2022b");
 	end
 	
-	
+	% Read pickle data
+	t0_read = tic();
+	dlg = msgbox("Reading PKL file. This could take a few minutes.", 'pickle2mat_v2', "help");
 	fid = py.open(pickle_fn, 'rb');
 	data = py.pickle.load(fid);
+	if ishghandle(dlg)
+		delete(dlg);
+	end
+
+	t0_conv = tic();
 	
 	% Convert to struct
 	ds = struct(data);
@@ -99,6 +106,24 @@ function ds = pickle2mat_v2(pickle_fn, mat_fn)
 
 	ds.dataset = ld;
 	
-	displ("  Saving MAT file...");
-	save(mat_fn, 'ds');
+	t0_wr = tic();
+	dlg = msgbox("Saving MAT file. This could take a few minutes while your data is compressed and saved.", 'pickle2mat_v2', "help");
+	save(mat_fn, 'ds', '-v7.3');
+	if ishghandle(dlg)
+		delete(dlg);
+	end
+
+	tf = tic();
+
+	% Compare file sizes
+	pkl = dir(pickle_fn);
+	mt = dir(mat_fn);
+
+	displ("Finished conversion in ", toc(t0_read)-toc(tf), " seconds:");
+	displ("  PKL Read Time:   ", toc(t0_read)-toc(t0_conv), " sec");
+	displ("  Data Conv. Time: ", toc(t0_conv)-toc(t0_wr), " sec");
+	displ("  MAT Write Time:  ", toc(t0_wr)-toc(tf), " sec");
+	displ("  MAT file size relative to pickle:  ", mt.bytes/pkl.bytes*100, " %");
+	displ("  MAT file size:  ", mt.bytes/1024^2, " MB");
+	displ("  PKL file size:  ", pkl.bytes/1024^2, " MB");
 end
