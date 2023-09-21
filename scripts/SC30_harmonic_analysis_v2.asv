@@ -76,7 +76,7 @@ hold off;
 subplot(1, 3, 3);
 hold off;
 
-LL4 = {};
+LL = {};
 CM = resamplecmap(CMAP_PWR, numel(powers_dBm));
 idx = 0;
 for pwr = powers_dBm
@@ -99,25 +99,25 @@ for pwr = powers_dBm
 	plot(Vsweep, cvrt(abs(harm_struct.h3), 'W', 'dBm'), 'LineStyle', '--', 'Marker', 'o', 'Color', CM(idx, :));
 	hold on;
 	
-	LL4 = [LL4(:)', {"P = "+num2str(pwr) + " dBm"}];
+	LL = [LL(:)', {"P = "+num2str(pwr) + " dBm"}];
 	
 end
 
 figure(2);
 subplot(1, 3, 1);
-legend(LL4{:});
+legend(LL{:});
 xlabel("Bias Voltage (V)");
 ylabel("Power at Chip Ouptut (dBm)");
 title("Fundamental's RF Power Dependence, f="+num2str(FREQ/1e9) + " GHz");
 grid on;
 subplot(1, 3, 2);
-legend(LL4{:});
+legend(LL{:});
 xlabel("Bias Voltage (V)");
 ylabel("Power at Chip Ouptut (dBm)");
 title("2nd Harmonic's RF Power Dependence, f="+num2str(FREQ/1e9) + " GHz");
 grid on;
 subplot(1, 3, 3);
-legend(LL4{:});
+legend(LL{:});
 xlabel("Bias Voltage (V)");
 ylabel("Power at Chip Ouptut (dBm)");
 title("3rd Harmonic's RF Power Dependence, f="+num2str(FREQ/1e9) + " GHz");
@@ -134,7 +134,7 @@ hold off;
 subplot(1, 3, 3);
 hold off;
 
-LL4 = {};
+LL = {};
 CM = resamplecmap(CMAP_FREQ, numel(freqs));
 idx = 0;
 for f = freqs
@@ -157,25 +157,25 @@ for f = freqs
 	plot(Vsweep, cvrt(abs(harm_struct.h3), 'W', 'dBm'), 'LineStyle', '--', 'Marker', 'o', 'Color', CM(idx, :));
 	hold on;
 	
-	LL4 = [LL4(:)', {"f0 = "+num2str(f/1e9) + " GHz"}];
+	LL = [LL(:)', {"f0 = "+num2str(f/1e9) + " GHz"}];
 	
 end
 
 figure(3);
 subplot(1, 3, 1);
-legend(LL4{:});
+legend(LL{:});
 xlabel("Bias Voltage (V)");
 ylabel("Power at Chip Ouptut (dBm)");
 title("Fundamental's Frequency Dependence, P="+num2str(P_RF) + " dBm");
 grid on;
 subplot(1, 3, 2);
-legend(LL4{:});
+legend(LL{:});
 xlabel("Bias Voltage (V)");
 ylabel("Power at Chip Ouptut (dBm)");
 title("2nd Harmonic's Frequency Dependence, P="+num2str(P_RF) + " dBm");
 grid on;
 subplot(1, 3, 3);
-legend(LL4{:});
+legend(LL{:});
 xlabel("Bias Voltage (V)");
 ylabel("Power at Chip Ouptut (dBm)");
 title("3rd Harmonic's Frequency Dependence, P="+num2str(P_RF) + " dBm");
@@ -190,14 +190,11 @@ subplot(2, 1, 2);
 hold off;
 
 figure(5);
-subplot(1, 2, 1);
-hold off;
-subplot(1, 2, 2);
 hold off;
 
 % Scan over all powers
 CM = resamplecmap(CMAP_CE, numel(powers_dBm));
-LL4 = cell(1, numel(powers_dBm));
+LL = cell(1, numel(powers_dBm));
 for pidx = 1:numel(powers_dBm)
 	pwr = powers_dBm(pidx);
 
@@ -226,21 +223,10 @@ for pidx = 1:numel(powers_dBm)
 		[harm_struct, norm, Vsweep] = getHarmonicSweep_v2(ds, c, false);
 		
 		% Calculate conversion efficiency
-		CE2_ = abs(harm_struct.h2)./(abs(harm_struct.h1) + abs(harm_struct.h2) + abs(harm_struct.h3)).*100;
-		CE3_ = abs(harm_struct.h3)./(abs(harm_struct.h1) + abs(harm_struct.h2) + abs(harm_struct.h3)).*100;
-		[CE2(idx), mi2] = max(CE2_);
-		[CE3(idx), mi3] = max(CE3_);
+		[CE2(idx), mi2] = max(abs(harm_struct.h2)./(abs(harm_struct.h1) + abs(harm_struct.h2) + abs(harm_struct.h3)).*100);
+		[CE3(idx), mi3] = max(abs(harm_struct.h3)./(abs(harm_struct.h1) + abs(harm_struct.h2) + abs(harm_struct.h3)).*100);
 		
-		% Add to figure 5 (as neccesary)
-		if f == FREQ
-			figure(5);
-			subplot(1, 2, 1);
-			plot(Vsweep, CE2_, 'LineStyle', '--', 'Marker', 'o', 'Color', CM(pidx, :));
-			hold on;
-			subplot(1, 2, 2);
-			plot(Vsweep, CE3_, 'LineStyle', '--', 'Marker', 'o', 'Color', CM(pidx, :));
-			hold on;
-		end
+		if f == 
 		
 	end
 	
@@ -250,10 +236,10 @@ for pidx = 1:numel(powers_dBm)
 	plot(freqs./1e9, CE2, 'LineStyle', '--', 'Marker', 'o', 'Color', CM(pidx, :));
 	hold on;
 	subplot(2, 1, 2);
-	plot(freqs./1e9, CE3, 'LineStyle', '--', 'Marker', 'o', 'Color', CM(pidx, :));
+	plot(freqs, CE3, 'LineStyle', '--', 'Marker', 'o', 'Color', CM(pidx, :));
 	hold on;
 	
-	LL4{pidx} ="P = "+num2str(pwr) + " dBm";
+	LL{pidx} ="P = "+num2str(pwr) + " dBm";
 	
 end
 % multiWaitbar('CloseAll');
@@ -264,27 +250,12 @@ xlabel("Frequency (GHz)");
 ylabel("Maximum Conversion Efficiency (%)");
 title("2nd Harmonic Conversion Efficiency");
 grid on;
-legend(LL4{:});
 subplot(2, 1, 2);
 xlabel("Frequency (GHz)");
-ylabel("Maximum Conversion Efficiency (%)");
+ylabel("Conversion Efficiency (%)");
 title("3rd Harmonic Conversion Efficiency");
 grid on;
-legend(LL4{:});
 
-figure(5);
-subplot(1, 2, 1);
-xlabel("Bias Voltage (V)");
-ylabel("Conversion Efficiency (%)");
-title("2nd Harmonic, f = " + num2str(FREQ/1e9) + " GHz");
-grid on;
-legend(LL4{:});
-subplot(1, 2, 2);
-xlabel("Bias Voltage (V)");
-ylabel("Conversion Efficiency (%)");
-title("3rd Harmonic, f = " + num2str(FREQ/1e9) + " GHz");
-grid on;
-legend(LL4{:});
 
 
 
