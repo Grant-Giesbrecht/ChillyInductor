@@ -39,7 +39,7 @@ function ds = pickle2mat_v2(pickle_fn, mat_fn)
 	ds.configuration.duplicate_reverse = logical(ds.configuration.duplicate_reverse);
 	ds.configuration.num_pts = double(ds.configuration.num_pts);
 	ds.configuration.ds_name = string(ds.configuration.ds_name);
-	ds.configuration.VNA_points = double(ds.configuration.VNA_points);
+	ds.configuration.VNA_points = doubl(ds.configuration.VNA_points);
 
 	% Convert source power metric
 	ds.VNA_source_pwr_dBm = double(ds.VNA_source_pwr_dBm);
