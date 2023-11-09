@@ -14,6 +14,20 @@ function ds = pickle2mat_v2(pickle_fn, mat_fn)
 		warning("This function may not be compatible with this version of MATLAB. Known to work with 2022b");
 	end
 	
+	% Check for missing mat_fn
+	if ~exist('mat_fn', 'var')
+		pickle_fnc = char(pickle_fn);
+		if strcmpi(pickle_fnc(end-3:end), '.pkl')
+			base_str = pickle_fnc(1:end-4);
+			mat_fn = [base_str, '.mat'];
+			mat_fn = string(mat_fn);
+			displ(" --> Generated MAT filename: ", mat_fn);
+		else
+			warning("Failed to generate MAT filename. Be sure to include .pkl extension for pickle file.");
+			return;
+		end
+	end
+	
 	% Read pickle data
 	t0_read = tic();
 	dlg = msgbox("Reading PKL file. This could take a few minutes.", 'pickle2mat_v2', "help");

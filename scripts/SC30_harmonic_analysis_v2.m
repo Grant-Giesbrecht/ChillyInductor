@@ -5,15 +5,19 @@
 %
 % Run time:
 %	* 550 sec on P15Gen1 (for) though fig 4
+%
+% NOTE: SC31 is now recommended, along with analyze_harmonics(). SC31
+% performs an identical analysis to SC30, however it uses a function which
+% can more easily be expanded to future scripts.
 
-
+t0 = tic();
 
 %% Configuration Data
 
-P_RF = 2; % dBm
-FREQ = 10e9; % Hz
 
-NORMAL_VOLTAGE = 0.00035;
+
+CONVERT_V1 = false;
+
 
 SKIP_READ = true;
 
@@ -23,268 +27,245 @@ CMAP_CE = 'autumn';
 
 %% Data Location
 
-if ~SKIP_READ || ~exist('ds', 'var')
-	DATA_PATH = fullfile('/','Users','grantgiesbrecht','MEGA','NIST Datasets','group3_2023pub','Main_Sweeps');
-	DATA_PATH2 = fullfile('/','Volumes','NO NAME', 'NIST September data');
-	DATA_PATH3 = fullfile('G:', 'NIST September data');
+if CONVERT_V1
+	
+	displ("Reading V1 data");
+	
+	% Load V1 Data
+	load(dataset_path("DS5_FinePower_PO-1.mat"));
+	load(dataset_path("cryostat_sparams.mat"));
+	
+	% Create V2 proxy data
+	clear ds;
+	ds.dataset = ld;
+	ds.configuration.RF_power = unique([ld.SG_power_dBm]);
+	ds.configuration.frequency = unique([ld.SG_freq_Hz]);
+	for idx = 1:numel(ds.dataset)
+		ds.dataset(idx).('temp_K') = NaN;
+	end
+	
+	warning("This does not consider system loss for V1 and thus won't be as holistic an indication an SC25 & SC26!");
+	
+% 	% Analyze V1 system loss data
+% 
+% 	idx_h1 = findClosest(freq_Hz, FREQ);
+% 	idx_h2 = findClosest(freq_Hz, FREQ*2);
+% 	idx_h3 = findClosest(freq_Hz, FREQ*3);
+% 
+% 	S21_h1 = S21_dB(idx_h1);
+% 	S21_h2 = S21_dB(idx_h2);
+% 	S21_h3 = S21_dB(idx_h3);
+	
+else
+	if ~SKIP_READ || ~exist('ds', 'var')
+		
+		DATA_PATH1 = fullfile('/','Users','grantgiesbrecht','MEGA','NIST Datasets','group3_2023pub','Main_Sweeps');
+		DATA_PATH2 = fullfile('/','Volumes','NO NAME', 'NIST September data');
+		DATA_PATH3 = fullfile('/', 'Volumes', 'NO NAME', 'NIST September data');
+		
+		% v3.1
+		filename = "gamma_9,87GHz_Target1_24Oct2023.mat";
+		P_RF = 4; % dBm
+		FREQ = 9.87e9; % Hz
+		NORMAL_VOLTAGE = 0.001;
+		dpath = DATA_PATH3;
+		
+% 		% v3.1
+% 		filename = "gamma_1,5GHz_800MHzBW_20Oct2023.mat";
+% 		P_RF = 3; % dBm
+% 		FREQ = 1.3e9; % Hz
+% 		NORMAL_VOLTAGE = 0.001;
+% 		dpath = DATA_PATH3;
+		
+% 		% v3.1
+% 		filename = "gamma_10GHz_500MHzBW_20Oct2023.mat";
+% 		P_RF = 5; % dBm
+% 		FREQ = 9.9e9; % Hz
+% 		NORMAL_VOLTAGE = 0.001;
+% 		dpath = DATA_PATH3;
+		
+% 		% v3.1
+% 		filename = "gamma_9,7GHz_200MHzBW_19Oct2023.mat";
+% 		P_RF = 5; % dBm
+% 		FREQ = 9.65e9; % Hz
+% 		NORMAL_VOLTAGE = 0.001;
+% 		dpath = DATA_PATH3;
+		
+% 		% v3.1
+% 		filename = "gamma_10GHz_1GHzBW_19Oct2023.mat";
+% 		P_RF = 5; % dBm
+% 		FREQ = 10e9; % Hz
+% 		NORMAL_VOLTAGE = 0.001;
+% 		dpath = DATA_PATH3;
+		
+% 		% v3.1
+% 		filename = "gamma_13,3GHz_40MHzBW_v3,1_18Oct2023.mat";
+% 		P_RF = 5; % dBm
+% 		FREQ = 13.34e9; % Hz
+% 		NORMAL_VOLTAGE = 0.001;
+% 		dpath = DATA_PATH3;
+		
+% 		% v3.1
+% 		filename = "gamma_9,7GHz_200MHzBW_v3,1_18Oct2023.mat";
+% 		P_RF = 5; % dBm
+% 		FREQ = 9.65e9; % Hz
+% 		NORMAL_VOLTAGE = 0.001;
+% 		dpath = DATA_PATH3;
+		
+% 		% v3.1?
+% 		filename = "gamma_9,615GHz_20MHzBW_16Oct2023.mat";
+% 		P_RF = 4.5; % dBm
+% 		FREQ = 9.615e9; % Hz
+% 		NORMAL_VOLTAGE = 0.001;
+% 		dpath = DATA_PATH3;
+		
+% 		% 
+% 		filename = "gamma_13,3GHz_40MHzBW_13Oct2023.mat";
+% 		P_RF = 4.5; % dBm
+% 		FREQ = 13.34e9; % Hz
+% 		NORMAL_VOLTAGE = 0.001;
+% 		dpath = DATA_PATH3;
+		
+% 		% 2.8K (Chip 1, m2) 13.9-14.1 GHz, 20 MHz steps
+% 		filename = "gamma_14GHz_200MHzBW_13Oct2023.mat";
+% 		P_RF = 5; % dBm
+% 		FREQ = 14e9; % Hz
+% 		NORMAL_VOLTAGE = 0.001;
+% 		dpath = DATA_PATH3;
+		
+% 		% 2.8K (Chip 1, m2) 9.6-9.7 GHz, 12.5 MHz steps
+% 		filename = "gamma_9,7GHz_200MHzBW_13Oct2023.mat";
+% 		P_RF = 5; % dBm
+% 		FREQ = 9.65e9; % Hz
+% 		NORMAL_VOLTAGE = 0.001;
+% 		dpath = DATA_PATH3;
+		
+% 		% Best 2.8K data, Narrow (Chip 1, m2) 13.3 GHz ballpark (0.25 GHz
+% 		% spread)
+% 		filename = "gamma_narrow3_11Oct2023.mat";
+% 		P_RF = 4; % dBm
+% 		FREQ = 13.3e9; % Hz
+% 		NORMAL_VOLTAGE = 0.001;
+% 		dpath = DATA_PATH3;
+		
+% 		% Best 2.8K data, Narrow (Chip 1, m2) 10 GHz
+% 		filename = "gamma_narrow1_10GHz_11Oct2023.mat";
+% 		P_RF = 4; % dBm
+% 		FREQ = 10e9; % Hz
+% 		NORMAL_VOLTAGE = 0.001;
+% 		dpath = DATA_PATH3;
 
-	filename = 'gamma_14Sept2023_1600.mat';
-
-	load(fullfile(DATA_PATH3, filename));
+		
+% 		% Narrow(er/2) 2.8K data (Chip 1, m2) (13-13.8 GHz, 50 MHz steps)
+% 		filename = "gamma3Knarrow2_9Oct2023.mat";
+% 		P_RF = 4; % dBm
+% 		FREQ = 13.2e9; % Hz
+% 		NORMAL_VOLTAGE = 1e-3;
+% 		dpath = DATA_PATH3;
+		
+% 		% Narrow 2.8K data (Chip 1, m2) (12-14 GHz?, 200 MHz steps?)
+% 		filename = "gamma_narrow_8Oct2023.mat";
+% 		P_RF = 3; % dBm
+% 		FREQ = 13e9; % Hz
+% 		NORMAL_VOLTAGE = 1e-3;
+% 		dpath = DATA_PATH3;
+		
+% 		% Best 2.8K data, Wide (Chip 1, m2) (1-15 GHz, 1 GHz steps)
+% 		filename = 'gamma3Kfine_3Oct2023.mat';
+% 		P_RF = 0; % dBm
+% 		FREQ = 10e9; % Hz
+% 		NORMAL_VOLTAGE = 0.001;
+% 		dpath = DATA_PATH3;
+		
+% 		% Best 4K Data (Chip 2)
+% 		filename = 'gamma_14Sept2023_1600.mat';
+% 		P_RF = 3; % dBm
+% 		FREQ = 10e9; % Hz
+% 		NORMAL_VOLTAGE = 0.002;
+% 		dpath = DATA_PATH1;
+		
+% 		% Best 3K Data (Chip 2)
+% 		filename = 'gamma3K_21Sept2023_3K.mat';
+% 		P_RF = 3; % dBm
+% 		FREQ = 10e9; % Hz
+% 		NORMAL_VOLTAGE = 0.00075;
+% 		dpath = DATA_PATH1;
+		
+		displ("Reading file", fullfile(dpath, filename));
+		load(fullfile(dpath, filename));
+	end
 end
-
 % Read Config data
 %
 
 powers_dBm = ds.configuration.RF_power;
 freqs = ds.configuration.frequency;
 
-%% Extract data for Selected Single Condition
+%% Run analysis - Figure 1
 
-c = defaultConditions();
-c.SG_power = P_RF;
-c.convert_to_W = 1;
-c.f0 = FREQ;
-c.Vnorm = NORMAL_VOLTAGE;
+% Generate default settings
+ah_fig_set = struct('P_RF', P_RF, 'FREQ', FREQ, 'NORMAL_VOLTAGE', NORMAL_VOLTAGE, 'CMAP', 'parula');
 
-charm1 = [0, 0, 0.7];
-charm2 = [0, 0.6, 0];
-charm3 = [0.6, 0, 0];
+% Generate figure
+fig1 = analyze_harmonics(ds, 'harm_power', ah_fig_set, 'Fig', 11);
 
-% function [harm_struct, normal, Vsweep] = getHarmonicSweep_v2(rich_data, c, keep_normal)
-[harm_struct, norm, Vsweep] = getHarmonicSweep_v2(ds, c, false);
+%% Run analysis - Figure 2
 
-figure(1);
-subplot(1, 1, 1);
-hold off;
-plot(Vsweep, cvrt(abs(harm_struct.h1), 'W', 'dBm'), 'LineStyle', '--', 'Marker', 'o', 'Color', charm1);
-hold on;
-plot(Vsweep, cvrt(abs(harm_struct.h2), 'W', 'dBm'), 'LineStyle', '--', 'Marker', 'o', 'Color', charm2);
-plot(Vsweep, cvrt(abs(harm_struct.h3), 'W', 'dBm'), 'LineStyle', '--', 'Marker', 'o', 'Color', charm3);
-grid on;
-xlabel("Bias Voltage (V)");
-ylabel("Harmonic Power at Chip Output (dBm)");
-title("Freq = " + num2str(FREQ./1e9) + " GHz, P = " + num2str(P_RF) + " dBm");
+% Generate figure
+fig2 = analyze_harmonics(ds, 'harm_power_vs_pin', ah_fig_set, 'Fig', 12);
 
-%% Plot each harmonic in power sweep (at selected frequency)
+%% Run analysis - Figure 3
 
-figure(2);
-subplot(1, 3, 1);
-hold off;
-subplot(1, 3, 2);
-hold off;
-subplot(1, 3, 3);
-hold off;
+% Generate figure
+fig3 = analyze_harmonics(ds, 'harm_power_vs_freq', ah_fig_set, 'Fig', 13);
 
-LL4 = {};
-CM = resamplecmap(CMAP_PWR, numel(powers_dBm));
-idx = 0;
-for pwr = powers_dBm
-	idx = idx + 1;
-	
-	% Update conditions
-	c.SG_power = pwr;
-	
-	% Extract data
-	[harm_struct, norm, Vsweep] = getHarmonicSweep_v2(ds, c, false);
-	
-	figure(2);
-	subplot(1, 3, 1);
-	plot(Vsweep, cvrt(abs(harm_struct.h1), 'W', 'dBm'), 'LineStyle', '--', 'Marker', 'o', 'Color', CM(idx, :));
-	hold on;
-	subplot(1, 3, 2);
-	plot(Vsweep, cvrt(abs(harm_struct.h2), 'W', 'dBm'), 'LineStyle', '--', 'Marker', 'o', 'Color', CM(idx, :));
-	hold on;
-	subplot(1, 3, 3);
-	plot(Vsweep, cvrt(abs(harm_struct.h3), 'W', 'dBm'), 'LineStyle', '--', 'Marker', 'o', 'Color', CM(idx, :));
-	hold on;
-	
-	LL4 = [LL4(:)', {"P = "+num2str(pwr) + " dBm"}];
-	
-end
+%% Run analysis - Figure 4
 
-figure(2);
-subplot(1, 3, 1);
-legend(LL4{:});
-xlabel("Bias Voltage (V)");
-ylabel("Power at Chip Ouptut (dBm)");
-title("Fundamental's RF Power Dependence, f="+num2str(FREQ/1e9) + " GHz");
-grid on;
-subplot(1, 3, 2);
-legend(LL4{:});
-xlabel("Bias Voltage (V)");
-ylabel("Power at Chip Ouptut (dBm)");
-title("2nd Harmonic's RF Power Dependence, f="+num2str(FREQ/1e9) + " GHz");
-grid on;
-subplot(1, 3, 3);
-legend(LL4{:});
-xlabel("Bias Voltage (V)");
-ylabel("Power at Chip Ouptut (dBm)");
-title("3rd Harmonic's RF Power Dependence, f="+num2str(FREQ/1e9) + " GHz");
-grid on;
+% Generate figure
+[fig4, data4] = analyze_harmonics(ds, 'max_ce_vs_freq_power', ah_fig_set, 'Fig', 4, 'StatusUpdates', true, 'UseSystemCE', true);
+
+%% Run analysis - Figure 5
+
+% Generate figure
+fig5 = analyze_harmonics(ds, 'ce_vs_bias_power', ah_fig_set, 'Fig', 15);
+
+%% Run analysis - Figure 6
+
+% Generate figure
+ah_fig_set.CMAP = 'parula';
+fig6 = analyze_harmonics(ds, 'vmfli_vs_bias', ah_fig_set, 'Fig', 6, 'Hold', false);
+
+%% Run analysis - Figure 7
+
+% Generate figure
+data_freqs = unique([ds.dataset.SG_freq_Hz]);
+ah_fig_set.FREQ = data_freqs(2:7);
+
+fig6 = analyze_harmonics(ds, 'ce2_Vs_bias_power_freq', ah_fig_set, 'Fig', 7, 'EqualizeScales', true);
+
+%% Report elapsed time
+
+tf = tic();
+
+t_elapsed = toc(t0)-toc(tf);
+mins = floor(t_elapsed/60);
+sec = t_elapsed - 60*mins;
+displ("Analysis completed in ", mins, " minutes, ", round(sec*10)/10, " seconds");
 
 
-%% Plot each harmonic in power sweep (at selected frequency)
 
-figure(3);
-subplot(1, 3, 1);
-hold off;
-subplot(1, 3, 2);
-hold off;
-subplot(1, 3, 3);
-hold off;
 
-LL4 = {};
-CM = resamplecmap(CMAP_FREQ, numel(freqs));
-idx = 0;
-for f = freqs
-	idx = idx + 1;
-	
-	% Update conditions
-	c.f0 = f;
-	
-	% Extract data
-	[harm_struct, norm, Vsweep] = getHarmonicSweep_v2(ds, c, false);
-	
-	figure(3);
-	subplot(1, 3, 1);
-	plot(Vsweep, cvrt(abs(harm_struct.h1), 'W', 'dBm'), 'LineStyle', '--', 'Marker', 'o', 'Color', CM(idx, :));
-	hold on;
-	subplot(1, 3, 2);
-	plot(Vsweep, cvrt(abs(harm_struct.h2), 'W', 'dBm'), 'LineStyle', '--', 'Marker', 'o', 'Color', CM(idx, :));
-	hold on;
-	subplot(1, 3, 3);
-	plot(Vsweep, cvrt(abs(harm_struct.h3), 'W', 'dBm'), 'LineStyle', '--', 'Marker', 'o', 'Color', CM(idx, :));
-	hold on;
-	
-	LL4 = [LL4(:)', {"f0 = "+num2str(f/1e9) + " GHz"}];
-	
-end
 
-figure(3);
-subplot(1, 3, 1);
-legend(LL4{:});
-xlabel("Bias Voltage (V)");
-ylabel("Power at Chip Ouptut (dBm)");
-title("Fundamental's Frequency Dependence, P="+num2str(P_RF) + " dBm");
-grid on;
-subplot(1, 3, 2);
-legend(LL4{:});
-xlabel("Bias Voltage (V)");
-ylabel("Power at Chip Ouptut (dBm)");
-title("2nd Harmonic's Frequency Dependence, P="+num2str(P_RF) + " dBm");
-grid on;
-subplot(1, 3, 3);
-legend(LL4{:});
-xlabel("Bias Voltage (V)");
-ylabel("Power at Chip Ouptut (dBm)");
-title("3rd Harmonic's Frequency Dependence, P="+num2str(P_RF) + " dBm");
-grid on;
 
-%% Estimate Conversion Efficiency
 
-figure(4);
-subplot(2, 1, 1);
-hold off;
-subplot(2, 1, 2);
-hold off;
 
-figure(5);
-subplot(1, 2, 1);
-hold off;
-subplot(1, 2, 2);
-hold off;
 
-% Scan over all powers
-CM = resamplecmap(CMAP_CE, numel(powers_dBm));
-LL4 = cell(1, numel(powers_dBm));
-for pidx = 1:numel(powers_dBm)
-	pwr = powers_dBm(pidx);
 
-	% Generate local conditions struct
-	c = defaultConditions();
-	c.SG_power = pwr;
-	c.convert_to_W = 1;
-	c.Vnorm = NORMAL_VOLTAGE;
-	
-% 	multiWaitbar('Generate Figure 4', (pidx-1)/numel(powers_dBm));
-	
-	CE2 = zeros(1, numel(freqs));
-	CE3 = zeros(1, numel(freqs));
-	
-	% Scan over all frequencies
-	idx = 0;
-	for f = freqs
-		idx = idx + 1;
-		
-% 		multiWaitbar('Analyze Power level', (idx-1)/numel(freqs));
-		
-		% Update conditions
-		c.f0 = f;
-		
-		% Extract data
-		[harm_struct, norm, Vsweep] = getHarmonicSweep_v2(ds, c, false);
-		
-		% Calculate conversion efficiency
-		CE2_ = abs(harm_struct.h2)./(abs(harm_struct.h1) + abs(harm_struct.h2) + abs(harm_struct.h3)).*100;
-		CE3_ = abs(harm_struct.h3)./(abs(harm_struct.h1) + abs(harm_struct.h2) + abs(harm_struct.h3)).*100;
-		[CE2(idx), mi2] = max(CE2_);
-		[CE3(idx), mi3] = max(CE3_);
-		
-		% Add to figure 5 (as neccesary)
-		if f == FREQ
-			figure(5);
-			subplot(1, 2, 1);
-			plot(Vsweep, CE2_, 'LineStyle', '--', 'Marker', 'o', 'Color', CM(pidx, :));
-			hold on;
-			subplot(1, 2, 2);
-			plot(Vsweep, CE3_, 'LineStyle', '--', 'Marker', 'o', 'Color', CM(pidx, :));
-			hold on;
-		end
-		
-	end
-	
-	% Plot this power level
-	figure(4);
-	subplot(2, 1, 1);
-	plot(freqs./1e9, CE2, 'LineStyle', '--', 'Marker', 'o', 'Color', CM(pidx, :));
-	hold on;
-	subplot(2, 1, 2);
-	plot(freqs./1e9, CE3, 'LineStyle', '--', 'Marker', 'o', 'Color', CM(pidx, :));
-	hold on;
-	
-	LL4{pidx} ="P = "+num2str(pwr) + " dBm";
-	
-end
-% multiWaitbar('CloseAll');
 
-figure(4);
-subplot(2, 1, 1);
-xlabel("Frequency (GHz)");
-ylabel("Maximum Conversion Efficiency (%)");
-title("2nd Harmonic Conversion Efficiency");
-grid on;
-legend(LL4{:});
-subplot(2, 1, 2);
-xlabel("Frequency (GHz)");
-ylabel("Maximum Conversion Efficiency (%)");
-title("3rd Harmonic Conversion Efficiency");
-grid on;
-legend(LL4{:});
 
-figure(5);
-subplot(1, 2, 1);
-xlabel("Bias Voltage (V)");
-ylabel("Conversion Efficiency (%)");
-title("2nd Harmonic, f = " + num2str(FREQ/1e9) + " GHz");
-grid on;
-legend(LL4{:});
-subplot(1, 2, 2);
-xlabel("Bias Voltage (V)");
-ylabel("Conversion Efficiency (%)");
-title("3rd Harmonic, f = " + num2str(FREQ/1e9) + " GHz");
-grid on;
-legend(LL4{:});
+
+
+
 
 
 

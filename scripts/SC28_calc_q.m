@@ -8,11 +8,23 @@
 
 DATA_PATH = fullfile('/','Users','grantgiesbrecht','MEGA','NIST Datasets','group3_2023pub','Main_Sweeps');
 DATA_PATH2 = fullfile('/','Volumes','NO NAME', 'NIST September data');
+DATA_PATH_SUPP = fullfile('/','Volumes','NO NAME', 'NIST Datasets Supplementary', 'group3_supplementary');
 
 % filename = 'beta_12Sept2023.mat'; % This is the file with the disconnected bias cable and thus flat response.
-filename = 'beta_14Sept2023_1600.mat';
+filename = 'beta_14Sept2023_1600.mat'; % Best 4K Chip(3-2) dataset
+% analysis_freqs = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].*1e9;
 
-load(fullfile(DATA_PATH2, filename));
+% filename = 'beta3K_20Sept2023_3K.mat'; % Best 3K Chip(3-2) dataset
+load(fullfile(DATA_PATH, filename));
+% analysis_freqs = (1:20).*1e9;
+
+% filename = "gamma_14Sept2023_1600.mat";
+% load(fullfile(DATA_PATH2, filename));
+% analysis_freqs = ds.configuration.frequency;
+
+% filename = 'betaV3_29Sept2023_autosave.mat'; % This is a partial Chip-1 2.8K measurement (failed when laptop slept).
+% load(fullfile(DATA_PATH_SUPP, filename));
+% analysis_freqs = [1, 2, 3, 4, 5, 7, 9, 10].*1e9;
 
 %%-- Convert V2 Data format to expected format for SC1
 
@@ -20,18 +32,22 @@ P_RF = 0;
 
 % analysis_freqs = [1, 5, 10, 15].*1e9; % Frequencies to plot [GHz]
 
-analysis_freqs = ds.configuration.frequency;
+% load(fullfile('/', 'Volumes', 'NO NAME', 'October Temperature Sweep', '4K', 'BG 4K Sweeps', 'beta_fast2_4K0_30Oct2023.mat'));
+
 
 % analysis_freqs = (1:1:8).*1e9;
 % invmask = (analysis_freqs == 4e9);
 % analysis_freqs = analysis_freqs(~invmask);
 
-% analysis_freqs = [1, 2, 3, 6].*1e9;
+
+analysis_freqs = ds.configuration.frequency(5:end-7);
+% analysis_freqs = ds.configuration.frequency;
+analysis_freqs = ds.configuration.frequency(10);
 
 LIMIT_BIAS = true;
 
-bias_max_A = 0.01;
-bias_min_A = -0.01;
+bias_max_A = 0.011;
+bias_min_A = .005;
 
 %%-----------------------------
 
@@ -54,7 +70,7 @@ for f = analysis_freqs
 	struct_key = string(strcat('f', num2str(f/1e9)));
 	
 	% Apply drift correction, unwrap phase, and normalize
-	[cp, vb] = getCorrectedPhase(ds, P_RF, f, false);
+	[cp, vb] = getCorrectedPhase_V2(ds, P_RF, f, false);
 	
 	% Get bias currents
 	Ibias = iv_conv.*vb;
@@ -62,7 +78,7 @@ for f = analysis_freqs
 	% Limit bias
 	if LIMIT_BIAS
 		
-		Ipass = (Ibias >= bias_min_A) & (Ibias <= bias_max_A);
+		Ipass = (abs(Ibias) >= bias_min_A) & (abs(Ibias) <= bias_max_A);
 		cp = cp(Ipass);
 		vb = vb(Ipass);
 		Ibias = Ibias(Ipass);
@@ -181,7 +197,7 @@ legend("Mean", "Standard Deviation");
 sel_qs = all_qs(all_qs < 0.4);
 figure(4);
 hold off;
-histogram(sel_qs, 'FaceColor', [0, 0, .7]);
+histogram(sel_qs, 20, 'FaceColor', [0, 0, .7]);
 hold on;
 vlin(mean(sel_qs), "LineStyle", '--', 'Color', c_mean);
 vlin(mean(sel_qs)-std(sel_qs), "LineStyle", ':', 'Color', c_std);

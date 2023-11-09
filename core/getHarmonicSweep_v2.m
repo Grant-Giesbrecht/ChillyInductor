@@ -26,17 +26,26 @@ function [harm_struct, normal, Vsweep] = getHarmonicSweep_v2(rich_data, c, keep_
 	for hidx = 1:numel(c.harms)
 		harm_struct.(labels(hidx)) = zeros(1, numel(Vdcs));
 	end
-
+	
+	Vsweep = [];
 	idx = 0;
 	for vdc = Vdcs
-		idx = idx + 1;
 
 		% Get harmonics at this datapoint
 		c.Vdc = vdc;
 		[norm, harms, err, temp] = getHarmonics_v2(rich_data, c);
 
+		% Skip points that are not found
+		if isempty(norm.pf)
+			continue;
+		end
+		
+		% Point was valid; add to lists and increment count
+		idx = idx + 1;
+		Vsweep(idx) = vdc;
+		
 		% Skip points that went normal
-		if norm.pf
+		if norm.pf && ~keep_normal
 			num_normal = num_normal + 1;
 			for hidx = 1:numel(c.harms)
 				harm_struct.(labels(hidx))(idx) = NaN;
@@ -58,6 +67,5 @@ function [harm_struct, normal, Vsweep] = getHarmonicSweep_v2(rich_data, c, keep_
 	normal.V = norm_V;
 	normal.num_normal = num_normal;
 	
-	Vsweep = Vdcs;
 	
 end
