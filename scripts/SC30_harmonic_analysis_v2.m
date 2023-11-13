@@ -63,19 +63,19 @@ else
 		DATA_PATH2 = fullfile('/','Volumes','NO NAME', 'NIST September data');
 		DATA_PATH3 = fullfile('/', 'Volumes', 'NO NAME', 'NIST September data');
 		
-		% v3.1
-		filename = "gamma_9,87GHz_Target1_24Oct2023.mat";
-		P_RF = 4; % dBm
-		FREQ = 9.87e9; % Hz
-		NORMAL_VOLTAGE = 0.001;
-		dpath = DATA_PATH3;
-		
 % 		% v3.1
-% 		filename = "gamma_1,5GHz_800MHzBW_20Oct2023.mat";
-% 		P_RF = 3; % dBm
-% 		FREQ = 1.3e9; % Hz
+% 		filename = "gamma_9,87GHz_Target1_24Oct2023.mat";
+% 		P_RF = 4; % dBm
+% 		FREQ = 9.87e9; % Hz
 % 		NORMAL_VOLTAGE = 0.001;
 % 		dpath = DATA_PATH3;
+		
+		% v3.1
+		filename = "gamma_1,5GHz_800MHzBW_20Oct2023.mat";
+		P_RF = 3; % dBm
+		FREQ = 1.3e9; % Hz
+		NORMAL_VOLTAGE = 0.001;
+		dpath = DATA_PATH3;
 		
 % 		% v3.1
 % 		filename = "gamma_10GHz_500MHzBW_20Oct2023.mat";
@@ -222,7 +222,7 @@ fig3 = analyze_harmonics(ds, 'harm_power_vs_freq', ah_fig_set, 'Fig', 13);
 %% Run analysis - Figure 4
 
 % Generate figure
-[fig4, data4] = analyze_harmonics(ds, 'max_ce_vs_freq_power', ah_fig_set, 'Fig', 4, 'StatusUpdates', true, 'UseSystemCE', true);
+[fig4, data4] = analyze_harmonics(ds, 'max_ce_vs_freq_power', ah_fig_set, 'Fig', 4, 'StatusUpdates', true, 'CEDefinition', 'Chip');
 
 %% Run analysis - Figure 5
 

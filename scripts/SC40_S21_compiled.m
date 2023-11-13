@@ -11,7 +11,7 @@ S11_prefix = "S11_";
 S21_prefix = "S21_";
 postfix = "_trimmed.s2p";
 
-datapath = fullfile("/", "Volumes", "NO NAME", "8_Nov_Compiled_S21");
+datapath = fullfile("/", "Volumes", "M4 PHD", "ARC0 PhD Data", "RP-21 Kinetic Inductance 2023", "Data", "group4_extflash", "S21 Cal Verification", "8_Nov_Compiled_S21");
 
 %% Alle Dateien lesen
 
@@ -62,6 +62,23 @@ xlabel("Frequency (GHz)");
 ylabel("S_{11} and S_{21} (dB)");
 title("S-Parameters of Chip");
 legend("S_{21}", "S_{11}", 'Location', 'Best');
+ylim([-40, 0]);
+
+figure(2);
+subplot(2, 1, 1);
+plot(S21_meister_freq_Hz'./1e9, S21_dB, 'LineStyle', ':', 'Marker', '.', 'Color', [68, 217, 240]./255);
+grid on;
+xlabel("Frequency (GHz)");
+ylabel("S_{21} (dB)");
+title("S_{21} of Chip with Calibration");
+ylim([-40, 0]);
+
+subplot(2, 1, 2);
+plot(S11_meister_freq_Hz'./1e9, S11_dB, 'LineStyle', ':', 'Marker', '.', 'Color', [240, 220, 68]./255);
+grid on;
+xlabel("Frequency (GHz)");
+ylabel("S_{11} (dB)");
+title("S_{11} of Chip with Calibration");
 ylim([-40, 0]);
 
 

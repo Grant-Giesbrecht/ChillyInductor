@@ -7,13 +7,18 @@ LIMIT_FREQ_BAND = true; % ONly plots frequencies within the band where the datas
 
 DATA_PATH1 = string(fullfile('/','Users','grantgiesbrecht','MEGA','NIST Datasets','group3_2023pub','Main_Sweeps'));
 DATA_PATH2 = string(fullfile('/','Volumes','NO NAME', 'NIST September data'));
-DATA_PATH3 = string(fullfile('/', 'Volumes', 'NO NAME', 'NIST September data'));
+DATA_PATH3 = string(fullfile('/', 'Volumes', 'M4 PHD', 'NIST September data'));
+DATA_PATH4 = string(fullfile('/', 'Volumes', 'M5 PERSONAL', 'CalTest'));
 
 % Paths to datafiles (Target-1 peak)
 files = ["gamma_10GHz_500MHzBW_20Oct2023.mat", "gamma_9,87GHz_Target1_24Oct2023.mat", "gamma_9,87GHz_Target1_26Oct2023_r1.mat", "gamma_9,87GHz_Target1_26Oct2023_r2.mat", "gamma_9,87GHz_Target1_26Oct2023_r3.mat", "gamma_9,87GHz_Target1_26Oct2023_r4.mat", "gamma_9,87GHz_Target1_26Oct2023_r5.mat", "gamma_9,87GHz_Target1_26Oct2023_r6.mat", "gamma_9,87GHz_Target1_26Oct2023_r7.mat", "gamma_9,87GHz_Target1_26Oct2023_r8.mat", "gamma_9,87GHz_Target1_26Oct2023_r9.mat"];
 dpaths = repmat([DATA_PATH3], 1, numel(files));
 normals = repmat([.001], 1, numel(files));
 
+% Add caltest file
+files = [files, "gamma_9,87GHz_Target1_CalTest_10Nov2023.mat"];
+dpaths = [dpaths, DATA_PATH4];
+normals = [normals, normals(end)];
 
 % % Paths to datafiles (9.6-9.7 GHz)
 % dpaths = [DATA_PATH3, DATA_PATH3];

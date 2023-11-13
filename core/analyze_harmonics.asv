@@ -13,12 +13,9 @@ function [h, out_data] = analyze_harmonics(ds, fig_type, settings, varargin)
 
 	%% Parse optional arguments
 	
-	expectedDomain = {'SYSTEM', 'CHIP', 'SYSTEMS11'};
+	expectedDomain = {'System', 'Chip', 'SystemS11'};
 	% System = P2VNA/PgenSet
-	% Chip = P2VNA/(P1VNA + P2VNA + P3VNA)
-	% System S11 = P2VNA/(PgenSet * (1-S11linear))
-	
-	sparams_null = sparameters([1,0;0,1], 1, 50);
+	% Chip = P2VNA/(P
 	
 	p = inputParser;
     p.KeepUnmatched = true;
@@ -30,8 +27,8 @@ function [h, out_data] = analyze_harmonics(ds, fig_type, settings, varargin)
 	p.addParameter('Color3', [0.6, 0, 0], @isnumeric );
 	p.addParameter('EqualizeScales', false, @islogical );
 	p.addParameter('StatusUpdates', false, @islogical );
-	p.addParameter('CEDefinition', false, @(x) any(validatestring(upper(char(x)),expectedDomain)) );
-	p.addParameter('S2PData', sparams_null, @(x) isa(x, 'sparameters') );
+	p.addParameter('Domain', "G", @(x) any(validatestring(char(x),expectedDomain)) );
+	p.addParameter('CEDefinition', false, @islogical ); % I'm defining System CE as conversion efficiency of the entire system, ie. P2/Pset, not P2/SUM(Pn). Other would be chip CE where reflection is removed.
 	
     p.parse(varargin{:});
 	p = p.Results;
@@ -256,16 +253,6 @@ function [h, out_data] = analyze_harmonics(ds, fig_type, settings, varargin)
 			hold on;
 		end
 		
-		has_S2P_data = false;
-		if p.S2PData.Frequencies ~= sparams_null.Frequencies
-			has_S2P_data = true;
-		elseif p.S2PData.Parameters ~= sparams_null.Parameters
-			has_S2P_data = true;
-		elseif p.S2PData.Impedance ~= sparams_null.Impedance
-			has_S2P_data = true;
-		end
-		
-		
 		% Scan over all powers
 		CM = resamplecmap(CMAP, numel(powers_dBm));
 		LL4 = cell(1, numel(powers_dBm));
@@ -284,28 +271,12 @@ function [h, out_data] = analyze_harmonics(ds, fig_type, settings, varargin)
 			CE3 = zeros(1, numel(freqs));
 			CE2_sys = zeros(1, numel(freqs));
 			CE3_sys = zeros(1, numel(freqs));
-			CE2_syss11 = zeros(1, numel(freqs));
-			CE3_syss11 = zeros(1, numel(freqs));
-			s11q_all = zeros(1, numel(freqs));
 			
 			% Scan over all frequencies
 			idx = 0;
 			for f = freqs
 				idx = idx + 1;
-				
-				% Find S11 at this frequency
-				if has_S2P_data
-					s11q = interp1(p.S2PData.Frequencies, abs(flatten(p.S2PData.Parameters(1, 1, :))), f);
-					
-					% If interp fails, means data out of range. Mark as no
-					% data available.
-					if isnan(s11q)
-						warning("Failed to use provided S2P data. Frequencies out of range.");
-						has_S2P_data = false;
-					end
-					s11q_all(idx) = s11q;
-				end
-				
+								
 				% Update conditions
 				c.f0 = f;
 				
@@ -315,20 +286,12 @@ function [h, out_data] = analyze_harmonics(ds, fig_type, settings, varargin)
 				% Calculate conversion efficiency
 				CE2_ = abs(harm_struct.h2)./(abs(harm_struct.h1) + abs(harm_struct.h2) + abs(harm_struct.h3)).*100;
 				CE3_ = abs(harm_struct.h3)./(abs(harm_struct.h1) + abs(harm_struct.h2) + abs(harm_struct.h3)).*100;
-				[CE2(idx), mi2] = max(CE2_);
-				[CE3(idx), mi3] = max(CE3_);
-				
 				CE2sys_ = abs(harm_struct.h2)./cvrt(pwr, 'dBm', 'W').*100;
 				CE3sys_ = abs(harm_struct.h3)./cvrt(pwr, 'dBm', 'W').*100;
+				[CE2(idx), mi2] = max(CE2_);
+				[CE3(idx), mi3] = max(CE3_);
 				[CE2_sys(idx), mi2s] = max(CE2sys_);
 				[CE3_sys(idx), mi3s] = max(CE3sys_);
-				
-				if has_S2P_data
-					CE2syss11_ = abs(harm_struct.h2)./(cvrt(pwr, 'dBm', 'W')*(1-s11q)^2).*100;
-					CE3syss11_ = abs(harm_struct.h3)./(cvrt(pwr, 'dBm', 'W')*(1-s11q)^2).*100;
-					[CE2_syss11(idx), mi2s] = max(CE2syss11_);
-					[CE3_syss11(idx), mi3s] = max(CE3syss11_);
-				end
 			end
 			
 			% Save output data
@@ -338,23 +301,14 @@ function [h, out_data] = analyze_harmonics(ds, fig_type, settings, varargin)
 			out_data.("P"+num2str(pwr)+"dBm").CE3_sys = CE3_sys;
 			
 			% Select appropriate CE
-			if strcmpi(p.CEDefinition, 'SYSTEM')
+			if p.UseSystemCE
 				CE2_sel = CE2_sys;
 				CE3_sel = CE3_sys;
 				ce_type_str = "System";
-			elseif strcmpi(p.CEDefinition, 'CHIP')
+			else
 				CE2_sel = CE2;
 				CE3_sel = CE3;
 				ce_type_str = "Chip";
-			elseif strcmpi(p.CEDefinition, 'SYSTEMS11')
-				
-				if ~has_S2P_data
-					error("Cannot calculate SystemS11 CE without S2P Data");
-				end
-				
-				CE2_sel = CE2_syss11;
-				CE3_sel = CE3_syss11;
-				ce_type_str = "System+S11";
 			end
 			
 			% Plot this power level
