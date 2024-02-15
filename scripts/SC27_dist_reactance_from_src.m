@@ -9,12 +9,59 @@
 
 %----------------------------- FILE DATA -------------------------------
 
-DATA_PATH = fullfile('/','Users','grantgiesbrecht','MEGA','NIST Datasets','group3_2023pub','Chip_r3c2_LC');
-FILE_POSTFIXES = ["0V0", "0V2", "0V4", "0V6", "0V8", "1V0", "1V1", "1V2"];
-bias_voltage = [0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.1, 1.2];
+% % Chip1 at 4,0K 4 dBm
+% DATA_PATH = fullfile('/','Volumes','NO NAME','October Temperature Sweep', '4K', 'LC 4K 4dBm');
+% FILE_POSTFIXES = ["0V0", "0V2", "0V4", "0V6", "0V8", "1V0"];
+% bias_voltage = [0, 0.2, 0.4, 0.6, 0.8, 1.0];
+% EXTENSION = "_trimmed.s2p";
+% 
+% S11_PREFIX = "LC_S11_";
+% S21_PREFIX = "LC_S21_";
+
+% % Chip1 at 4,0K -10 dBm
+% DATA_PATH = fullfile('/','Volumes','NO NAME','October Temperature Sweep', '4K', 'LC 4K -10dBm');
+% FILE_POSTFIXES = ["0V0", "0V2", "0V4", "0V6", "0V8", "1V0", "1V2", "1V4"];
+% bias_voltage = [0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4];
+% EXTENSION = "_trimmed.s2p";
+% 
+% S11_PREFIX = "LC_S11_";
+% S21_PREFIX = "LC_S21_";
+
+% Chip1 at 3,0K, 4 dBm
+DATA_PATH = fullfile('/','Volumes','NO NAME','October Temperature Sweep', '3K', 'LC 3K0 4dBm');
+FILE_POSTFIXES = ["0V0", "0V2", "0V4", "0V6", "0V8", "1V0", "1V2"];
+bias_voltage = [0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2];
+EXTENSION = "_trimmed.s2p";
 
 S11_PREFIX = "LC_S11_";
 S21_PREFIX = "LC_S21_";
+
+% % Chip1 at 3,0K, -10 dBm
+% DATA_PATH = fullfile('/','Volumes','NO NAME','October Temperature Sweep', '3K', 'LC 3K0 -10dBm');
+% FILE_POSTFIXES = ["0V0", "0V2", "0V4", "0V6", "0V8", "1V0", "1V2", "1V4", "1V6"];
+% bias_voltage = [0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4, 1.6];
+% EXTENSION = "_trimmed.s2p";
+% 
+% S11_PREFIX = "LC_S11_";
+% S21_PREFIX = "LC_S21_";
+
+% % Chip1 at 2,88K
+% DATA_PATH = fullfile('/','Volumes','NO NAME','October Temperature Sweep','LC 2,88K -10dBm');
+% FILE_POSTFIXES = ["0V0", "0V2", "0V4", "0V6", "0V8", "1V0", "1V1", "1V2", "1V4"];
+% bias_voltage = [0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.1, 1.2, 1.4];
+% EXTENSION = ".prn";
+% 
+% S11_PREFIX = "LC_S11_";
+% S21_PREFIX = "LC_S21_";
+
+% % Chip2 at 4K
+% DATA_PATH = fullfile('/','Users','grantgiesbrecht','MEGA','NIST Datasets','group3_2023pub','Chip_r3c2_LC');
+% FILE_POSTFIXES = ["0V0", "0V2", "0V4", "0V6", "0V8", "1V0", "1V1", "1V2"];
+% bias_voltage = [0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.1, 1.2];
+% EXTENSION = ".s2p";
+% 
+% S11_PREFIX = "LC_S11_";
+% S21_PREFIX = "LC_S21_";
 
 %----------------------------- NULL DATA ------------------------------
 
@@ -71,8 +118,8 @@ Zcs = zeros(1, nf);
 for idx = 1:nf
 	
 	% Read files
-	S11_raw = sparameters(fullfile(DATA_PATH, S11_PREFIX+FILE_POSTFIXES(idx)+".s2p"));
-	S21_raw = sparameters(fullfile(DATA_PATH, S21_PREFIX+FILE_POSTFIXES(idx)+".s2p"));
+	S11_raw = sparameters(fullfile(DATA_PATH, S11_PREFIX+FILE_POSTFIXES(idx)+EXTENSION));
+	S21_raw = sparameters(fullfile(DATA_PATH, S21_PREFIX+FILE_POSTFIXES(idx)+EXTENSION));
 	S11_dB = lin2dB(abs(flatten(S11_raw.Parameters(1, 1, :))));
 	S21_dB = lin2dB(abs(flatten(S11_raw.Parameters(2, 1, :))));
 	
@@ -98,14 +145,14 @@ for idx = 1:nf
 		% Apply mask for range
 		mask = (S11_raw.Frequencies >= DETUNE_FREQ_MIN_HZ(midx)) & (S11_raw.Frequencies <= DETUNE_FREQ_MAX_HZ(midx));
 		
-		% Find minimum
+		% Find detune/max
 		[detune_S11, fm_idx] = max(S11_dB(mask));
 		
 		% Calc. masked parameters
 		masked_freqs = S11_raw.Frequencies(mask);
 		masked_S21 = S21_dB(mask);
 		
-		% Calculate minimum value
+		% Calculate S11 and S21 at max/detuned value
 		detune_freq = masked_freqs(fm_idx);
 		S11m = dB2lin(detune_S11);
 		S21m = dB2lin(masked_S21(fm_idx));

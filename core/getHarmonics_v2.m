@@ -45,12 +45,36 @@ function [norm, harms, stdev, temp] = getHarmonics_v2(rich_data, conditions)
 	% Apply mask
 	mask = I1 & I2 & I3;
 	points = dataset(mask);
-	if numel(points) ~= numel(conditions.harms)*2 && conditions.Vdc ~= 0
-		warning("Incorrect number of points found (" + num2str(numel(points)) +"). Dataset not valid.");
-		displ("Occured with conditions:");
-		displ("       Vdc (V): ", conditions.Vdc);
-		displ("   Power (dBm): ", conditions.SG_power);
-		return
+	if rich_data.configuration.duplicate_reverse
+		if numel(points) ~= numel(conditions.harms)*2 && conditions.Vdc ~= 0
+
+			warning("Incorrect number of points found (" + num2str(numel(points)) +"). Dataset not valid.");
+			displ("Occured with conditions:");
+			displ("       Vdc (V): ", conditions.Vdc);
+			displ("   Power (dBm): ", conditions.SG_power);
+			displ("   Freq (GHz): ", conditions.f0/1e9);
+			norm.pf = [];
+			norm.V = [];
+			harms = [];
+			stdev=[];
+			temp=[];
+			return
+		end
+	else
+		if numel(points) ~= numel(conditions.harms) && conditions.Vdc ~= 0
+
+			warning("Incorrect number of points found (" + num2str(numel(points)) +"). Dataset not valid.");
+			displ("Occured with conditions:");
+			displ("       Vdc (V): ", conditions.Vdc);
+			displ("   Power (dBm): ", conditions.SG_power);
+			displ("   Freq (GHz): ", conditions.f0/1e9);
+			norm.pf = [];
+			norm.V = [];
+			harms = [];
+			stdev=[];
+			temp=[];
+			return
+		end
 	end
 	
 	% Get data for each harmonic
@@ -93,6 +117,8 @@ function [norm, harms, stdev, temp] = getHarmonics_v2(rich_data, conditions)
 	
 	% Get readout voltage
 	mv=[points.MFLI_voltage];
+% 	mv=[points.MFLI_voltage_deg];
+% 	mv=abs([points.MFLI_voltage_V] + 1i.*[points.MFLI_voltage_deg]);
 	voltage = mean(abs(mv));
 	
 	% Prepare norm output
