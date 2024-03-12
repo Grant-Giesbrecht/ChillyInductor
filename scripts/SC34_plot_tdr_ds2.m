@@ -1,4 +1,4 @@
-DATAPATH = fullfile("/", "Volumes", "NO NAME", "NIST September data", "TDR");
+DATAPATH = fullfile('/Volumes/M6 T7S/ARC0 PhD Data/RP-21 Kinetic Inductance 2023/Data/group4_extflash/NIST September data', "TDR");
 load(fullfile(DATAPATH, "TDR_Dataset_2.mat"));
 
 warning("X axis units wrong. For some reason I had to add an extra 1e3!");
@@ -20,12 +20,12 @@ CMd = resamplecmap(cmd, numel(tdr_data)+1);
 idx = 0;
 t_max = zeros(1, numel(tdr_data));
 handles = gobjects(1, numel(tdr_data)*3);
-horder = []
+horder = [];
 for ds = tdr_data
     idx = idx + 1;
     
     figure(4);
-    plot(ds.t./1e-9./1e3, ds.R, "DisplayName", "V_{DC} = "+num2str(ds.Vdc), 'Color', CM(idx, :), 'LineWidth', 1.5);
+    plot(ds.t./1e-9./1e3, ds.R, "DisplayName", "V_{DC} = "+num2str(ds.Vdc), 'Color', CMd(idx, :), 'LineWidth', 1.5);
     hold on;
 	
 	break
@@ -43,8 +43,16 @@ title("TDR Datatset 1, Chip 2");
 legend();
 rectangle('Position', [interest_region.x(1), interest_region.y(1), interest_region.x(2)-interest_region.x(1), interest_region.y(2)-interest_region.y(1)], 'LineWidth', 1);
 
+return;
 
+%% Format for publication
 
+figure(4);
+set(gca,'FontSize', 22, 'FontName', 'Times New Roman');
+pbaspect([1.0000    0.3825    0.3825]);
+ylabel("Impedance (\Omega)");
+legend('off');
+title("Full TDR Pulse");
 
 
 

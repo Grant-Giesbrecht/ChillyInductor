@@ -9,8 +9,10 @@
 
 %----------------------------- FILE DATA -------------------------------
 
+path_nn = fullfile('/', 'Volumes', 'M6 T7S', 'ARC0 PhD Data', 'RP-21 Kinetic Inductance 2023', 'Data', 'group4_extflash');
+
 % % Chip1 at 4,0K 4 dBm
-% DATA_PATH = fullfile('/','Volumes','NO NAME','October Temperature Sweep', '4K', 'LC 4K 4dBm');
+% DATA_PATH = fullfile(path_nn,'October Temperature Sweep', '4K', 'LC 4K 4dBm');
 % FILE_POSTFIXES = ["0V0", "0V2", "0V4", "0V6", "0V8", "1V0"];
 % bias_voltage = [0, 0.2, 0.4, 0.6, 0.8, 1.0];
 % EXTENSION = "_trimmed.s2p";
@@ -18,23 +20,23 @@
 % S11_PREFIX = "LC_S11_";
 % S21_PREFIX = "LC_S21_";
 
-% % Chip1 at 4,0K -10 dBm
-% DATA_PATH = fullfile('/','Volumes','NO NAME','October Temperature Sweep', '4K', 'LC 4K -10dBm');
-% FILE_POSTFIXES = ["0V0", "0V2", "0V4", "0V6", "0V8", "1V0", "1V2", "1V4"];
-% bias_voltage = [0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4];
-% EXTENSION = "_trimmed.s2p";
-% 
-% S11_PREFIX = "LC_S11_";
-% S21_PREFIX = "LC_S21_";
-
-% Chip1 at 3,0K, 4 dBm
-DATA_PATH = fullfile('/','Volumes','NO NAME','October Temperature Sweep', '3K', 'LC 3K0 4dBm');
-FILE_POSTFIXES = ["0V0", "0V2", "0V4", "0V6", "0V8", "1V0", "1V2"];
-bias_voltage = [0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2];
+% Chip1 at 4,0K -10 dBm
+DATA_PATH = fullfile(path_nn,'October Temperature Sweep', '4K', 'LC 4K -10dBm');
+FILE_POSTFIXES = ["0V0", "0V2", "0V4", "0V6", "0V8", "1V0", "1V2", "1V4"];
+bias_voltage = [0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2, 1.4];
 EXTENSION = "_trimmed.s2p";
 
 S11_PREFIX = "LC_S11_";
 S21_PREFIX = "LC_S21_";
+
+% % Chip1 at 3,0K, 4 dBm
+% DATA_PATH = fullfile(path_nn,'October Temperature Sweep', '3K', 'LC 3K0 4dBm');
+% FILE_POSTFIXES = ["0V0", "0V2", "0V4", "0V6", "0V8", "1V0", "1V2"];
+% bias_voltage = [0, 0.2, 0.4, 0.6, 0.8, 1.0, 1.2];
+% EXTENSION = "_trimmed.s2p";
+% 
+% S11_PREFIX = "LC_S11_";
+% S21_PREFIX = "LC_S21_";
 
 % % Chip1 at 3,0K, -10 dBm
 % DATA_PATH = fullfile('/','Volumes','NO NAME','October Temperature Sweep', '3K', 'LC 3K0 -10dBm');
@@ -207,12 +209,13 @@ lw = 1.5;
 figure(2);
 if USE_ALT_PLOTTING
 	hold on;
-	plot(bias_voltage, Cs.*1e12, 'LineStyle', ':', 'Marker', mk_alt, 'Color', clr1, 'LineWidth', lw, 'MarkerSize', mkz);
+	plot(bias_voltage./105.*1e3, Cs.*1e12, 'LineStyle', ':', 'Marker', mk_alt, 'Color', clr1, 'LineWidth', lw, 'MarkerSize', mkz);
 else
-	plot(bias_voltage, Cs.*1e12, 'LineStyle', ':', 'Marker', mk_s, 'Color', clr1, 'LineWidth', lw, 'MarkerSize', mkz);
+	plot(bias_voltage./105.*1e3, Cs.*1e12, 'LineStyle', ':', 'Marker', mk_s, 'Color', clr1, 'LineWidth', lw, 'MarkerSize', mkz);
 end
 grid on;
-xlabel("Bias Voltage (V)");
+% xlabel("Bias Voltage (V)");
+xlabel("Bias Current (mA)");
 ylabel("Distributed Capacitance (pF/m)");
 title("Distributed Capacitance over Bias");
 % ylim([148, 153]);
@@ -226,24 +229,25 @@ yticks((C_avg-1):0.25:(C_avg+1));
 figure(3);
 if USE_ALT_PLOTTING
 	hold on;
-	plot(bias_voltage, Ls.*1e9, 'LineStyle', ':', 'Marker', mk_alt, 'Color', clr2, 'LineWidth', lw, 'MarkerSize', mkz);
+	plot(bias_voltage./105.*1e3, Ls.*1e9, 'LineStyle', ':', 'Marker', mk_alt, 'Color', clr2, 'LineWidth', lw, 'MarkerSize', mkz);
 else
-	plot(bias_voltage, Ls.*1e9, 'LineStyle', ':', 'Marker', mk_s, 'Color', clr2, 'LineWidth', lw, 'MarkerSize', mkz);
+	plot(bias_voltage./105.*1e3, Ls.*1e9, 'LineStyle', ':', 'Marker', mk_s, 'Color', clr2, 'LineWidth', lw, 'MarkerSize', mkz);
 end
 grid on;
-xlabel("Bias Voltage (V)");
+% xlabel("Bias Voltage (V)");
+xlabel("Bias Current (mA)");
 ylabel("Distributed Inductance (nH/m)");
 title("Distributed Inductance over Bias");
 
 figure(4);
 if USE_ALT_PLOTTING
 	hold on;
-	plot(bias_voltage, Zcs, 'LineStyle', ':', 'Marker', mk_alt, 'Color', clr3, 'LineWidth', lw, 'MarkerSize', mkz);
+	plot(bias_voltage./105.*1e3, Zcs, 'LineStyle', ':', 'Marker', mk_alt, 'Color', clr3, 'LineWidth', lw, 'MarkerSize', mkz);
 else
-	plot(bias_voltage, Zcs, 'LineStyle', ':', 'Marker', mk_s, 'Color', clr3, 'LineWidth', lw, 'MarkerSize', mkz);
+	plot(bias_voltage./105.*1e3, Zcs, 'LineStyle', ':', 'Marker', mk_s, 'Color', clr3, 'LineWidth', lw, 'MarkerSize', mkz);
 end
 grid on;
-xlabel("Bias Voltage (V)");
+xlabel("Bias Current (mA)");
 ylabel("Characteristic Impedance (Ohms)");
 title("Characteristic Impedance vs Bias");
 
@@ -255,4 +259,84 @@ if USE_ALT_PLOTTING
 	figure(4);
 	legend(standard_label, alt_label);
 end
+
+figure(5);
+hold off;
+plot(bias_voltage./105.*1e3, Cs.*100./Cs(1), 'LineStyle', ':', 'Marker', mk_s, 'Color', clr1, 'LineWidth', lw, 'MarkerSize', mkz);
+hold on;
+plot(bias_voltage./105.*1e3, Ls.*100./Ls(1), 'LineStyle', ':', 'Marker', mk_s, 'Color', clr2, 'LineWidth', lw, 'MarkerSize', mkz);
+grid on;
+% xlabel("Bias Voltage (V)");
+xlabel("Bias Current (mA)");
+ylabel("Percent (%)");
+legend("Capacitance", "Inductance");
+title("Distributed Parameters Relative to Zero-Bias");
+
+displ("C0 = ", Cs(1).*1e12, " pF");
+displ("L0 = ", Ls(1).*1e9, " nH");
+
+%% Format for publication
+
+figure(5);
+set(gca,'FontSize', 17, 'FontName', 'Times New Roman');
+
+
+
+%% Calculate q a different way
+
+% Get L0
+L0 = Ls(1);
+
+% Find q for each bias
+Idc = bias_voltage(2:end)./105;
+Lt = Ls(2:end);
+
+Istar = sqrt( L0.*Idc.^2./(Lt - L0) );
+
+start_point = 3;
+
+figure(6);
+plot(Idc(start_point:end)./1e-3, Istar(start_point:end)./1e-3, 'LineStyle', ':', 'Marker', '+', 'LineWidth', 1, 'MarkerSize', 10);
+ylim([0, 250]);
+grid on;
+ylabel("I^* Estimate from L'(mA)");
+xlabel("DC Bias Current (mA)");
+
+displ("Mean q: ", mean(Istar(start_point:end))./1e-3, " mA");
+displ("Std q: ", std(Istar(start_point:end))./1e-3, " mA");
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
 

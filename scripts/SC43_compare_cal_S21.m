@@ -1,4 +1,4 @@
-s2p_dpath = '/Volumes/M4 PHD/ARC0 PhD Data/RP-21 Kinetic Inductance 2023/Data/group4_extflash/S21 Cal Verification/Warm_Cal_S21';
+s2p_dpath = '/Volumes/M6 T7S/ARC0 PhD Data/RP-21 Kinetic Inductance 2023/Data/group4_extflash/S21 Cal Verification/Warm_Cal_S21';
 
 file_nocal = fullfile(s2p_dpath, "SP_50MHz_50GHz_NoCal_trim.s2p");
 file_cryocal = fullfile(s2p_dpath, "SP_50MHz_50GHz_cryo2_trim.s2p");
@@ -112,7 +112,7 @@ ylim([-10, 10]);
 
 %% Universal X limit
 
-XL = [0, 30];
+XL = [0, 50];
 YL = [-6, 6];
 
 for fn = [FIG1, FIG2]

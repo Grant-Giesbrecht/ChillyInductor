@@ -1,4 +1,4 @@
-DATAPATH = fullfile("/", "Volumes", "NO NAME", "NIST September data", "TDR");
+DATAPATH = fullfile('/Volumes/M6 T7S/ARC0 PhD Data/RP-21 Kinetic Inductance 2023/Data/group4_extflash/NIST September data', "TDR");
 load(fullfile(DATAPATH, "TDR_Dataset_1.mat"));
 
 figure(1);
@@ -61,7 +61,7 @@ grid on;
 xlabel("Time (ns)");
 ylabel("Characteristic Impedance (\Omega)");
 title("TDR Datatset 1, Chip 2");
-legend();
+legend('NumColumns', 2);
 rectangle('Position', [interest_region.x(1), interest_region.y(1), interest_region.x(2)-interest_region.x(1), interest_region.y(2)-interest_region.y(1)], 'LineWidth', 1);
 
 figure(2);
@@ -93,9 +93,24 @@ grid on;
 displ("mean q: ", mean(q).*1e3, " mA");
 displ("mean q(2:end): ", mean(q(2:end)).*1e3, " mA");
 
+displ("stdev q: ", std(q).*1e3, ' mA');
+displ("stdev q(2:end): ", std(q(2:end)).*1e3, ' mA');
 
+return;
 
+%% Format for publication
 
+figure(1);
+set(gca,'FontSize', 22, 'FontName', 'Times New Roman');
+ylabel("Impedance (\Omega)");
+legend('location', 'best');
+title("Zoomed-In TDR Feature");
+figure(2);
+set(gca,'FontSize', 22, 'FontName', 'Times New Roman');
+figure(3);
+set(gca,'FontSize', 22, 'FontName', 'Times New Roman');
+pbaspect([1.0000    0.3825    0.3825]);
+title("Estimate of q from TDR");
 
 
 

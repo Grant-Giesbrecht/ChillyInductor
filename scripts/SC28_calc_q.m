@@ -11,11 +11,11 @@ DATA_PATH2 = fullfile('/','Volumes','NO NAME', 'NIST September data');
 DATA_PATH_SUPP = fullfile('/','Volumes','NO NAME', 'NIST Datasets Supplementary', 'group3_supplementary');
 
 % filename = 'beta_12Sept2023.mat'; % This is the file with the disconnected bias cable and thus flat response.
-filename = 'beta_14Sept2023_1600.mat'; % Best 4K Chip(3-2) dataset
+% filename = 'beta_14Sept2023_1600.mat'; % Best 4K Chip(3-2) dataset
 % analysis_freqs = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 11, 12].*1e9;
 
 % filename = 'beta3K_20Sept2023_3K.mat'; % Best 3K Chip(3-2) dataset
-load(fullfile(DATA_PATH, filename));
+% load(fullfile(DATA_PATH, filename));
 % analysis_freqs = (1:20).*1e9;
 
 % filename = "gamma_14Sept2023_1600.mat";
@@ -32,22 +32,65 @@ P_RF = 0;
 
 % analysis_freqs = [1, 5, 10, 15].*1e9; % Frequencies to plot [GHz]
 
-% load(fullfile('/', 'Volumes', 'NO NAME', 'October Temperature Sweep', '4K', 'BG 4K Sweeps', 'beta_fast2_4K0_30Oct2023.mat'));
-
+% load(fullfile('/', 'Volumes', 'M6 T7S', 'ARC0 PhD Data', 'RP-21 Kinetic Inductance 2023', 'Data', 'group4_extflash', 'October Temperature Sweep', '4K', 'beta_fast2_4K0_30Oct2023.mat'));
+% load(fullfile('/', 'Volumes', 'M6 T7S', 'ARC0 PhD Data', 'RP-21 Kinetic Inductance 2023', 'Data', 'group4_extflash', 'December data', 'beta_onelambda_V1_05Dec2023.mat'));
+load(fullfile('/', 'Volumes', 'M6 T7S', 'ARC0 PhD Data', 'RP-21 Kinetic Inductance 2023', 'Data', 'group4_extflash', 'December data', 'beta_10GHz_V1_07Dec2023.mat'));
 
 % analysis_freqs = (1:1:8).*1e9;
 % invmask = (analysis_freqs == 4e9);
 % analysis_freqs = analysis_freqs(~invmask);
 
 
-analysis_freqs = ds.configuration.frequency(5:end-7);
-% analysis_freqs = ds.configuration.frequency;
-analysis_freqs = ds.configuration.frequency(10);
+% analysis_freqs = ds.configuration.frequency(5:end-7);
+analysis_freqs = ds.configuration.frequency;
+% analysis_freqs = ds.configuration.frequency(10);
 
-LIMIT_BIAS = true;
+LIMIT_BIAS = false;
 
 bias_max_A = 0.011;
 bias_min_A = .005;
+% bias_min_A = 0;
+
+%% View Dataset
+
+ZOOM_ONE_FREQ = true;
+
+figure(20);
+subplot(3, 1, 1);
+NP= numel([ds.dataset.offset_V]);
+idxes = 1:NP;
+hold off;
+plot(idxes, [ds.dataset.offset_V], 'Marker', '.', 'LineStyle', ':');
+xlabel("Collection Index");
+ylabel("Bias Voltage (V)");
+grid on;
+xlim([0, NP]);
+
+subplot(3, 1, 2);
+hold off;
+plot(idxes, [ds.dataset.SG_power_dBm], 'Marker', '.', 'LineStyle', ':');
+xlabel("Collection Index");
+ylabel("RF Power (dBm)");
+grid on;
+xlim([0, NP]);
+
+subplot(3, 1, 3);
+hold off;
+plot(idxes, [ds.dataset.SG_freq_Hz]./1e9, 'Marker', '.', 'LineStyle', ':');
+xlabel("Collection Index");
+ylabel("Fundamental Frequency (GHz)");
+grid on;
+xlim([0, NP]);
+
+if ZOOM_ONE_FREQ
+	idx_f2 = find([ds.dataset.SG_freq_Hz] == ds.configuration.frequency(2), 1, 'first');
+	for IDX_ = 1:3
+		subplot(3, 1, IDX_);
+		xlim([0, idx_f2-1]);
+	end
+end
+
+%% Resume Analysis
 
 %%-----------------------------
 
@@ -67,7 +110,7 @@ CM = resamplecmap('parula', numel(analysis_freqs));
 % Process each frequency
 for f = analysis_freqs
 	
-	struct_key = string(strcat('f', num2str(f/1e9)));
+	struct_key = string(strcat('f', num2str(f/1e6)));
 	
 	% Apply drift correction, unwrap phase, and normalize
 	[cp, vb] = getCorrectedPhase_V2(ds, P_RF, f, false);
@@ -125,7 +168,7 @@ for f = analysis_freqs
 	idx = idx + 1;
 
 	% Get key
-	struct_key = string(strcat('f', num2str(f/1e9)));
+	struct_key = string(strcat('f', num2str(f/1e6)));
 	
 	% Get data
 	q = q_vals.(struct_key);
@@ -193,6 +236,24 @@ ylabel("q (A)");
 title("Nonlinearity over frequency");
 legend("Mean", "Standard Deviation");
 
+% Plot over frequency (error bars)
+
+figure(5);
+if LIMIT_BIAS
+	clr = [0.8, 0.2, 0.2];
+else
+	clr = [0.2, 0.2, 0.8];
+	hold off;
+end
+plot(analysis_freqs./1e9, avg_q.*1e3, 'LineStyle', ':', 'LineWidth', lw, 'Color', clr);
+hold on;
+addPlotErrorbars(analysis_freqs./1e9, avg_q.*1e3, std_q.*1e3, true, 10, clr );
+grid on;
+xlabel("Frequency (GHz)");
+ylabel("q (A)");
+title("Nonlinearity over frequency");
+legend("Mean", "Standard Deviation");
+
 % Plot histogram
 sel_qs = all_qs(all_qs < 0.4);
 figure(4);
@@ -205,3 +266,40 @@ vlin(mean(sel_qs)+std(sel_qs), "LineStyle", ':', 'Color', c_std);
 xlabel("q Value (A)");
 ylabel("Counts");
 title("Distribution of q Estimates");
+
+
+%% Define functions
+
+
+
+function addPlotErrorbars(Xdata, Ydata, Yerror, add_circ, circ_scaling, bar_color)
+	
+	if ~exist('bar_color', 'var')
+		bar_color = [0.8, 0, 0];
+	end
+	
+	% Scan over each point
+	for idx = 1:numel(Yerror)
+		line([Xdata(idx), Xdata(idx)], [Ydata(idx)-Yerror(idx), Ydata(idx)+Yerror(idx)], 'LineStyle', '-', 'Color', bar_color, 'LineWidth', 1.5, 'Marker', '_' , 'HandleVisibility', 'off');		
+	end
+	
+	if add_circ
+		scatter(Xdata, Ydata, Yerror.*circ_scaling, 'LineWidth', 1.5, 'MarkerEdgeColor', bar_color , 'HandleVisibility', 'off');
+	end
+end
+
+function addPlotErrorbars2(Xdata, Ydata, YerrorL, YerrorH, add_circ, circ_scaling, bar_color)
+	
+	if ~exist('bar_color', 'var')
+		bar_color = [0.8, 0, 0];
+	end
+	
+	% Scan over each point
+	for idx = 1:numel(YerrorL)
+		line([Xdata(idx), Xdata(idx)], [YerrorL(idx), YerrorH(idx)], 'LineStyle', '-', 'Color', bar_color, 'LineWidth', 1.5, 'Marker', '_' , 'HandleVisibility', 'off');		
+	end
+	
+	if add_circ
+		scatter(Xdata, Ydata, abs(YerrorL+YerrorH)/2.*circ_scaling, 'LineWidth', 1.5, 'MarkerEdgeColor', bar_color , 'HandleVisibility', 'off');
+	end
+end

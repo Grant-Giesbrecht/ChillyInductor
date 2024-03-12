@@ -207,15 +207,16 @@ hold off;
 % plot(Vdcs, theta-theta(floor(numel(theta)/2)+1), 'LineStyle', '--', 'LineWidth', lw, 'Marker', '*', 'Color', [0, 0, .7], 'MarkerSize', mks);
 % hold on;
 % plot(Vdc, phase_deg-phase_deg(1), 'LineStyle', '--', 'LineWidth', lw, 'Marker', '*', 'Color', [0, 0.7, 0], 'MarkerSize', mks);
-plot(Vdcs, theta-theta(floor(numel(theta)/2)+1), 'LineStyle', ':', 'Marker', '.', 'LineWidth', lw_meas, 'Color', c_meas, 'MarkerSize', mkz_meas);
+plot(Vdcs./105.*1e3, theta-theta(floor(numel(theta)/2)+1), 'LineStyle', ':', 'Marker', '.', 'LineWidth', lw_meas, 'Color', c_meas, 'MarkerSize', mkz_meas);
 hold on;
-plot(Vdc, phase_deg-phase_deg(1), 'LineStyle', '-.', 'Marker', 'o', 'LineWidth', lw_ads, 'MarkerSize', mkz_ads, 'Color', c_ads);
+plot(Vdc./105.*1e3, phase_deg-phase_deg(1), 'LineStyle', '-.', 'Marker', 'o', 'LineWidth', lw_ads, 'MarkerSize', mkz_ads, 'Color', c_ads);
 grid on;
 legend("Measured", "ADS Simulation");
-xlabel("DC Bias Voltage (V)");
+% xlabel("DC Bias Voltage (V)");
+xlabel("DC Bias Current (mA)");
 ylabel("Phase (^\circ)");
 title("ADS vs Measurement Phase Comparison, P_{RF} = 4 dBm");
-xlim([0, 3]);
+xlim([0, 25]);
 
 figure(2);
 subplot(1, 2, 2);
@@ -284,6 +285,21 @@ xlim([9.8, 10.2]);
 % plot(freqs(I1)./1e9, S21_meas_lossremoved, 'LineStyle', ':', 'Marker', '.', 'LineWidth', lw_meas, 'Color', c_meas, 'MarkerSize', mkz_meas);
 % hold on;
 % plot(freq_GHz, Pload_dBm, 'LineStyle', '-.', 'Marker', 'o', 'LineWidth', lw_ads, 'MarkerSize', mkz_ads, 'Color', c_ads);
+
+
+%% Format for publication
+
+figure(1);
+subplot(1, 2, 1);
+set(gca,'FontSize', 17, 'FontName', 'Times New Roman');
+title("Verification of Simulation Across Frequency");
+legend('location', 'best');
+subplot(1, 2, 2);
+set(gca,'FontSize', 17, 'FontName', 'Times New Roman');
+title("Verification of Simulation Across Bias");
+legend('location', 'best');
+
+
 
 
 

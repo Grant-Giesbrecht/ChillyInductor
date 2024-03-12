@@ -287,6 +287,10 @@ function [h, out_data] = analyze_harmonics(ds, fig_type, settings, varargin)
 			CE2_syss11 = zeros(1, numel(freqs));
 			CE3_syss11 = zeros(1, numel(freqs));
 			s11q_all = zeros(1, numel(freqs));
+			VB_2C = zeros(1, numel(freqs));
+			VB_3C = zeros(1, numel(freqs));
+			VB_2S = zeros(1, numel(freqs));
+			VB_3S = zeros(1, numel(freqs));
 			
 			% Scan over all frequencies
 			idx = 0;
@@ -317,11 +321,15 @@ function [h, out_data] = analyze_harmonics(ds, fig_type, settings, varargin)
 				CE3_ = abs(harm_struct.h3)./(abs(harm_struct.h1) + abs(harm_struct.h2) + abs(harm_struct.h3)).*100;
 				[CE2(idx), mi2] = max(CE2_);
 				[CE3(idx), mi3] = max(CE3_);
+				VB_2C(idx) = Vsweep(mi2);
+				VB_3C(idx) = Vsweep(mi3);
 				
 				CE2sys_ = abs(harm_struct.h2)./cvrt(pwr, 'dBm', 'W').*100;
 				CE3sys_ = abs(harm_struct.h3)./cvrt(pwr, 'dBm', 'W').*100;
 				[CE2_sys(idx), mi2s] = max(CE2sys_);
 				[CE3_sys(idx), mi3s] = max(CE3sys_);
+				VB_2S(idx) = Vsweep(mi2s);
+				VB_3S(idx) = Vsweep(mi3s);
 				
 				if has_S2P_data
 					CE2syss11_ = abs(harm_struct.h2)./(cvrt(pwr, 'dBm', 'W')*(1-s11q)^2).*100;
@@ -336,6 +344,10 @@ function [h, out_data] = analyze_harmonics(ds, fig_type, settings, varargin)
 			out_data.("P"+num2str(pwr)+"dBm").CE3_chip = CE3;
 			out_data.("P"+num2str(pwr)+"dBm").CE2_sys = CE2_sys;
 			out_data.("P"+num2str(pwr)+"dBm").CE3_sys = CE3_sys;
+			out_data.("P"+num2str(pwr)+"dBm").Vbias_CE2_chip = VB_2C;
+			out_data.("P"+num2str(pwr)+"dBm").Vbias_CE3_chip = VB_3C;
+			out_data.("P"+num2str(pwr)+"dBm").Vbias_CE2_sys = VB_2S;
+			out_data.("P"+num2str(pwr)+"dBm").Vbias_CE3_sys = VB_3S;
 			
 			% Select appropriate CE
 			if strcmpi(p.CEDefinition, 'SYSTEM')

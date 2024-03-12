@@ -63,6 +63,14 @@ else
 		DATA_PATH2 = fullfile('/','Volumes','NO NAME', 'NIST September data');
 % 		DATA_PATH3 = fullfile('/', 'Volumes', 'NO NAME', 'NIST September data');
 		DATA_PATH3 = fullfile('/', 'Volumes', 'M6 T7S', 'ARC0 PhD Data', 'RP-21 Kinetic Inductance 2023', 'Data', 'group4_extflash', 'NIST September data');
+		DATA_PATH4 = fullfile('/', 'Volumes', 'M6 T7S', 'ARC0 PhD Data', 'RP-21 Kinetic Inductance 2023', 'Data', 'group4_extflash', '2024 Data');
+
+		% v3.1
+		filename = "gamma_9,87GHz_Target1_AusfC_29Feb2024_R1.mat";
+		P_RF = 6; % dBm
+		FREQ = 9.87e9; % Hz
+		NORMAL_VOLTAGE = 0.001;
+		dpath = DATA_PATH4;
 		
 % 		% v3.1
 % 		filename = "gamma_9,87GHz_Target1_24Oct2023.mat";
@@ -78,12 +86,12 @@ else
 % 		NORMAL_VOLTAGE = 0.001;
 % 		dpath = DATA_PATH3;
 		
-		% v3.1
-		filename = "gamma_10GHz_500MHzBW_20Oct2023.mat";
-		P_RF = 5; % dBm
-		FREQ = 9.9e9; % Hz
-		NORMAL_VOLTAGE = 0.001;
-		dpath = DATA_PATH3;
+% 		% v3.1
+% 		filename = "gamma_10GHz_500MHzBW_20Oct2023.mat";
+% 		P_RF = 6; % dBm
+% 		FREQ = 9.87e9; % Hz
+% 		NORMAL_VOLTAGE = 0.001;
+% 		dpath = DATA_PATH3;
 		
 % 		% v3.1
 % 		filename = "gamma_9,7GHz_200MHzBW_19Oct2023.mat";
@@ -209,6 +217,20 @@ ah_fig_set = struct('P_RF', P_RF, 'FREQ', FREQ, 'NORMAL_VOLTAGE', NORMAL_VOLTAGE
 
 % Generate figure
 fig1 = analyze_harmonics(ds, 'harm_power', ah_fig_set, 'Fig', 11);
+
+% Format for publication
+figure(11);
+set(gca,'FontSize', 12, 'FontName', 'Times New Roman');
+legend('location', 'best');
+ylabel("Harmonic Power (dB)");
+
+% Format lines for publication
+for c = gca().Children'
+	c.LineStyle = '--';
+	c.LineWidth = 1;
+	c.Marker = 'o';
+	c.MarkerSize = 8;
+end
 
 %% Run analysis - Figure 2
 

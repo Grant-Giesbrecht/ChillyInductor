@@ -1,4 +1,4 @@
-function [corrected_phase, data_vbias] = getCorrectedPhase_V2(rich_data, P_RF, f0, plot_phase_correction, normalize, take_avg)
+function [corrected_phase, data_vbias] = getCorrectedPhase_fSC46(rich_data, P_RF, f0, plot_phase_correction, normalize, take_avg)
 %      phase, vbias, dp_idx, freq, take_avg, normalize, plot_phasecorrection)
 
 % Given a list of phases, bias voltages, and collection indecies, it
@@ -328,15 +328,3 @@ function [corrected_phase, data_vbias] = getCorrectedPhase_V2(rich_data, P_RF, f
 	end
 
 end
-
-
-
-
-
-
-
-
-
-
-
-
