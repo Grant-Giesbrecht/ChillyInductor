@@ -25,8 +25,8 @@ if conf_data is None:
 
 # Interpret data
 try:
-	freq_a = interpret_range(conf_data['frequency_RF'])
-	freq_b = interpret_range(conf_data['frequency_LO'])
+	freq_rf = interpret_range(conf_data['frequency_RF'])
+	freq_lo = interpret_range(conf_data['frequency_LO'])
 	power_RF_dBm = interpret_range(conf_data['power_RF'])
 	power_LO_dBm = interpret_range(conf_data['power_LO'])
 	
@@ -70,8 +70,6 @@ else:
 	exit()
 print()
 
-
-
 dataset = []
 
 # Configure spectrum analyzer
@@ -79,41 +77,47 @@ sa1.set_res_bandwidth(rbw)
 sa1.set_freq_start(f_start)
 sa1.set_freq_start(f_end)
 
-npts = len(freq_a)*len(freq_b)*len(power_dBm)
+# Get total number of points
+npts = len(freq_rf)*len(freq_lo)*len(power_RF_dBm)*len(power_LO_dBm)
 count = 0
 
 # Sweep points
-for fa in freq_a:
+for fa in freq_rf:
 	
-	log.info(f"Changing freq_a to >{fa/1e9}< GHz")
+	log.info(f"Setting freq_rf to >{fa/1e9}< GHz")
 	
-	for fb in freq_b:
+	for fb in freq_lo:
 		
-		log.info(f"Changing freq_b to >{fb/1e9}< GHz")
+		log.info(f"Setting freq_lo to >{fb/1e9}< GHz")
 		
-		for p_dBm in power_dBm:
+		for p_rf_dBm in power_RF_dBm:
 			
-			count += 1
-			print(f"Beginning sweep {count} of {npts}")
+			log.info(f"Setting RF power to >{p_rf_dBm}< dBm")
 			
-			log.info(f"Changing power to >{p_dBm}< dBm")
-			
-			sg1.set_enable_rf(True)
-			sg2.set_enable_rf(True)
-			
-			# Adjust conditions
-			sg1.set_freq(fa)
-			sg2.set_freq(fb)
-			sg1.set_power(p_dBm)
-			sg2.set_power(p_dBm)
-			
-			# Get waveform
-			wvfrm = sa.get_trace_data(1)
-			
-			# Save data
-			dp = {'freq_a_GHz':fa/1e9, 'freq_b_GHz':fb/1e9, 'power_dBm':p_dBm, 'waveform_f_s':wvfrm['x'], 'waveform_s_dBm':wvfrm['y']}
-			dataset.append(dp)
+			for p_lo_dBm in power_LO_dBm:
+				
+				count += 1
+				print(f"Beginning sweep {count} of {npts}")
+				
+				log.info(f"Changing LO power to >{p_lo_dBm}< dBm")
+				
+				sg1.set_enable_rf(True)
+				sg2.set_enable_rf(True)
+				
+				# Adjust conditions
+				sg1.set_freq(fa)
+				sg2.set_freq(fb)
+				sg1.set_power(p_rf_dBm)
+				sg2.set_power(p_lo_dBm)
+				
+				# Get waveform
+				wvfrm = sa1.get_trace_data(1)
+				
+				# Save data
+				dp = {'freq_rf_GHz':fa/1e9, 'freq_lo_GHz':fb/1e9, 'power_LO_dBm':p_lo_dBm, 'power_RF_dBm': p_rf_dBm, 'waveform_f_s':wvfrm['x'], 'waveform_s_dBm':wvfrm['y']}
+				dataset.append(dp)
 
+# Turn off signal generators
 sg1.set_enable_rf(False)
 sg2.set_enable_rf(False)
 
