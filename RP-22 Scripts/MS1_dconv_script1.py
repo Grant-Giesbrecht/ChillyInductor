@@ -1,20 +1,62 @@
 from heimdallr.all import *
 import numpy as np
+import os
 
-sweep_name = input(f"Dataset name: ")
+CONF_DIRECTORY ="sweep_configs"
 
 # Create logger
 log = LogPile()
 
+# Get configuration
+conf_file_prefix = input(f"Configuration file name: (No extension or folder)")
+conf_file_name = os.path.join(".", CONF_DIRECTORY, f"{conf_file_prefix}.json")
+
+# Load configuration data
+try:
+	with open(conf_file_name, "r") as outfile:
+		conf_data = json.load(outfile)
+except:
+	log.critical(f"Failed to read configuration file >{conf_file_name}<")
+	exit()
+	
+# Verify conf data exists
+if conf_data is None:
+	log.critical(f"Failed to read configuration file >{conf_file_name}<.")
+
+# Interpret data
+try:
+	freq_a = interpret_range(conf_data['frequency_RF'])
+	freq_b = interpret_range(conf_data['frequency_LO'])
+	power_RF_dBm = interpret_range(conf_data['power_RF'])
+	power_LO_dBm = interpret_range(conf_data['power_LO'])
+	
+	rbw = conf_data['spectrum_analyzer']['RBW_Hz']
+	f_start = conf_data['spectrum_analyzer']['freq_start_Hz']
+	f_end = conf_data['spectrum_analyzer']['freq_end_Hz']
+except:
+	log.critical(f"Corrupt configuration file >{conf_file_name}<.")
+	exit()
+	
+# Get dataset name
+sweep_name = input(f"Dataset name: ")
+
 # Connect to instruments
 sg1 = Keysight8360L("GPIB::18::INSTR", log)
 sg2 = AgilentE4400("GPIB::19::INSTR", log)
-sa = SiglentSSA3000X("TCPIP0::192.168.0.10::INSTR", log)
+# sa = SiglentSSA3000X("TCPIP0::192.168.0.10::INSTR", log)
+nrx = RohdeSchwarzNRX("", log)
+sa1 = RohdeSchwarzFSQ("", log)
 
-if sa.online:
+# Check connection status
+if sa1.online:
 	log.info("Spectrum Analyzer >ONLINE<")
 else:
 	log.critical("Failed to connect to spectrum analyzer!")
+	exit()
+if nrx.online:
+	log.info("Power meters >ONLINE<")
+else:
+	log.critical("Failed to connect to power meters!")
 	exit()
 if sg1.online:
 	log.info("Keysight SG >ONLINE<")
@@ -28,21 +70,14 @@ else:
 	exit()
 print()
 
-# Sweep state
-freq_a = list(np.linspace(0.8e9, 1.4e9, 7))
-freq_b = list(np.linspace(0.1e9, 0.4e9, 4))
-rbw = 100e3
-f_start = 100e6
-f_end = 2.1e9
-# power_dBm = [0, 3, 6]
-power_dBm = [-10, -6]
+
 
 dataset = []
 
 # Configure spectrum analyzer
-sa.set_res_bandwidth(rbw)
-sa.set_freq_start(f_start)
-sa.set_freq_start(f_end)
+sa1.set_res_bandwidth(rbw)
+sa1.set_freq_start(f_start)
+sa1.set_freq_start(f_end)
 
 npts = len(freq_a)*len(freq_b)*len(power_dBm)
 count = 0
@@ -83,8 +118,8 @@ sg1.set_enable_rf(False)
 sg2.set_enable_rf(False)
 
 # Make hybrid log/dataset file
-hybrid = {'dataset':dataset, 'log':log.to_dict()}
+hybrid = {'dataset':dataset, 'log':log.to_dict(), 'configuration': conf_data}
 
 # Writing to sample.json
 with open(f"{sweep_name}.json", "w") as outfile:
-    outfile.write(json.dumps(hybrid, indent=4))
+	outfile.write(json.dumps(hybrid, indent=4))
