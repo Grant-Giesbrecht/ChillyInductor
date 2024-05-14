@@ -1,4 +1,9 @@
 // This file holds configuration options for the ChillyInductor project
 
 // This is where to look for datasets
+<<<<<<< Updated upstream
 data_dir = C:\Users\Grant Giesbrecht\OneDrive - UCB-O365\NIST\Datasets\group1
+=======
+data_dir = /Users/grantgiesbrecht/MEGA/NIST Datasets/group1
+data_dir_pc = E:\ARC0 PhD Data\RP-21 Kinetic Inductance 2023\Data\group1
+>>>>>>> Stashed changes

@@ -130,4 +130,10 @@ dmypy.json
 
 # Data files
 *.png
+<<<<<<< Updated upstream:.gitignore
 *.pkl
+=======
+*.pkl
+.DS_Store
+.DS_Store
+>>>>>>> Stashed changes:RP-21 Scripts/.gitignore
