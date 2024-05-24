@@ -1,8 +1,14 @@
 from heimdallr.all import *
 import numpy as np
 import os
+from rp22_helper import *
+from collections import Counter
 
-CONF_DIRECTORY ="sweep_configs"
+
+# Set directories for data and sweep configuration
+CONF_DIRECTORY = "sweep_configs"
+DATA_DIRECTORY = "data"
+LOG_DIRECTORY = "logs"
 
 # Create logger
 log = LogPile()
@@ -30,9 +36,7 @@ try:
 	power_RF_dBm = interpret_range(conf_data['power_RF'])
 	power_LO_dBm = interpret_range(conf_data['power_LO'])
 	
-	rbw = conf_data['spectrum_analyzer']['RBW_Hz']
-	f_start = conf_data['spectrum_analyzer']['freq_start_Hz']
-	f_end = conf_data['spectrum_analyzer']['freq_end_Hz']
+	sa_conf = conf_data['spectrum_analyzer']
 except:
 	log.critical(f"Corrupt configuration file >{conf_file_name}<.")
 	exit()
@@ -72,13 +76,11 @@ print()
 
 dataset = []
 
-# Configure spectrum analyzer
-sa1.set_res_bandwidth(rbw)
-sa1.set_freq_start(f_start)
-sa1.set_freq_start(f_end)
-
 # Get total number of points
-npts = len(freq_rf)*len(freq_lo)*len(power_RF_dBm)*len(power_LO_dBm)
+
+dummy_sa_conditions = calc_sa_conditions(sa_conf, 1e9, 1e9, remove_duplicates=False)
+
+npts = len(freq_rf)*len(freq_lo)*len(power_RF_dBm)*len(power_LO_dBm)*len(dummy_sa_conditions)
 count = 0
 
 # Sweep points
@@ -96,25 +98,86 @@ for fa in freq_rf:
 			
 			for p_lo_dBm in power_LO_dBm:
 				
-				count += 1
-				print(f"Beginning sweep {count} of {npts}")
-				
 				log.info(f"Changing LO power to >{p_lo_dBm}< dBm")
 				
-				sg1.set_enable_rf(True)
-				sg2.set_enable_rf(True)
-				
-				# Adjust conditions
+				# Adjust conditions on signal generators
 				sg1.set_freq(fa)
 				sg2.set_freq(fb)
 				sg1.set_power(p_rf_dBm)
 				sg2.set_power(p_lo_dBm)
 				
-				# Get waveform
-				wvfrm = sa1.get_trace_data(1)
+				# Turn on signal generators
+				sg1.set_enable_rf(True)
+				sg2.set_enable_rf(True)
 				
-				# Save data
-				dp = {'freq_rf_GHz':fa/1e9, 'freq_lo_GHz':fb/1e9, 'power_LO_dBm':p_lo_dBm, 'power_RF_dBm': p_rf_dBm, 'waveform_f_s':wvfrm['x'], 'waveform_s_dBm':wvfrm['y']}
+				sa_conditions = calc_sa_conditions(sa_conf, fa, fb)
+				
+				# Set conditions for spectrum analyzer
+				dp = None
+				for idx_sac, sac in enumerate(sa_conditions):
+					
+					log.info(f"Measuring frequency range  >{p_lo_dBm}< dBm")
+					
+					count += 1
+					print(f"Beginning measurement {count} of {npts}.")
+					
+					# Configure spectrum analyzer
+					sa1.set_res_bandwidth(sac['rbw'])
+					sa1.set_freq_start(sac['f_start'])
+					sa1.set_freq_start(sac['f_end'])
+				
+					# Start trigger on spectrum analyzer
+					sa1.send_manual_trigger()
+					
+					# Set frequency on power sensors
+					nrx.set_meas_frequency(fa)
+					
+					nrx.send_trigger()
+					nrx.get_measurement()
+					
+					#TODO: How to be sure SA is done with sweep?
+					
+					# Get waveform
+					wvfrm = sa1.get_trace_data(1)
+					
+					# Save data
+					rbw_list = [sac['rbw']]*len(wvfrm['x'])
+					if dp is None:
+						dp = {'freq_rf_GHz':fa/1e9,
+							'freq_lo_GHz':fb/1e9,
+							'power_LO_dBm':p_lo_dBm,
+							'power_RF_dBm': p_rf_dBm,
+							'waveform_f_Hz':wvfrm['x'],
+							'waveform_s_dBm':wvfrm['y'],
+							'waveform_rbw_Hz':rbw_list
+						}
+					else:
+						wav_x = dp['waveform_f_Hz'] + wvfrm['x']
+						wav_y = dp['waveform_s_dBm'] + wvfrm['y']
+						wav_rbw = dp['waveform_rbw_Hz'] + rbw_list
+						
+						# Find duplicate frequencies
+						dupl_freqs = [k for k,v in Counter(wav_x).items() if v>1]
+						
+						# Found duplicates - resolve duplicates
+						if len(dupl_freqs) > 0:
+							pass
+						
+						# Sort result
+						wav_x_new = []
+						wav_y_new = []
+						wav_rbw_new = []
+						for wx,wy,wr in sorted(zip(wav_x, wav_y, wav_rbw)):
+							wav_x_new.append(wx)
+							wav_y_new.append(wy)
+							wav_rbw_new.append(wr)
+						
+						# Update dictionary
+						dp['waveform_f_Hz'] = wav_x_new
+						dp['waveform_s_dBm'] = wav_y_new
+						dp['waveform_rbw_Hz'] = wav_rbw_new
+				
+				# Append to dataset
 				dataset.append(dp)
 
 # Turn off signal generators
@@ -122,8 +185,12 @@ sg1.set_enable_rf(False)
 sg2.set_enable_rf(False)
 
 # Make hybrid log/dataset file
-hybrid = {'dataset':dataset, 'log':log.to_dict(), 'configuration': conf_data}
+hybrid = {'dataset':dataset, 'configuration': conf_data, 'source_script': __file__}
 
-# Writing to sample.json
-with open(f"{sweep_name}.json", "w") as outfile:
+# Save log
+log.save_json(os.path.join(LOG_DIRECTORY, f"{sweep_name}.log.json"))
+
+# Save data
+with open(os.path.join(DATA_DIRECTORY, f"{sweep_name}.json"), "w") as outfile:
 	outfile.write(json.dumps(hybrid, indent=4))
+

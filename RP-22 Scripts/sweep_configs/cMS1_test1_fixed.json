@@ -24,19 +24,9 @@
 		"list": [0]
 	},
 	"spectrum_analyzer":{
-		[
-			"mode": "dynamic",
-			"span_Hz": 30e3,
-			"RBW_Hz": 1e3,
-			"mixing_products_order": 2,
-			"lo_harmonics": 5,
-			"rf_harmonics": 2
-		],
-		[
-			"mode": "fixed",
-			"freq_start_Hz": 100e6,
-			"freq_end_Hz": 6e9,
-			"RBW_Hz": 100e3
-		]
+		"mode": "fixed",
+		"freq_start_Hz": 100e6,
+		"freq_end_Hz": 14e9,
+		"RBW_Hz": 100e3
 	}
 }
