@@ -6,10 +6,12 @@ import time
 #---------------------------------------------------
 # Read JSON file
 t_json_0 = time.time()
-with open("E:\ARC0 PhD Data\RP-22 Lk Dil Fridge 2024\Data\SMC-A Downconversion v1\dMS1_24May2024_DC1V0_r1.json", 'r') as fh:
+with open("G:\ARC0 PhD Data\RP-22 Lk Dil Fridge 2024\Data\SMC-A Downconversion v1\dMS1_28May2024_DC1V0_r1.json", 'r') as fh:
 	json_data=json.load(fh)
 t_json = time.time() - t_json_0
 print(f"Read JSON file in {t_json} sec.")
+
+save_file = "G:\ARC0 PhD Data\RP-22 Lk Dil Fridge 2024\Data\SMC-A Downconversion v1\dMS1_28May2024_DC1V0_r1.hdf"
 
 ##---------------------------------------------------
 # Collect all JSON data into lists
@@ -52,7 +54,7 @@ print(f"Gather JSON data into lists in {t_gather} sec.")
 ##---------------------------------------------------
 # Convert JSON file to HDF5 file
 t_hdf_0 = time.time()
-with h5py.File('converted_json.hdf5', 'w') as fh:
+with h5py.File(save_file, 'w') as fh:
 	
 	# Create two root groups
 	fh.create_group("dataset")
@@ -78,7 +80,7 @@ print(f"Wrote HDF5 file in {t_hdf} sec.")
 # Read all of the HDF5 file for a test
 
 t_hdfr_0 = time.time()
-with h5py.File('converted_json.hdf5', 'r') as fh:
+with h5py.File(save_file, 'r') as fh:
 	
 	source_script = fh['conditions']['source_script'][()]
 	conf_json = fh['conditions']['conf_json'][()]

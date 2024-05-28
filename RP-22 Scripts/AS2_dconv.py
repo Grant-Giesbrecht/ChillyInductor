@@ -7,8 +7,10 @@ from matplotlib.patches import Rectangle
 ##--------------------------------------------
 # Read HDF5 File
 
+analysis_file = "g:\ARC0 PhD Data\RP-22 Lk Dil Fridge 2024\Data\SMC-A Downconversion v1\dMS1_28May2024_DC1V0_r1.hdf"
+
 t_hdfr_0 = time.time()
-with h5py.File('converted_json.hdf5', 'r') as fh:
+with h5py.File(analysis_file, 'r') as fh:
 	
 	source_script = fh['conditions']['source_script'][()]
 	conf_json = fh['conditions']['conf_json'][()]
@@ -86,7 +88,6 @@ def plot_sweep(waveform_f_Hz, waveform_s_dBm, waveform_rbw_Hz, rbw_threshold_Hz=
 for idx in range(50, 70):
 
 	plot_sweep(waveform_f_Hz[idx], waveform_s_dBm[idx], waveform_rbw_Hz[idx], fig_no=1, f_rf=f_rf[idx], f_lo=f_lo[idx])
-
 	plt.show()
 
 
