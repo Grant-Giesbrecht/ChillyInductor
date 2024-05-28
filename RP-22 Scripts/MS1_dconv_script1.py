@@ -21,8 +21,8 @@ conf_file_name = os.path.join(".", CONF_DIRECTORY, f"{conf_file_prefix}.json")
 try:
 	with open(conf_file_name, "r") as outfile:
 		conf_data = json.load(outfile)
-except:
-	log.critical(f"Failed to read configuration file >{conf_file_name}<")
+except Exception as e:
+	log.critical(f"Failed to read configuration file >{conf_file_name}<. ({e})")
 	exit()
 	
 # Verify conf data exists
@@ -31,10 +31,10 @@ if conf_data is None:
 
 # Interpret data
 try:
-	freq_rf = interpret_range(conf_data['frequency_RF'])
-	freq_lo = interpret_range(conf_data['frequency_LO'])
-	power_RF_dBm = interpret_range(conf_data['power_RF'])
-	power_LO_dBm = interpret_range(conf_data['power_LO'])
+	freq_rf = interpret_range(conf_data['frequency_RF'], print_err=True)
+	freq_lo = interpret_range(conf_data['frequency_LO'], print_err=True)
+	power_RF_dBm = interpret_range(conf_data['power_RF'], print_err=True)
+	power_LO_dBm = interpret_range(conf_data['power_LO'], print_err=True)
 	
 	sa_conf = conf_data['spectrum_analyzer']
 except:
@@ -48,8 +48,15 @@ sweep_name = input(f"Dataset name: ")
 sg1 = Keysight8360L("GPIB::18::INSTR", log)
 sg2 = AgilentE4400("GPIB::19::INSTR", log)
 # sa = SiglentSSA3000X("TCPIP0::192.168.0.10::INSTR", log)
-nrx = RohdeSchwarzNRX("", log)
-sa1 = RohdeSchwarzFSQ("", log)
+# nrx = RohdeSchwarzNRX("", log)
+sa1 = RohdeSchwarzFSQ("TCPIP0::192.168.1.14::INSTR", log)
+
+#TODO: Add back in NRX
+#TODO: Add power calibration
+#TODO: Add frequency calibration
+#TODO: Add system setup with node-map and photo
+#TODO: add DC bias other than manual (rip)
+#TODO: Add in sweep-start option to write manual notes
 
 # Check connection status
 if sa1.online:
@@ -57,11 +64,11 @@ if sa1.online:
 else:
 	log.critical("Failed to connect to spectrum analyzer!")
 	exit()
-if nrx.online:
-	log.info("Power meters >ONLINE<")
-else:
-	log.critical("Failed to connect to power meters!")
-	exit()
+# if nrx.online:
+# 	log.info("Power meters >ONLINE<")
+# else:
+# 	log.critical("Failed to connect to power meters!")
+# 	exit()
 if sg1.online:
 	log.info("Keysight SG >ONLINE<")
 else:
@@ -78,9 +85,17 @@ dataset = []
 
 # Get total number of points
 
-dummy_sa_conditions = calc_sa_conditions(sa_conf, 1e9, 1e9, remove_duplicates=False)
+dummy_sa_conditions = calc_sa_conditions(sa_conf, 1e9, 1e9, remove_duplicates=False, print_error=True)
 
-npts = len(freq_rf)*len(freq_lo)*len(power_RF_dBm)*len(power_LO_dBm)*len(dummy_sa_conditions)
+try:
+	npts = len(freq_rf)*len(freq_lo)*len(power_RF_dBm)*len(power_LO_dBm)*len(dummy_sa_conditions)
+except Exception as e:
+	log.critical(f"Error in configuration settings.")
+	print(f"freq_rf = {freq_rf}")
+	print(f"freq_lo = {freq_lo}")
+	print(f"power_RF_dBm = {power_RF_dBm}")
+	print(f"power_LO_dBm = {power_LO_dBm}")
+	print(f"dummy_sa_conditions = {dummy_sa_conditions}")
 count = 0
 
 # Sweep points
@@ -116,24 +131,29 @@ for fa in freq_rf:
 				dp = None
 				for idx_sac, sac in enumerate(sa_conditions):
 					
-					log.info(f"Measuring frequency range  >{p_lo_dBm}< dBm")
+					fstart = sac['f_start']
+					fend = sac['f_end']
+					frbw = sac['rbw']
+					
+					log.info(f"Measuring frequency range >{fstart/1e6}< MHz to >{fend/1e6}< MHz, RBW = >:q{frbw/1e3}< kHz.")
 					
 					count += 1
 					print(f"Beginning measurement {count} of {npts}.")
 					
 					# Configure spectrum analyzer
-					sa1.set_res_bandwidth(sac['rbw'])
-					sa1.set_freq_start(sac['f_start'])
-					sa1.set_freq_start(sac['f_end'])
+					sa1.set_res_bandwidth(frbw)
+					sa1.set_freq_start(fstart)
+					sa1.set_freq_end(fend)
 				
 					# Start trigger on spectrum analyzer
 					sa1.send_manual_trigger()
+					sa1.wait_ready()
 					
 					# Set frequency on power sensors
-					nrx.set_meas_frequency(fa)
+					# nrx.set_meas_frequency(fa)
 					
-					nrx.send_trigger()
-					nrx.get_measurement()
+					# nrx.send_trigger()
+					# nrx.get_measurement()
 					
 					#TODO: How to be sure SA is done with sweep?
 					

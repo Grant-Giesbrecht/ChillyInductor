@@ -31,15 +31,15 @@ def calc_sa_conditions(sa_conf, f_rf:float, f_lo:float, print_error:bool=False, 
 	
 	# If sa_conf input is a list, recursively call each
 	if type(sa_conf) is list:
-	
+				
 		# Iterate over each element of list
 		sacl = None
 		for sacb in sa_conf:
 			if sacl is None:
-				sacl = calc_sa_conditions(sacb)
+				sacl = calc_sa_conditions(sacb, f_rf, f_lo, print_error=print_error, remove_duplicates=remove_duplicates)
 			else:
-				sacl = sacl + calc_sa_conditions(sacb)
-		
+				sacl = sacl + calc_sa_conditions(sacb, f_rf, f_lo, print_error=print_error, remove_duplicates=remove_duplicates)
+				
 		return sacl
 	
 	# Otherwise generate the dictionary list from this block
