@@ -68,7 +68,7 @@ def calc_sa_conditions(sa_conf, f_rf:float, f_lo:float, print_error:bool=False, 
 			try:
 				lo_harmonics = int(sa_conf['lo_harmonics'])
 				rf_harmonics = int(sa_conf['rf_harmonics'])
-				mixing_prodcuts_order = int(sa_conf['mixing_products_order'])
+				mixing_products_order = int(sa_conf['mixing_products_order'])
 				RBW_Hz = int(sa_conf['RBW_Hz'])
 				span_Hz = int(sa_conf['span_Hz'])
 			except Exception as e:
@@ -90,7 +90,7 @@ def calc_sa_conditions(sa_conf, f_rf:float, f_lo:float, print_error:bool=False, 
 				# Add to list
 				sac.append(cd)
 			
-			# Create conditions for each LO harmonics
+			# Create conditions for each RF harmonics
 			for i in range(1, 1+rf_harmonics):
 				
 				# Get frequencies
@@ -107,13 +107,12 @@ def calc_sa_conditions(sa_conf, f_rf:float, f_lo:float, print_error:bool=False, 
 			## Create conditions for mixing products
 			# Get center frequencies
 			cfl = []
-			for i in range(1, 1+mixing_prodcuts_order):
+			for i in range(1, 1+mixing_products_order):
 				cfl.append(f_rf + i*f_lo)
 				cfl.append(f_rf - i*f_lo)
 			
 			## Create conditions for mixing products
 			# Generate conditions
-			cfl = []
 			for f_center in cfl:
 				
 				# Get frequencies
