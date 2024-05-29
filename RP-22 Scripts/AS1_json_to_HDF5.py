@@ -6,12 +6,12 @@ import time
 #---------------------------------------------------
 # Read JSON file
 t_json_0 = time.time()
-with open("G:\ARC0 PhD Data\RP-22 Lk Dil Fridge 2024\Data\SMC-A Downconversion v1\dMS1_28May2024_DC1V0_r1.json", 'r') as fh:
+with open("E:\ARC0 PhD Data\RP-22 Lk Dil Fridge 2024\Data\SMC-A Downconversion v1\dMS1_28May2024_DC1V0_r1.json", 'r') as fh:
 	json_data=json.load(fh)
 t_json = time.time() - t_json_0
 print(f"Read JSON file in {t_json} sec.")
 
-save_file = "G:\ARC0 PhD Data\RP-22 Lk Dil Fridge 2024\Data\SMC-A Downconversion v1\dMS1_28May2024_DC1V0_r1.hdf"
+save_file = "E:\ARC0 PhD Data\RP-22 Lk Dil Fridge 2024\Data\SMC-A Downconversion v1\dMS1_28May2024_DC1V0_r1.hdf"
 
 ##---------------------------------------------------
 # Collect all JSON data into lists

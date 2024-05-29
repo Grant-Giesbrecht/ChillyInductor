@@ -7,7 +7,7 @@ from scipy.optimize import curve_fit
 from dataclasses import dataclass
 import sys
 
-analysis_file = "g:\ARC0 PhD Data\RP-22 Lk Dil Fridge 2024\Data\SMC-A Downconversion v1\dMS1_28May2024_DC1V0_r1.hdf"
+analysis_file = "E:\ARC0 PhD Data\RP-22 Lk Dil Fridge 2024\Data\SMC-A Downconversion v1\dMS1_28May2024_DC1V0_r1.hdf"
 
 @dataclass
 class PowerSpectrum:
@@ -165,21 +165,33 @@ p_mx2L = [ps.p_mx2L for ps in spec_list]
 p_mx2H = [ps.p_mx2H for ps in spec_list]
 
 plt.figure(1)
-plt.plot(p_rf, label='RF Power')
-plt.plot(p_lo, label="LO Power")
-plt.plot(p_lo2, label='LO2 Power')
-plt.plot(p_lo3, label="LO3 Power")
+plt.plot(p_rf, label='RF')
+plt.plot(p_lo, label="LO")
+plt.plot(p_lo2, label='LO2')
+plt.plot(p_lo3, label="LO3")
 plt.ylabel("Power (dBm)")
 plt.xlabel("Sweep Index")
 plt.grid()
 plt.legend()
 
 plt.figure(2)
-plt.plot(p_mx1H, label='MP-1 High Power')
-plt.plot(p_mx1L, label='MP-1 Low Power')
-plt.plot(p_mx2H, label='MP-2 High Power')
-plt.plot(p_mx2L, label='MP-2 Low Power')
+# plt.plot(p_mx1H, label='MP-1 High')
+# plt.plot(p_mx1L, label='MP-1 Low')
+# plt.plot(p_mx2H, label='MP-2 High')
+# plt.plot(p_mx2L, label='MP-2 Low')
+plt.plot(p_mx1H, label='RF + LO')
+plt.plot(p_mx1L, label='RF - LO')
+plt.plot(p_mx2H, label='RF + 2LO')
+plt.plot(p_mx2L, label='RF - 2LO')
 plt.ylabel("Power (dBm)")
+plt.xlabel("Sweep Index")
+plt.grid()
+plt.legend()
+
+plt.figure(3)
+plt.plot(f_rf, label='RF')
+plt.plot(f_lo, label='LO')
+plt.ylabel("Frequency (GHz)")
 plt.xlabel("Sweep Index")
 plt.grid()
 plt.legend()
