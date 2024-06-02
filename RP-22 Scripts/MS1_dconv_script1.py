@@ -44,6 +44,9 @@ except:
 # Get dataset name
 sweep_name = input(f"Dataset name: ")
 
+# Get operator notes
+operator_notes = input(f"Operator Notes: ")
+
 # Connect to instruments
 sg1 = Keysight8360L("GPIB::18::INSTR", log)
 sg2 = AgilentE4400("GPIB::19::INSTR", log)
@@ -204,13 +207,16 @@ for fa in freq_rf:
 sg1.set_enable_rf(False)
 sg2.set_enable_rf(False)
 
-# Make hybrid log/dataset file
-hybrid = {'dataset':dataset, 'configuration': conf_data, 'source_script': __file__}
+# Make hybrid meta-data/dataset file
+hybrid = {'dataset':dataset, 'configuration': conf_data, 'source_script': __file__, 'operator_notes':operator_notes}
 
 # Save log
-log.save_json(os.path.join(LOG_DIRECTORY, f"{sweep_name}.log.json"))
+log.save_hdf(os.path.join(LOG_DIRECTORY, f"{sweep_name}.log.hdf"))
 
-# Save data
+# Save data - HDF5
+dict_to_hdf5(hybrid, os.path.join(DATA_DIRECTORY, f"{sweep_name}.hdf"))
+
+# Save data - JSON
 with open(os.path.join(DATA_DIRECTORY, f"{sweep_name}.json"), "w") as outfile:
 	outfile.write(json.dumps(hybrid, indent=4))
 

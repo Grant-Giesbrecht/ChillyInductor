@@ -176,6 +176,9 @@ unique_f_lo = sorted(list(set(ff_lo)))
 # Initialize array
 X, Y = np.meshgrid(unique_f_lo, unique_f_rf)
 
+Z_rf0 = np.zeros([len(unique_f_rf), len(unique_f_lo)])
+Z_lo0 = np.zeros([len(unique_f_rf), len(unique_f_lo)])
+
 Z_lo2 = np.zeros([len(unique_f_rf), len(unique_f_lo)])
 Z_lo3 = np.zeros([len(unique_f_rf), len(unique_f_lo)])
 Z_rf2 = np.zeros([len(unique_f_rf), len(unique_f_lo)])
@@ -206,6 +209,9 @@ for irf, ufrf in enumerate(unique_f_rf):
 			break
 		
 		idx_master = np.bitwise_and(idxs_rf, idxs_lo)
+		
+		Z_rf0[irf][ilo] = p_rf[idx_master][0]
+		Z_lo0[irf][ilo] = p_lo[idx_master][0]
 		
 		Z_lo2[irf][ilo] = p_lo2[idx_master][0]
 		Z_lo3[irf][ilo] = p_lo3[idx_master][0]
@@ -289,6 +295,64 @@ plt.contourf(X/1e9, Y/1e9, Z_mx2H, levels=np.linspace(c_min,c_max,n_levels))
 plt.xlabel("LO Frequency (GHz)")
 plt.ylabel("RF Frequency (GHz)")
 plt.title("RF + 2LO")
+plt.colorbar()
+
+plt.figure(3)
+plt.subplot(2, 2, 1)
+plt.contourf(X/1e9, Y/1e9, Z_mx1L-Z_rf0, levels=np.linspace(c_min,c_max,n_levels))
+plt.xlabel("LO Frequency (GHz)")
+plt.ylabel("RF Frequency (GHz)")
+plt.title("P(RF - LO)-P(RF)")
+plt.colorbar()
+
+plt.subplot(2, 2, 3)
+plt.contourf(X/1e9, Y/1e9, Z_mx1H-Z_rf0, levels=np.linspace(c_min,c_max,n_levels))
+plt.xlabel("LO Frequency (GHz)")
+plt.ylabel("RF Frequency (GHz)")
+plt.title("P(RF + LO)-P(RF)")
+plt.colorbar()
+
+plt.subplot(2, 2, 2)
+plt.contourf(X/1e9, Y/1e9, Z_mx2L-Z_rf0, levels=np.linspace(c_min,c_max,n_levels))
+plt.xlabel("LO Frequency (GHz)")
+plt.ylabel("RF Frequency (GHz)")
+plt.title("P(RF - 2LO)-P(RF)")
+plt.colorbar()
+
+plt.subplot(2, 2, 4)
+plt.contourf(X/1e9, Y/1e9, Z_mx2H-Z_rf0, levels=np.linspace(c_min,c_max,n_levels))
+plt.xlabel("LO Frequency (GHz)")
+plt.ylabel("RF Frequency (GHz)")
+plt.title("P(RF + 2LO)-P(RF)")
+plt.colorbar()
+
+plt.figure(4)
+plt.subplot(2, 2, 1)
+plt.contourf(X/1e9, Y/1e9, Z_mx1L-Z_lo0, levels=np.linspace(c_min,c_max,n_levels))
+plt.xlabel("LO Frequency (GHz)")
+plt.ylabel("RF Frequency (GHz)")
+plt.title("P(RF - LO)-P(LO)")
+plt.colorbar()
+
+plt.subplot(2, 2, 3)
+plt.contourf(X/1e9, Y/1e9, Z_mx1H-Z_lo0, levels=np.linspace(c_min,c_max,n_levels))
+plt.xlabel("LO Frequency (GHz)")
+plt.ylabel("RF Frequency (GHz)")
+plt.title("P(RF + LO)-P(LO)")
+plt.colorbar()
+
+plt.subplot(2, 2, 2)
+plt.contourf(X/1e9, Y/1e9, Z_mx2L-Z_lo0, levels=np.linspace(c_min,c_max,n_levels))
+plt.xlabel("LO Frequency (GHz)")
+plt.ylabel("RF Frequency (GHz)")
+plt.title("P(RF - 2LO)-P(LO)")
+plt.colorbar()
+
+plt.subplot(2, 2, 4)
+plt.contourf(X/1e9, Y/1e9, Z_mx2H-Z_lo0, levels=np.linspace(c_min,c_max,n_levels))
+plt.xlabel("LO Frequency (GHz)")
+plt.ylabel("RF Frequency (GHz)")
+plt.title("P(RF + 2LO)-P(LO)")
 plt.colorbar()
 
 plt.show()
