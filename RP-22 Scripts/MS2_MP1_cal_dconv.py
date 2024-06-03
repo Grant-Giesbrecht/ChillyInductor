@@ -20,7 +20,7 @@ LOG_DIRECTORY = "logs"
 log = LogPile()
 
 # Get configuration
-conf_file_prefix = input(f"Configuration file name: (No extension or folder)")
+conf_file_prefix = input(f"{Fore.YELLOW}Configuration file name: (No extension or folder){Style.RESET_ALL}")
 conf_file_name = os.path.join(".", CONF_DIRECTORY, f"{conf_file_prefix}.json")
 
 # Load configuration data
@@ -48,19 +48,17 @@ except:
 	exit()
 	
 # Get dataset name
-sweep_name = input(f"Dataset name: ")
+sweep_name = input(f"{Fore.YELLOW}Dataset name: {Style.RESET_ALL}")
 
 # Get operator notes
-operator_notes = input(f"Operator Notes: ")
+operator_notes = input(f"{Fore.YELLOW}Operator Notes: {Style.RESET_ALL}")
 
 # Connect to instruments
 sg1 = Keysight8360L("GPIB::18::INSTR", log)
 sg2 = AgilentE4400("GPIB::19::INSTR", log)
-# sa = SiglentSSA3000X("TCPIP0::192.168.0.10::INSTR", log)
-# nrx = RohdeSchwarzNRX("", log)
+nrp = RohdeSchwarzNRP("USB0::0x0AAD::0x0139::101706::INSTR", log)
 sa1 = RohdeSchwarzFSQ("TCPIP0::192.168.1.14::INSTR", log)
 
-#TODO: Add back in NRX
 #TODO: Add power calibration
 #TODO: Add frequency calibration
 #TODO: Add system setup with node-map and photo
@@ -73,11 +71,6 @@ if sa1.online:
 else:
 	log.critical("Failed to connect to spectrum analyzer!")
 	exit()
-# if nrx.online:
-# 	log.info("Power meters >ONLINE<")
-# else:
-# 	log.critical("Failed to connect to power meters!")
-# 	exit()
 if sg1.online:
 	log.info("Keysight SG >ONLINE<")
 else:
@@ -87,6 +80,11 @@ if sg2.online:
 	log.info("Agilent SG >ONLINE<")
 else:
 	log.critical("Failed to connect to Agilent SG!")
+	exit()
+if nrp.online:
+	log.info("Rohde&Schwarz NRP >ONLINE<")
+else:
+	log.critical("Failed to connect to Rohde&Schwarz NRP!")
 	exit()
 print()
 
@@ -106,6 +104,107 @@ except Exception as e:
 	print(f"power_LO_dBm = {power_LO_dBm}")
 	print(f"dummy_sa_conditions = {dummy_sa_conditions}")
 count = 0
+
+# Run in-situ calibration
+
+# Turn off LO signal generators
+sg2.set_enable_rf(False)
+
+fb = 1e9
+p_lo_dBm = -40
+for fa in freq_rf:
+	log.info(f"Setting freq_rf to >{fa/1e9}< GHz")
+	for p_rf_dBm in power_RF_dBm:
+		log.info(f"Setting RF power to >{p_rf_dBm}< dBm")
+		
+		# Configure SG
+		sg1.set_freq(fa)
+		sg1.set_power(p_rf_dBm)
+		sg1.set_enable_rf(True)
+		
+		# Measure on SA
+		sa_conditions = calc_sa_conditions(sa_conf, fa, None)
+		
+		# Set conditions for spectrum analyzer
+		dp = None
+		for idx_sac, sac in enumerate(sa_conditions):
+			
+			fstart = sac['f_start']
+			fend = sac['f_end']
+			frbw = sac['rbw']
+			
+			log.info(f"Measuring frequency range >{fstart/1e6}< MHz to >{fend/1e6}< MHz, RBW = >:q{frbw/1e3}< kHz.")
+			
+			count += 1
+			print(f"Beginning measurement {count} of {npts}.")
+			
+			# Configure spectrum analyzer
+			sa1.set_res_bandwidth(frbw)
+			sa1.set_freq_start(fstart)
+			sa1.set_freq_end(fend)
+		
+			# Start trigger on spectrum analyzer
+			sa1.send_manual_trigger()
+			
+			# Perform NRP measurement if first sweep
+			if dp is None:
+				# Set frequency on power sensors
+				nrp.set_meas_frequency(fa)
+				
+				# Trigger NRP
+				nrp.send_trigger(wait=True)
+				nrp_pwr = nrp.get_measurement()
+			
+			# Wait for FSQ to finish sweep
+			sa1.wait_ready()
+			
+			# Get waveform
+			wvfrm = sa1.get_trace_data(1)
+			
+			# Save data
+			rbw_list = [sac['rbw']]*len(wvfrm['x'])
+			if dp is None:
+				dp = {'freq_rf_GHz':fa/1e9,
+					'freq_lo_GHz':fb/1e9,
+					'power_LO_dBm':p_lo_dBm,
+					'power_RF_dBm': p_rf_dBm,
+					'waveform_f_Hz':wvfrm['x'],
+					'waveform_s_dBm':wvfrm['y'],
+					'waveform_rbw_Hz':rbw_list,
+					'rf_enabled': sg1.get_enable_rf(),
+					'lo_enabled': sg2.get_enable_rf(),
+					'coupled_power_meas_dBm': nrp_pwr
+				}
+			else:
+				wav_x = dp['waveform_f_Hz'] + wvfrm['x']
+				wav_y = dp['waveform_s_dBm'] + wvfrm['y']
+				wav_rbw = dp['waveform_rbw_Hz'] + rbw_list
+				
+				# Find duplicate frequencies
+				dupl_freqs = [k for k,v in Counter(wav_x).items() if v>1]
+				
+				# Found duplicates - resolve duplicates
+				if len(dupl_freqs) > 0:
+					pass
+				
+				# Sort result
+				wav_x_new = []
+				wav_y_new = []
+				wav_rbw_new = []
+				for wx,wy,wr in sorted(zip(wav_x, wav_y, wav_rbw)):
+					wav_x_new.append(wx)
+					wav_y_new.append(wy)
+					wav_rbw_new.append(wr)
+				
+				# Update dictionary
+				dp['waveform_f_Hz'] = wav_x_new
+				dp['waveform_s_dBm'] = wav_y_new
+				dp['waveform_rbw_Hz'] = wav_rbw_new
+		
+		# Append to dataset
+		dataset.append(dp)
+
+log.info("Beginning measurements.")
 
 # Sweep points
 for fa in freq_rf:
@@ -156,15 +255,18 @@ for fa in freq_rf:
 				
 					# Start trigger on spectrum analyzer
 					sa1.send_manual_trigger()
+					
+					# Perform NRP measurement if first sweep
+					if dp is None:
+						# Set frequency on power sensors
+						nrp.set_meas_frequency(fa)
+						
+						# Trigger NRP
+						nrp.send_trigger(wait=True)
+						nrp_pwr = nrp.get_measurement()
+					
+					# Wait for FSQ to finish sweep
 					sa1.wait_ready()
-					
-					# Set frequency on power sensors
-					# nrx.set_meas_frequency(fa)
-					
-					# nrx.send_trigger()
-					# nrx.get_measurement()
-					
-					#TODO: How to be sure SA is done with sweep?
 					
 					# Get waveform
 					wvfrm = sa1.get_trace_data(1)
@@ -178,7 +280,10 @@ for fa in freq_rf:
 							'power_RF_dBm': p_rf_dBm,
 							'waveform_f_Hz':wvfrm['x'],
 							'waveform_s_dBm':wvfrm['y'],
-							'waveform_rbw_Hz':rbw_list
+							'waveform_rbw_Hz':rbw_list,
+							'rf_enabled': sg1.get_enable_rf(),
+							'lo_enabled': sg2.get_enable_rf(),
+							'coupled_power_meas_dBm': nrp_pwr
 						}
 					else:
 						wav_x = dp['waveform_f_Hz'] + wvfrm['x']
