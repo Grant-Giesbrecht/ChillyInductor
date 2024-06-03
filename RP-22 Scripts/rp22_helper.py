@@ -8,7 +8,9 @@ def calc_sa_conditions(sa_conf, f_rf:float, f_lo:float, print_error:bool=False, 
 		rbw: Resolution bandwidth in Hz
 		f_start: Start frequency in Hz
 		f_end: End frequency in Hz
-	for a given set of spectrum analyzer configution blocks.
+	for a given set of spectrum analyzer configution blocks. Can assign f_rf to None if you want
+	to skip it's harmonics, and f_lo to None to skip its harmonics. Note this will also void
+	all mixing products.
 	
 	--------------------------------------------------------
 	Configuration example block:
@@ -80,53 +82,57 @@ def calc_sa_conditions(sa_conf, f_rf:float, f_lo:float, print_error:bool=False, 
 				return None
 			
 			# Create conditions for each LO harmonics
-			for i in range(1, 1+lo_harmonics):
-				
-				# Get frequencies
-				f_center = f_lo*i
-				f_start = f_center - span_Hz/2
-				f_end = f_start + span_Hz
-				
-				# Create conf dictionary
-				cd = {'rbw':RBW_Hz, 'f_start':f_start, 'f_end':f_end}
-				
-				# Add to list
-				sac.append(cd)
+			if f_lo is not None:
+				for i in range(1, 1+lo_harmonics):
+					
+					# Get frequencies
+					f_center = f_lo*i
+					f_start = f_center - span_Hz/2
+					f_end = f_start + span_Hz
+					
+					# Create conf dictionary
+					cd = {'rbw':RBW_Hz, 'f_start':f_start, 'f_end':f_end}
+					
+					# Add to list
+					sac.append(cd)
 			
 			# Create conditions for each RF harmonics
-			for i in range(1, 1+rf_harmonics):
-				
-				# Get frequencies
-				f_center = f_rf*i
-				f_start = f_center - span_Hz/2
-				f_end = f_start + span_Hz
-				
-				# Create conf dictionary
-				cd = {'rbw':RBW_Hz, 'f_start':f_start, 'f_end':f_end}
-				
-				# Add to list
-				sac.append(cd)
+			if f_rf is not None:
+				for i in range(1, 1+rf_harmonics):
+					
+					# Get frequencies
+					f_center = f_rf*i
+					f_start = f_center - span_Hz/2
+					f_end = f_start + span_Hz
+					
+					# Create conf dictionary
+					cd = {'rbw':RBW_Hz, 'f_start':f_start, 'f_end':f_end}
+					
+					# Add to list
+					sac.append(cd)
 			
 			## Create conditions for mixing products
-			# Get center frequencies
-			cfl = []
-			for i in range(1, 1+mixing_products_order):
-				cfl.append(f_rf + i*f_lo)
-				cfl.append(f_rf - i*f_lo)
-			
-			## Create conditions for mixing products
-			# Generate conditions
-			for f_center in cfl:
+			if f_lo is not None and f_rf is not None:
 				
-				# Get frequencies
-				f_start = f_center - span_Hz/2
-				f_end = f_start + span_Hz
+				# Get center frequencies
+				cfl = []
+				for i in range(1, 1+mixing_products_order):
+					cfl.append(f_rf + i*f_lo)
+					cfl.append(f_rf - i*f_lo)
 				
-				# Create conf dictionary
-				cd = {'rbw':RBW_Hz, 'f_start':f_start, 'f_end':f_end}
-				
-				# Add to list
-				sac.append(cd)
+				## Create conditions for mixing products
+				# Generate conditions
+				for f_center in cfl:
+					
+					# Get frequencies
+					f_start = f_center - span_Hz/2
+					f_end = f_start + span_Hz
+					
+					# Create conf dictionary
+					cd = {'rbw':RBW_Hz, 'f_start':f_start, 'f_end':f_end}
+					
+					# Add to list
+					sac.append(cd)
 				
 		else:
 			
@@ -177,6 +183,9 @@ def dict_to_hdf5(json_data:dict, save_file) -> bool:
 	freq_lo_GHz = np.zeros(N)
 	power_LO_dBm = np.zeros(N)
 	power_RF_dBm = np.zeros(N)
+	rf_enabled = np.zeros(N)
+	lo_enabled = np.zeros(N)
+	coupled_pwr_dBm = np.zeros(N)
 	max_len = 0
 	
 	# Calculate size of 2D arrays
@@ -196,6 +205,9 @@ def dict_to_hdf5(json_data:dict, save_file) -> bool:
 		freq_lo_GHz[idx] = dp['freq_lo_GHz']
 		power_LO_dBm[idx] = dp['power_LO_dBm']
 		power_RF_dBm[idx] = dp['power_RF_dBm']
+		rf_enabled[idx] = dp['rf_enabled']
+		lo_enabled[idx] = dp['lo_enabled']
+		coupled_pwr_dBm[idx] = dp['coupled_power_meas_dBm']
 		
 		waveform_f_Hz[idx][:] = dp['waveform_f_Hz']
 		waveform_s_dBm[idx][:] = dp['waveform_s_dBm']
@@ -225,8 +237,10 @@ def dict_to_hdf5(json_data:dict, save_file) -> bool:
 		fh['dataset'].create_dataset('waveform_f_Hz', data=waveform_f_Hz)
 		fh['dataset'].create_dataset('waveform_s_dBm', data=waveform_s_dBm)
 		fh['dataset'].create_dataset('waveform_rbw_Hz', data=waveform_rbw_Hz)
+		
+		fh['dataset'].create_dataset('rf_enabled', data=rf_enabled)
+		fh['dataset'].create_dataset('lo_enabled', data=lo_enabled)
+		fh['dataset'].create_dataset('coupled_power_dBm', data=coupled_pwr_dBm)
 	
 	t_hdf = time.time()-t_hdf_0
 	print(f"Wrote HDF5 file in {t_hdf} sec.")
-	
-	pass
