@@ -59,12 +59,9 @@ operator_notes = input(f"Operator Notes: ")
 # Connect to instruments
 sg1 = Keysight8360L("GPIB::18::INSTR", log)
 sg2 = AgilentE4400("GPIB::19::INSTR", log)
-# sa = SiglentSSA3000X("TCPIP0::192.168.0.10::INSTR", log)
-# nrx = RohdeSchwarzNRX("", log)
 sa1 = RohdeSchwarzFSQ("TCPIP0::192.168.1.14::INSTR", log)
-nrp = RohdeSchwarzNRP("ADDRESS GOES HERE", log)
+nrp = RohdeSchwarzNRP("USB0::0x0AAD::0x0139::101706::INSTR", log)
 
-#TODO: Add back in NRX
 #TODO: Add power calibration
 #TODO: Add frequency calibration
 #TODO: Add system setup with node-map and photo
@@ -77,11 +74,6 @@ if sa1.online:
 else:
 	log.critical("Failed to connect to spectrum analyzer!")
 	exit()
-# if nrx.online:
-# 	log.info("Power meters >ONLINE<")
-# else:
-# 	log.critical("Failed to connect to power meters!")
-# 	exit()
 if sg1.online:
 	log.info("Keysight SG >ONLINE<")
 else:
@@ -91,6 +83,11 @@ if sg2.online:
 	log.info("Agilent SG >ONLINE<")
 else:
 	log.critical("Failed to connect to Agilent SG!")
+	exit()
+if nrp.online:
+	log.info("Rohde&Schwarz NRP >ONLINE<")
+else:
+	log.critical("Failed to connect to Rohde&Schwarz NRP!")
 	exit()
 print()
 
@@ -111,107 +108,203 @@ except Exception as e:
 	print(f"dummy_sa_conditions = {dummy_sa_conditions}")
 count = 0
 
-# Sweep points
+#RF Points
+fb = 1e9
 for fa in freq_rf:
 	
 	log.info(f"Setting freq_rf to >{fa/1e9}< GHz")
 	
-	for fb in freq_lo:
+	for p_rf_dBm in power_RF_dBm:
 		
-		log.info(f"Setting freq_lo to >{fb/1e9}< GHz")
+		log.info(f"Setting RF power to >{p_rf_dBm}< dBm")
+			
+		# Adjust conditions on signal generators
+		sg1.set_freq(fa)
+		sg1.set_power(p_rf_dBm)
 		
-		for p_rf_dBm in power_RF_dBm:
+		# Turn on signal generators
+		sg1.set_enable_rf(True)
+		sg2.set_enable_rf(False)
+		
+		sa_conditions = calc_sa_conditions(sa_conf, fa, None)
+		
+		# Set conditions for spectrum analyzer
+		dp = None
+		for idx_sac, sac in enumerate(sa_conditions):
 			
-			log.info(f"Setting RF power to >{p_rf_dBm}< dBm")
+			fstart = sac['f_start']
+			fend = sac['f_end']
+			frbw = sac['rbw']
 			
-			for p_lo_dBm in power_LO_dBm:
+			log.info(f"Measuring frequency range >{fstart/1e6}< MHz to >{fend/1e6}< MHz, RBW = >:q{frbw/1e3}< kHz.")
+			
+			count += 1
+			print(f"Beginning measurement {count} of {npts}.")
+			
+			# Configure spectrum analyzer
+			sa1.set_res_bandwidth(frbw)
+			sa1.set_freq_start(fstart)
+			sa1.set_freq_end(fend)
+		
+			# Start trigger on spectrum analyzer
+			sa1.send_manual_trigger()
+			
+			# Perform NRP measurement if first sweep
+			if dp is None:
+				# Set frequency on power sensors
+				nrp.set_meas_frequency(fa)
 				
-				log.info(f"Changing LO power to >{p_lo_dBm}< dBm")
+				# Trigger NRP
+				nrp.send_trigger(wait=True)
+				nrp_pwr = nrp.get_measurement()
+			
+			# Wait for FSQ to finish sweep
+			sa1.wait_ready()
+			
+			# Get waveform
+			wvfrm = sa1.get_trace_data(1)
+			
+			# Save data
+			rbw_list = [sac['rbw']]*len(wvfrm['x'])
+			if dp is None:
+				dp = {'freq_rf_GHz':fa/1e9,
+					'freq_lo_GHz':fb/1e9,
+					'power_LO_dBm':p_lo_dBm,
+					'power_RF_dBm': p_rf_dBm,
+					'waveform_f_Hz':wvfrm['x'],
+					'waveform_s_dBm':wvfrm['y'],
+					'waveform_rbw_Hz':rbw_list,
+					'rf_enabled': sg1.get_enable_rf(),
+					'lo_enabled': sg2.get_enable_rf(),
+					'coupled_power_meas_dBm': nrp_pwr
+				}
+			else:
+				wav_x = dp['waveform_f_Hz'] + wvfrm['x']
+				wav_y = dp['waveform_s_dBm'] + wvfrm['y']
+				wav_rbw = dp['waveform_rbw_Hz'] + rbw_list
 				
-				# Adjust conditions on signal generators
-				sg1.set_freq(fa)
-				sg2.set_freq(fb)
-				sg1.set_power(p_rf_dBm)
-				sg2.set_power(p_lo_dBm)
+				# Find duplicate frequencies
+				dupl_freqs = [k for k,v in Counter(wav_x).items() if v>1]
 				
-				# Turn on signal generators
-				sg1.set_enable_rf(True)
-				sg2.set_enable_rf(True)
+				# Found duplicates - resolve duplicates
+				if len(dupl_freqs) > 0:
+					pass
 				
-				sa_conditions = calc_sa_conditions(sa_conf, fa, fb)
+				# Sort result
+				wav_x_new = []
+				wav_y_new = []
+				wav_rbw_new = []
+				for wx,wy,wr in sorted(zip(wav_x, wav_y, wav_rbw)):
+					wav_x_new.append(wx)
+					wav_y_new.append(wy)
+					wav_rbw_new.append(wr)
 				
-				# Set conditions for spectrum analyzer
-				dp = None
-				for idx_sac, sac in enumerate(sa_conditions):
-					
-					fstart = sac['f_start']
-					fend = sac['f_end']
-					frbw = sac['rbw']
-					
-					log.info(f"Measuring frequency range >{fstart/1e6}< MHz to >{fend/1e6}< MHz, RBW = >:q{frbw/1e3}< kHz.")
-					
-					count += 1
-					print(f"Beginning measurement {count} of {npts}.")
-					
-					# Configure spectrum analyzer
-					sa1.set_res_bandwidth(frbw)
-					sa1.set_freq_start(fstart)
-					sa1.set_freq_end(fend)
+				# Update dictionary
+				dp['waveform_f_Hz'] = wav_x_new
+				dp['waveform_s_dBm'] = wav_y_new
+				dp['waveform_rbw_Hz'] = wav_rbw_new
+		
+		# Append to dataset
+		dataset.append(dp)
+
+# LO Points
+fa = 1e9
+for fb in freq_lo:
+	
+	log.info(f"Setting freq_lo to >{fb/1e9}< GHz")
+		
+	for p_lo_dBm in power_LO_dBm:
+		
+		log.info(f"Changing LO power to >{p_lo_dBm}< dBm")
+		
+		# Adjust conditions on signal generators
+		sg2.set_freq(fb)
+		sg2.set_power(p_lo_dBm)
+		
+		# Turn on signal generators
+		sg1.set_enable_rf(False)
+		sg2.set_enable_rf(True)
+		
+		sa_conditions = calc_sa_conditions(sa_conf, None, fb)
+		
+		# Set conditions for spectrum analyzer
+		dp = None
+		for idx_sac, sac in enumerate(sa_conditions):
+			
+			fstart = sac['f_start']
+			fend = sac['f_end']
+			frbw = sac['rbw']
+			
+			log.info(f"Measuring frequency range >{fstart/1e6}< MHz to >{fend/1e6}< MHz, RBW = >:q{frbw/1e3}< kHz.")
+			
+			count += 1
+			print(f"Beginning measurement {count} of {npts}.")
+			
+			# Configure spectrum analyzer
+			sa1.set_res_bandwidth(frbw)
+			sa1.set_freq_start(fstart)
+			sa1.set_freq_end(fend)
+		
+			# Start trigger on spectrum analyzer
+			sa1.send_manual_trigger()
+			
+			# Perform NRP measurement if first sweep
+			if dp is None:
+				# Set frequency on power sensors
+				nrp.set_meas_frequency(fb)
 				
-					# Start trigger on spectrum analyzer
-					sa1.send_manual_trigger()
-					sa1.wait_ready()
-					
-					# Set frequency on power sensors
-					# nrx.set_meas_frequency(fa)
-					
-					# nrx.send_trigger()
-					# nrx.get_measurement()
-					
-					#TODO: How to be sure SA is done with sweep?
-					
-					# Get waveform
-					wvfrm = sa1.get_trace_data(1)
-					
-					# Save data
-					rbw_list = [sac['rbw']]*len(wvfrm['x'])
-					if dp is None:
-						dp = {'freq_rf_GHz':fa/1e9,
-							'freq_lo_GHz':fb/1e9,
-							'power_LO_dBm':p_lo_dBm,
-							'power_RF_dBm': p_rf_dBm,
-							'waveform_f_Hz':wvfrm['x'],
-							'waveform_s_dBm':wvfrm['y'],
-							'waveform_rbw_Hz':rbw_list
-						}
-					else:
-						wav_x = dp['waveform_f_Hz'] + wvfrm['x']
-						wav_y = dp['waveform_s_dBm'] + wvfrm['y']
-						wav_rbw = dp['waveform_rbw_Hz'] + rbw_list
-						
-						# Find duplicate frequencies
-						dupl_freqs = [k for k,v in Counter(wav_x).items() if v>1]
-						
-						# Found duplicates - resolve duplicates
-						if len(dupl_freqs) > 0:
-							pass
-						
-						# Sort result
-						wav_x_new = []
-						wav_y_new = []
-						wav_rbw_new = []
-						for wx,wy,wr in sorted(zip(wav_x, wav_y, wav_rbw)):
-							wav_x_new.append(wx)
-							wav_y_new.append(wy)
-							wav_rbw_new.append(wr)
-						
-						# Update dictionary
-						dp['waveform_f_Hz'] = wav_x_new
-						dp['waveform_s_dBm'] = wav_y_new
-						dp['waveform_rbw_Hz'] = wav_rbw_new
+				# Trigger NRP
+				nrp.send_trigger(wait=True)
+				nrp_pwr = nrp.get_measurement()
+			
+			# Wait for FSQ to finish sweep
+			sa1.wait_ready()
+			
+			# Get waveform
+			wvfrm = sa1.get_trace_data(1)
+			
+			# Save data
+			rbw_list = [sac['rbw']]*len(wvfrm['x'])
+			if dp is None:
+				dp = {'freq_rf_GHz':fa/1e9,
+					'freq_lo_GHz':fb/1e9,
+					'power_LO_dBm':p_lo_dBm,
+					'power_RF_dBm': p_rf_dBm,
+					'waveform_f_Hz':wvfrm['x'],
+					'waveform_s_dBm':wvfrm['y'],
+					'waveform_rbw_Hz':rbw_list,
+					'rf_enabled': sg1.get_enable_rf(),
+					'lo_enabled': sg2.get_enable_rf(),
+					'coupled_power_meas_dBm': nrp_pwr
+				}
+			else:
+				wav_x = dp['waveform_f_Hz'] + wvfrm['x']
+				wav_y = dp['waveform_s_dBm'] + wvfrm['y']
+				wav_rbw = dp['waveform_rbw_Hz'] + rbw_list
 				
-				# Append to dataset
-				dataset.append(dp)
+				# Find duplicate frequencies
+				dupl_freqs = [k for k,v in Counter(wav_x).items() if v>1]
+				
+				# Found duplicates - resolve duplicates
+				if len(dupl_freqs) > 0:
+					pass
+				
+				# Sort result
+				wav_x_new = []
+				wav_y_new = []
+				wav_rbw_new = []
+				for wx,wy,wr in sorted(zip(wav_x, wav_y, wav_rbw)):
+					wav_x_new.append(wx)
+					wav_y_new.append(wy)
+					wav_rbw_new.append(wr)
+				
+				# Update dictionary
+				dp['waveform_f_Hz'] = wav_x_new
+				dp['waveform_s_dBm'] = wav_y_new
+				dp['waveform_rbw_Hz'] = wav_rbw_new
+		
+		# Append to dataset
+		dataset.append(dp)
 
 # Turn off signal generators
 sg1.set_enable_rf(False)
@@ -220,13 +313,13 @@ sg2.set_enable_rf(False)
 # Make hybrid meta-data/dataset file
 hybrid = {'dataset':dataset, 'configuration': conf_data, 'source_script': __file__, 'operator_notes':operator_notes}
 
+# Save data - JSON
+with open(os.path.join(DATA_DIRECTORY, f"{sweep_name}.json"), "w") as outfile:
+	outfile.write(json.dumps(hybrid, indent=4))
+
 # Save log
 log.save_hdf(os.path.join(LOG_DIRECTORY, f"{sweep_name}.log.hdf"))
 
 # Save data - HDF5
 dict_to_hdf5(hybrid, os.path.join(DATA_DIRECTORY, f"{sweep_name}.hdf"))
-
-# Save data - JSON
-with open(os.path.join(DATA_DIRECTORY, f"{sweep_name}.json"), "w") as outfile:
-	outfile.write(json.dumps(hybrid, indent=4))
 
