@@ -110,6 +110,7 @@ count = 0
 # Turn off LO signal generators
 sg2.set_enable_rf(False)
 
+# RF Calibration
 fb = 1e9
 p_lo_dBm = -40
 for fa in freq_rf:
@@ -124,6 +125,103 @@ for fa in freq_rf:
 		
 		# Measure on SA
 		sa_conditions = calc_sa_conditions(sa_conf, fa, None)
+		
+		# Set conditions for spectrum analyzer
+		dp = None
+		for idx_sac, sac in enumerate(sa_conditions):
+			
+			fstart = sac['f_start']
+			fend = sac['f_end']
+			frbw = sac['rbw']
+			
+			log.info(f"Measuring frequency range >{fstart/1e6}< MHz to >{fend/1e6}< MHz, RBW = >:q{frbw/1e3}< kHz.")
+			
+			count += 1
+			print(f"Beginning measurement {count} of {npts}.")
+			
+			# Configure spectrum analyzer
+			sa1.set_res_bandwidth(frbw)
+			sa1.set_freq_start(fstart)
+			sa1.set_freq_end(fend)
+		
+			# Start trigger on spectrum analyzer
+			sa1.send_manual_trigger()
+			
+			# Perform NRP measurement if first sweep
+			if dp is None:
+				# Set frequency on power sensors
+				nrp.set_meas_frequency(fa)
+				
+				# Trigger NRP
+				nrp.send_trigger(wait=True)
+				nrp_pwr = nrp.get_measurement()
+			
+			# Wait for FSQ to finish sweep
+			sa1.wait_ready()
+			
+			# Get waveform
+			wvfrm = sa1.get_trace_data(1)
+			
+			# Save data
+			rbw_list = [sac['rbw']]*len(wvfrm['x'])
+			if dp is None:
+				dp = {'freq_rf_GHz':fa/1e9,
+					'freq_lo_GHz':fb/1e9,
+					'power_LO_dBm':p_lo_dBm,
+					'power_RF_dBm': p_rf_dBm,
+					'waveform_f_Hz':wvfrm['x'],
+					'waveform_s_dBm':wvfrm['y'],
+					'waveform_rbw_Hz':rbw_list,
+					'rf_enabled': sg1.get_enable_rf(),
+					'lo_enabled': sg2.get_enable_rf(),
+					'coupled_power_meas_dBm': nrp_pwr
+				}
+			else:
+				wav_x = dp['waveform_f_Hz'] + wvfrm['x']
+				wav_y = dp['waveform_s_dBm'] + wvfrm['y']
+				wav_rbw = dp['waveform_rbw_Hz'] + rbw_list
+				
+				# Find duplicate frequencies
+				dupl_freqs = [k for k,v in Counter(wav_x).items() if v>1]
+				
+				# Found duplicates - resolve duplicates
+				if len(dupl_freqs) > 0:
+					pass
+				
+				# Sort result
+				wav_x_new = []
+				wav_y_new = []
+				wav_rbw_new = []
+				for wx,wy,wr in sorted(zip(wav_x, wav_y, wav_rbw)):
+					wav_x_new.append(wx)
+					wav_y_new.append(wy)
+					wav_rbw_new.append(wr)
+				
+				# Update dictionary
+				dp['waveform_f_Hz'] = wav_x_new
+				dp['waveform_s_dBm'] = wav_y_new
+				dp['waveform_rbw_Hz'] = wav_rbw_new
+		
+		# Append to dataset
+		dataset.append(dp)
+sg1.set_enable_rf(False)
+sg2.set_enable_rf(False)
+
+# LO Calibration
+fa = 1e9
+p_rf_dBm = -40
+for fb in freq_lo:
+	log.info(f"Setting freq_lo to >{fb/1e9}< GHz")
+	for p_lo_dBm in power_LO_dBm:
+		log.info(f"Setting LO power to >{p_lo_dBm}< dBm")
+		
+		# Configure SG
+		sg2.set_freq(fb)
+		sg2.set_power(p_lo_dBm)
+		sg2.set_enable_rf(True)
+		
+		# Measure on SA
+		sa_conditions = calc_sa_conditions(sa_conf, None, fb)
 		
 		# Set conditions for spectrum analyzer
 		dp = None
@@ -252,7 +350,7 @@ for fa in freq_rf:
 					sa1.set_res_bandwidth(frbw)
 					sa1.set_freq_start(fstart)
 					sa1.set_freq_end(fend)
-				
+					
 					# Start trigger on spectrum analyzer
 					sa1.send_manual_trigger()
 					
