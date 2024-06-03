@@ -34,6 +34,21 @@ def calc_sa_conditions(sa_conf, f_rf:float, f_lo:float, print_error:bool=False, 
 	Returns None if error, otherwise returns list of dictionaries
 	'''
 	
+	def remove_duplicate_points(points:list):
+		# Thanks microsoft Copilot!
+		
+		seen = set()
+		unique_dicts = []
+		
+		for d in points:
+			# Convert the dictionary to a frozenset to make it hashable
+			frozen_d = frozenset(d.items())
+			if frozen_d not in seen:
+				seen.add(frozen_d)
+				unique_dicts.append(d)
+		return unique_dicts
+			
+	
 	# If sa_conf input is a list, recursively call each
 	if type(sa_conf) is list:
 				
@@ -44,7 +59,11 @@ def calc_sa_conditions(sa_conf, f_rf:float, f_lo:float, print_error:bool=False, 
 				sacl = calc_sa_conditions(sacb, f_rf, f_lo, print_error=print_error, remove_duplicates=remove_duplicates)
 			else:
 				sacl = sacl + calc_sa_conditions(sacb, f_rf, f_lo, print_error=print_error, remove_duplicates=remove_duplicates)
-				
+		
+		# Remove duplicates
+		if remove_duplicates:
+			sacl = remove_duplicate_points(sacl)
+		
 		return sacl
 	
 	# Otherwise generate the dictionary list from this block
@@ -158,7 +177,11 @@ def calc_sa_conditions(sa_conf, f_rf:float, f_lo:float, print_error:bool=False, 
 			
 			# Add to list
 			sac.append(cd)
-			
+		
+		# Remove duplicates
+		if remove_duplicates:
+			sac = remove_duplicate_points(sac)
+		
 		# Return spectrum analyzer condition list
 		return sac
 		
