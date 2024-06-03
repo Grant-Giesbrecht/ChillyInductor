@@ -2,6 +2,80 @@ import time
 import numpy as np
 import h5py
 import json
+from sys import platform
+import os
+import re
+import fnmatch
+
+def wildcard_path(base_path:str, partial:str):
+	''' Given a partial directory name, like Fold*r, returns
+	the full path including that directory. Returns None if
+	zero or more than one path matched. '''
+	
+	if base_path is None:
+		return None
+	
+	# Get contents of base path
+	root, dirs, files = next(os.walk(base_path))
+	
+	# Wildcard compare
+	match_list = fnmatch.filter(dirs, partial)
+	
+	if len(match_list) == 1:
+		return os.path.join(base_path, match_list[0])
+	else:
+		return None
+	
+	
+
+def get_datadir_path(rp:int, smc:str, check_drive_letters:list=None):
+	''' Returns the path to the data directory for RP-{rp}, and SMC-{smc}.
+	
+	Return None if can't find path.
+	'''
+	
+	# Check OS
+	if platform == "linux" or platform == "linux2":
+		is_unix = True
+	elif platform == "darwin":
+		is_unix = True
+	elif platform == "win32":
+		is_unix = False
+	
+	 # /Volumes/M6\ T7S/ARC0\ PhD\ Data/RP-22\ Lk\ Dil\ Fridge\ 2024/Data/SMC-A\ Downconversion
+	
+	# Find drive
+	if is_unix:
+		
+		path = os.path.join('/', 'Volumes', 'M6 T7S', 'ARC0 PhD Data')
+		path = wildcard_path(path, f"RP-{rp}*")
+		path = wildcard_path(path, f"Data")
+		path = wildcard_path(path, f"SMC-{smc}*")
+		
+	else:
+		
+		# List letters to check
+		if check_drive_letters is None:
+			check_drive_letters = ['D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
+		
+		# Find drive letter
+		drive_letter = None
+		for cdl in check_drive_letters:
+			if os.path.exists(cdl, 'ARC0 PhD Data'):
+				drive_letter = cdl
+				break
+			
+		# Quit if can't find drive
+		if drive_letter is None:
+			return None
+		
+		# Join paths
+		path = os.path.join(drive_letter, 'M6 T7S', 'ARC0 PhD Data')
+		path = wildcard_path(path, f"RP-{rp}*")
+		path = wildcard_path(path, f"Data")
+		path = wildcard_path(path, f"SMC-{smc}*")
+	
+	return path
 
 def calc_sa_conditions(sa_conf, f_rf:float, f_lo:float, print_error:bool=False, remove_duplicates:bool=True) -> list:
 	''' Generates a list of dictionsaries with keys:

@@ -5,9 +5,12 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from scipy.optimize import curve_fit
 from dataclasses import dataclass
-import sys
+from rp22_helper import *
 
-analysis_file = "E:\ARC0 PhD Data\RP-22 Lk Dil Fridge 2024\Data\SMC-A Downconversion v1\dMS1_28May2024_DC1V0_r1.hdf"
+datapath = get_datadir_path(22, 'A')
+filename = "dMS1_28May2024_DC1V0_r1.hdf"
+
+analysis_file = os.path.join(datapath, filename)
 
 USE_CONST_SCALE = True
 
