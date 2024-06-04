@@ -16,8 +16,12 @@ def wildcard_path(base_path:str, partial:str):
 		return None
 	
 	# Get contents of base path
-	root, dirs, files = next(os.walk(base_path))
-	
+	try:
+		root, dirs, files = next(os.walk(base_path))
+	except Exception as e:
+		print(f"Error finding directory contents for '{base_path}'. ({e})")
+		return None
+		
 	# Wildcard compare
 	match_list = fnmatch.filter(dirs, partial)
 	
@@ -25,8 +29,7 @@ def wildcard_path(base_path:str, partial:str):
 		return os.path.join(base_path, match_list[0])
 	else:
 		return None
-	
-	
+
 
 def get_datadir_path(rp:int, smc:str, check_drive_letters:list=None):
 	''' Returns the path to the data directory for RP-{rp}, and SMC-{smc}.
@@ -56,21 +59,23 @@ def get_datadir_path(rp:int, smc:str, check_drive_letters:list=None):
 		
 		# List letters to check
 		if check_drive_letters is None:
-			check_drive_letters = ['D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L']
+			check_drive_letters = ['D:\\', 'E:\\', 'F:\\', 'G:\\', 'H:\\', 'I:\\', 'J:\\', 'K:\\', 'L:\\']
 		
 		# Find drive letter
 		drive_letter = None
 		for cdl in check_drive_letters:
-			if os.path.exists(cdl, 'ARC0 PhD Data'):
+			try_path = os.path.join(cdl, 'ARC0 PhD Data')
+			if os.path.exists(try_path):
 				drive_letter = cdl
 				break
-			
+			else:
+				print(f"Path {try_path} doesn't exist.")
 		# Quit if can't find drive
 		if drive_letter is None:
 			return None
 		
 		# Join paths
-		path = os.path.join(drive_letter, 'M6 T7S', 'ARC0 PhD Data')
+		path = os.path.join(drive_letter, 'ARC0 PhD Data')
 		path = wildcard_path(path, f"RP-{rp}*")
 		path = wildcard_path(path, f"Data")
 		path = wildcard_path(path, f"SMC-{smc}*")

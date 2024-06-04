@@ -6,8 +6,13 @@ from matplotlib.patches import Rectangle
 from scipy.optimize import curve_fit
 from dataclasses import dataclass
 from rp22_helper import *
+from colorama import Fore, Style
+import sys
 
 datapath = get_datadir_path(22, 'A')
+if datapath is None:
+	print(f"{Fore.RED}Failed to find data location{Style.RESET_ALL}")
+	sys.exit()
 filename = "dMS1_28May2024_DC1V0_r1.hdf"
 
 analysis_file = os.path.join(datapath, filename)
