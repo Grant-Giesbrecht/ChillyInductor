@@ -30,6 +30,19 @@ def wildcard_path(base_path:str, partial:str):
 	else:
 		return None
 
+def reform_dictlist(data:list):
+	''' Takes a list of dictionaries, each containing exactly the same keys,
+	with consistent datatypes between various dictionaries' matching keys (ie. 
+	all keys 'freq' have type float, but key 'name' can all have a different
+	type like str.) and reforms the data into a dictionary of lists.
+	'''
+	# Initialize newform
+	newform = {}
+	for k in data[0].keys():
+		newform[k] = []
+	for dp in data:
+		for k in dp.keys():
+			newform[k].append(dp[k])
 
 def get_datadir_path(rp:int, smc:str, check_drive_letters:list=None):
 	''' Returns the path to the data directory for RP-{rp}, and SMC-{smc}.
@@ -270,6 +283,79 @@ def calc_sa_conditions(sa_conf, f_rf:float, f_lo:float, print_error:bool=False, 
 			print(f"Invalid data type")
 		return None
 
+
+def write_level(fh:h5py.File, level_data:dict):
+	''' Writes a dictionary to the hdf file.
+	 
+	Recursive function used by  '''
+	
+	# Scan over each directory of root-data
+	for k, v in level_data.items():
+		
+		# If value is a dictionary, this key represents a directory
+		if type(v) == dict:
+			
+			# Create a new group
+			fh.create_group(k)
+			
+			# Write the dictionary to the group
+			write_level(fh[k], v)
+				
+		else: # Otherwise try to write this datatype (ex. list of floats)
+			
+			# Write value as a dataset
+			fh.create_dataset(k, data=v)
+
+def save_hdf(root_data:dict, save_file:str, use_json_backup:bool=True) -> bool:
+	''' Writes a dictionary to an HDF file per the rules used by 'write_level()'. 
+	
+	* If the value of a key in another dictionary, the key is made a group (directory).
+	* If the value of the key is anything other than a dictionary, it assumes
+	  it can be saved to HDF (such as a list of floats), and saves it as a dataset (variable).
+	
+	'''
+	
+	# Start timer
+	t0 = time.time()
+	
+	# Open HDF
+	hdf_successful = True
+	exception_str = ""
+	
+	# Recursively write HDF file
+	with h5py.File(save_file, 'w') as fh:
+		
+		# Try to write dictionary
+		try:
+			write_level(fh, root_data)
+		except Exception as e:
+			hdf_successful = False
+			exception_str = f"{e}"
+	
+	# Check success condition
+	if hdf_successful:
+		print(f"Wrote file in {time.time()-t0} sec.")
+		
+		return True
+	else:
+		print(f"Failed to write HDF file! ({exception_str})")
+		
+		# Write JSON as a backup if requested
+		if use_json_backup:
+			
+			# Add JSON extension
+			save_file_json = save_file[:-3]+".json"
+			
+			# Open and save JSON file
+			try:
+				with open(save_file_json, "w") as outfile:
+					outfile.write(json.dumps(root_data, indent=4))
+			except Exception as e:
+				print(f"Failed to write JSON backup: ({e}).")
+				return False
+		
+		return True
+
 def dict_to_hdf5(json_data:dict, save_file) -> bool:
 	''' Converts a dict from MS1-style datasets to an HDF5 file.
 	'''
@@ -326,11 +412,20 @@ def dict_to_hdf5(json_data:dict, save_file) -> bool:
 		
 		# Create two root groups
 		fh.create_group("dataset")
-		fh.create_group("conditions")
+		fh.create_group("info")
+		
+		# Add calibration data if specified
+		if 'calibration_data' in json_data:
+			fh.create_group('calibration_data')
+			
+			# Write each paramter
+			for k in json_data['calibration_data'].keys():
+				fh['calibration_data'].create_dataset(k, json_data['calibration_data'][k])
 		
 		# Add metadata to 'conditions' group
-		fh['conditions'].create_dataset('source_script', data=json_data['source_script'])
-		fh['conditions'].create_dataset('conf_json', data=json.dumps(json_data['configuration']))
+		fh['info'].create_dataset('source_script', data=json_data['source_script'])
+		fh['info'].create_dataset('conf_json', data=json.dumps(json_data['configuration']))
+		fh['info'].create_dataset('conf_json', data=json.dumps(json_data['configuration']))
 		
 		# Add data to 'dataset' group
 		fh['dataset'].create_dataset('freq_rf_GHz', data=freq_rf_GHz)

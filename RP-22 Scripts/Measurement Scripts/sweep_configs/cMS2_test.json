@@ -1,0 +1,42 @@
+{
+	"frequency_RF":{
+		"type": "range",
+		"unit": "Hz",
+		"start": 1e9,
+		"end": 1e9,
+		"step": 0.1e9
+	},
+	"power_RF":{
+		"type": "list",
+		"unit": "dBm",
+		"values": [0]
+	},
+	"frequency_LO":{
+		"type": "range",
+		"unit": "Hz",
+		"start": 1e9,
+		"end": 1.5e9,
+		"step": 0.1e9
+	},
+	"power_LO":{
+		"type": "list",
+		"unit": "dBm",
+		"values": [0]
+	},
+	"spectrum_analyzer":[
+		{
+			"mode": "dynamic",
+			"span_Hz": 1e6,
+			"RBW_Hz": 1e3,
+			"mixing_products_order": 0,
+			"lo_harmonics": 4,
+			"rf_harmonics": 4
+		},
+		{
+			"mode": "fixed",
+			"freq_start_Hz": 100e6,
+			"freq_end_Hz": 6e9,
+			"RBW_Hz": 100e3
+		}
+	]
+}
