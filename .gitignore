@@ -134,5 +134,5 @@ dmypy.json
 *.png
 *.pkl
 .DS_Store
-/RP-22 Scripts/data
-/RP-22 Scripts/logs
+/RP-22 Scripts/Measurement Scripts/data
+/RP-22 Scripts/Measurement Scripts/logs

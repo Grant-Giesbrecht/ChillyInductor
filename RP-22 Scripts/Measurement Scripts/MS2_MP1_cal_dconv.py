@@ -7,7 +7,7 @@ Performs the primary measurements (post-calibration) for MP1 (Measurement Proced
 from heimdallr.all import *
 import numpy as np
 import os
-from rp22_helper import *
+from chillyinductor.rp22_helper import *
 from collections import Counter
 
 
