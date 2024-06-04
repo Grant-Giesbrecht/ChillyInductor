@@ -29,7 +29,7 @@ def save_data(dataset, calset, conf_data, src_script, operator_notes, sweep_name
 	
 	# Make hybrid meta-data/dataset file
 	root_dict = {'dataset': reform_dictlist(dataset), 'calibration_data':reform_dictlist(calset), 'info': conf_dict}
-
+	
 	# # Save data - JSON
 	# t0 = time.time()
 	# with open(os.path.join(DATA_DIRECTORY, f"{sweep_name}{append_str}.json"), "w") as outfile:

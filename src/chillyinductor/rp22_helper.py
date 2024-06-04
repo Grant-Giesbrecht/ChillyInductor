@@ -30,6 +30,20 @@ def wildcard_path(base_path:str, partial:str):
 	else:
 		return None
 
+def pad_ragged_lists(ragged:list, max_length:int=None):
+	
+	if max_length is None:
+		max_length = max(len(sublist) for sublist in ragged)
+	
+	# Initialize a new list of lists with NaN values
+	padded_list = [[np.nan] * max_length for _ in range(len(ragged))]
+	
+	# Copy values from the original list of lists to the new padded list
+	for i, sublist in enumerate(ragged):
+		padded_list[i][:len(sublist)] = sublist
+	
+	return padded_list
+
 def reform_dictlist(data:list):
 	''' Takes a list of dictionaries, each containing exactly the same keys,
 	with consistent datatypes between various dictionaries' matching keys (ie. 
@@ -40,9 +54,30 @@ def reform_dictlist(data:list):
 	newform = {}
 	for k in data[0].keys():
 		newform[k] = []
+	
+	# Append values to each key
 	for dp in data:
 		for k in dp.keys():
 			newform[k].append(dp[k])
+	
+	# Make 2D lists non-jagged
+	for k in newform.keys():
+		
+		# Check if item is 2D list
+		if (type(newform[k]) == list) and (len(newform[k]) > 0) and (type(newform[k][0]) == list):
+			
+			# CHeck if all same length
+			lengths = np.array([len(sublist) for sublist in newform[k]])
+			max_len = max(lengths)
+			
+			# Skip item if all are same length
+			if all(lengths == max_len):
+				continue
+			# Otherwise reform
+			
+			newform[k] = pad_ragged_lists(newform[k], max_len)
+	
+	return newform
 
 def get_datadir_path(rp:int, smc:str, check_drive_letters:list=None):
 	''' Returns the path to the data directory for RP-{rp}, and SMC-{smc}.
