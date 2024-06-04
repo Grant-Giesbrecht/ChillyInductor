@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from scipy.optimize import curve_fit
 from dataclasses import dataclass
-from rp22_helper import *
+from chillyinductor.rp22_helper import *
 from colorama import Fore, Style
 import sys
 
@@ -106,14 +106,14 @@ def power_total(waveform_f_Hz, waveform_s_dBm):
 			bw_new = waveform_f_Hz[idx]-waveform_f_Hz[idx-1]
 			if bw_new == 0:
 				bw_new = waveform_f_Hz[idx-1]-waveform_f_Hz[idx-2]
-			bw_list.append(bw_new)
+			bw_list.append(np.abs(bw_new))
 		except:
 			pass
 		try:
 			bw_new = waveform_f_Hz[idx+1]-waveform_f_Hz[idx]
 			if bw_new == 0:
 				bw_new = waveform_f_Hz[idx+2]-waveform_f_Hz[idx+1]
-			bw_list.append(bw_new)
+			bw_list.append(np.abs(bw_new))
 		except:
 			pass
 		bw = min(bw_list)
