@@ -16,6 +16,43 @@ CONF_DIRECTORY = "sweep_configs"
 DATA_DIRECTORY = "data"
 LOG_DIRECTORY = "logs"
 
+t_last_autosave = time.time()
+AUTOSAVE_PERIOD_S = 60*10
+
+def save_data(dataset, calset, conf_data, src_script, operator_notes, sweep_name, autosave:bool=False, log:LogPile=None):
+	
+	append_str = ""
+	if autosave:
+		append_str = "_autosave"
+	
+	# Make hybrid meta-data/dataset file
+	hybrid = {'dataset':dataset, 'calibration_data':calset, 'configuration': conf_data, 'source_script': src_script, 'operator_notes':operator_notes}
+
+	# Save data - JSON
+	t0 = time.time()
+	with open(os.path.join(DATA_DIRECTORY, f"{sweep_name}{append_str}.json"), "w") as outfile:
+		outfile.write(json.dumps(hybrid, indent=4))
+	t_save_json = time.time() - t0
+	
+	if log is not None:
+		log.debug(f"Autosaved data to JSON in {t_save_json} seconds.")
+	
+	# Save log
+	t0 = time.time()
+	log.save_hdf(os.path.join(LOG_DIRECTORY, f"{sweep_name}{append_str}.log.hdf"))
+	t_save_log = time.time() - t0
+	
+	if log is not None:
+		log.debug(f"Autosaved log to HDF in {t_save_log} seconds.")
+	
+	# Save data - HDF5
+	t0 = time.time()
+	dict_to_hdf5(hybrid, os.path.join(DATA_DIRECTORY, f"{sweep_name}{append_str}.hdf"))
+	t_save_hdf = time.time() - t0
+	
+	if log is not None:
+		log.debug(f"Autosaved data to HDF in {t_save_hdf} seconds.")
+	
 # Create logger
 log = LogPile()
 
@@ -88,6 +125,7 @@ else:
 	exit()
 print()
 
+calset = []
 dataset = []
 
 # Get total number of points
@@ -203,7 +241,7 @@ for fa in freq_rf:
 				dp['waveform_rbw_Hz'] = wav_rbw_new
 		
 		# Append to dataset
-		dataset.append(dp)
+		calset.append(dp)
 sg1.set_enable_rf(False)
 sg2.set_enable_rf(False)
 
@@ -300,7 +338,7 @@ for fb in freq_lo:
 				dp['waveform_rbw_Hz'] = wav_rbw_new
 		
 		# Append to dataset
-		dataset.append(dp)
+		calset.append(dp)
 
 log.info("Beginning measurements.")
 
@@ -411,21 +449,22 @@ for fa in freq_rf:
 				
 				# Append to dataset
 				dataset.append(dp)
+				
+				# Check for autosave
+				if time.time() - t_last_autosave > AUTOSAVE_PERIOD_S:
+					
+					log.debug("Autosaving data and logs")
+					
+					# Autosave data and logs
+					save_data(dataset, calset, conf_data, __file__, operator_notes, sweep_name, autosave=True)
+					
+					# Change autosave time
+					t_last_autosave = time.time()
 
 # Turn off signal generators
 sg1.set_enable_rf(False)
 sg2.set_enable_rf(False)
 
-# Make hybrid meta-data/dataset file
-hybrid = {'dataset':dataset, 'configuration': conf_data, 'source_script': __file__, 'operator_notes':operator_notes}
-
-# Save log
-log.save_hdf(os.path.join(LOG_DIRECTORY, f"{sweep_name}.log.hdf"))
-
-# Save data - HDF5
-dict_to_hdf5(hybrid, os.path.join(DATA_DIRECTORY, f"{sweep_name}.json"))
-
-# Save data - JSON
-with open(os.path.join(DATA_DIRECTORY, f"{sweep_name}.json"), "w") as outfile:
-	outfile.write(json.dumps(hybrid, indent=4))
+# Save data and logs
+save_data(dataset, calset, conf_data, __file__, operator_notes, sweep_name)
 

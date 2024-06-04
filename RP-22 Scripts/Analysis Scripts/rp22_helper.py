@@ -311,9 +311,10 @@ def dict_to_hdf5(json_data:dict, save_file) -> bool:
 		lo_enabled[idx] = dp['lo_enabled']
 		coupled_pwr_dBm[idx] = dp['coupled_power_meas_dBm']
 		
-		waveform_f_Hz[idx][:] = dp['waveform_f_Hz']
-		waveform_s_dBm[idx][:] = dp['waveform_s_dBm']
-		waveform_rbw_Hz[idx][:] = dp['waveform_rbw_Hz']
+		local_len = len(dp['waveform_f_Hz'])
+		waveform_f_Hz[idx][0:local_len] = dp['waveform_f_Hz']
+		waveform_s_dBm[idx][0:local_len] = dp['waveform_s_dBm']
+		waveform_rbw_Hz[idx][0:local_len] = dp['waveform_rbw_Hz']
 
 	t_gather = time.time()-t_gather_0
 	print(f"Gather JSON data into lists in {t_gather} sec.")
