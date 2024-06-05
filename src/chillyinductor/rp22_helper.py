@@ -6,6 +6,110 @@ from sys import platform
 import os
 import re
 import fnmatch
+import matplotlib.pyplot as plt
+from matplotlib.patches import Rectangle
+import pandas as pd
+
+def subplot_size(N:int):
+	# Thanks Copilot
+	
+	desired_aspect_ratio = 16 / 9
+	cols = int(np.sqrt(N * desired_aspect_ratio))
+	rows = int(np.ceil(N / cols))
+	
+	print(f"N = {N}, cols={cols}, rows={rows}")
+	
+	return (rows, cols)
+
+def plot_drive_conditions(df:pd.DataFrame, fig_no:int=1):
+	
+	# Find number of numeric columns
+	numerics = ['int16', 'int32', 'int64', 'float16', 'float32', 'float64']
+	newdf = df.select_dtypes(include=numerics)
+	
+	# Get subplot count
+	n_col = len(newdf.columns)
+	spdim = subplot_size(n_col)
+	sp_row = spdim[0]
+	sp_col = spdim[1]
+	
+	# Plot each parameter
+	plt.figure(fig_no)
+	plt.tight_layout()
+	for col_idx in range(n_col):
+		
+		plt.subplot(sp_row, sp_col, col_idx+1)
+		
+		plt.plot(newdf.iloc[:,col_idx], linewidth=1, linestyle=':', marker='.', markersize=3)
+		plt.title(newdf.columns[col_idx])
+		plt.grid()
+	
+
+def plot_spectrum(waveform_f_Hz, waveform_s_dBm, waveform_rbw_Hz, rbw_threshold_Hz=5e3, linestyle=':', marker='.', fig_no=1, f_rf=None, f_lo=None, autoshow:bool=False):
+	''' Function w functionality of AS2 '''
+	
+	# Calcuate indecies
+	fine_idx = waveform_rbw_Hz<=rbw_threshold_Hz
+	coarse_idx = waveform_rbw_Hz>rbw_threshold_Hz
+	
+	xlow = min(waveform_f_Hz/1e9)
+	xhigh = max(waveform_f_Hz/1e9)
+	
+	plt.figure(fig_no)
+	plt.tight_layout()
+	plt.subplot(2, 1, 1)
+	plt.scatter(waveform_f_Hz[fine_idx]/1e9, waveform_s_dBm[fine_idx], marker='.')
+	plt.grid(True)
+	plt.xlabel("Frequency (GHz)")
+	plt.ylabel("Power (dBm)")
+	plt.title("Fine Sweep")
+	plt.xlim(xlow, xhigh)
+	
+	plt.subplot(2, 1, 2)
+	plt.scatter(waveform_f_Hz[coarse_idx]/1e9, waveform_s_dBm[coarse_idx], marker='.')
+	plt.grid(True)
+	plt.xlabel("Frequency (GHz)")
+	plt.ylabel("Power (dBm)")
+	plt.title("Coarse Sweep")
+	plt.xlim(xlow, xhigh)
+	
+	box_width = (xhigh-xlow)/100
+	rf_c = (0, 0.7, 0)
+	mix_c = (0.7, 0, 0.7)
+	lo_c = (0.7, 0, 0)
+	alp = [0.25, 0.15, 0.075]
+	
+	
+	# Draw harmonics
+	if (f_rf is not None) and (f_lo is not None):
+		
+		def add_box(box_width, center, alp, color):
+			ybounds = plt.ylim()
+			
+			r = Rectangle((center-box_width/2, ybounds[0]), box_width, ybounds[1]-ybounds[0], facecolor=color, alpha=alp)
+			
+			ax = plt.gca()
+			ax.add_patch(r)
+			
+		for pltN in [1, 2]:
+			plt.subplot(2, 1, pltN)
+			add_box(box_width, f_rf, alp[0], rf_c)
+			add_box(box_width, 2*f_rf, alp[1], rf_c)
+			add_box(box_width, f_rf-f_lo, alp[1], mix_c)
+			add_box(box_width, f_rf+f_lo, alp[1], mix_c)
+			add_box(box_width, f_rf-2*f_lo, alp[2], mix_c)
+			add_box(box_width, f_rf+2*f_lo, alp[2], mix_c)
+			add_box(box_width, f_lo, alp[0], lo_c)
+			add_box(box_width, 2*f_lo, alp[1], lo_c)
+			add_box(box_width, 3*f_lo, alp[2], lo_c)
+	
+	if autoshow:
+		plt.show()
+
+
+def plot_spectrum_df(df_sa, df_cond, index, rbw_threshold_Hz=5e3, linestyle=':', marker='.', fig_no=1, autoshow:bool=False):
+	
+	plot_spectrum(df_sa['wav_f_Hz'].iloc[index], df_sa['wav_s_dBm'].iloc[index], df_sa['wav_rbw_Hz'].iloc[index], f_rf=df_cond['freq_rf_GHz'].iloc[index], f_lo=df_cond['freq_lo_GHz'].iloc[index], rbw_threshold_Hz=rbw_threshold_Hz, linestyle=linestyle, marker=marker, fig_no=fig_no, autoshow=autoshow)
 
 def wildcard_path(base_path:str, partial:str):
 	''' Given a partial directory name, like Fold*r, returns

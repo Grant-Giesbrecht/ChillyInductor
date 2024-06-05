@@ -69,9 +69,18 @@ with h5py.File(analysis_file, 'r') as fh:
 	df_cond = pd.DataFrame(df_cond_dict)
 	df_sa = pd.DataFrame(df_sa_dict)
 	
+	# Trim values greater than 10e3
+	X = 10e3
+	I_match = (df_cond <= X).all(axis=1)
+	df_cond = df_cond[I_match]
+	df_sa = df_sa[I_match]
+	
 	print(f"{Fore.YELLOW}DF_COND:{Style.RESET_ALL}")
 	print(df_cond)
 	print(f"{Fore.YELLOW}DF_SA:{Style.RESET_ALL}")
 	print(df_sa)
 
+plot_drive_conditions(df_cond, fig_no=10)
 
+plot_spectrum_df(df_sa, df_cond, index=5, autoshow=False, fig_no=1)
+plot_spectrum_df(df_sa, df_cond, index=1000, autoshow=True, fig_no=2)
