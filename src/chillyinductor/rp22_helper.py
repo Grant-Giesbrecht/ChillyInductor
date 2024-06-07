@@ -9,6 +9,82 @@ import fnmatch
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 import pandas as pd
+from colorama import Fore, Style
+
+def spectrum_peak(freqs, pwr, f_target, num_points:int=5):
+	''' Returns the power at a given frequency. Returns np.nan if invalid '''
+	
+	# Check bounds
+	freqs = np.asarray(freqs)
+	if f_target < np.min(freqs) or f_target > np.max(freqs):
+		return np.nan
+	
+	# Get index of closest frequency
+	idx = (np.abs(freqs - f_target)).argmin()
+	
+	# Return Max Power
+	try:
+		return max(pwr[(idx-num_points//2):(idx-num_points//2+num_points)])
+	except:
+		return np.nan
+
+def dBm2W(x:float):
+	mw = 10**(x/10)
+	w = mw/1000
+	return w
+
+def W2dBm(x:float):
+	mw = x*1000
+	dBm = 10*np.log10(mw)
+	return dBm
+
+def spectrum_sum(freqs, pwr, f_min:float=None, f_max:float=None):
+	''' Returns the total power in a spectrum. '''
+	
+	all_bws = []
+	pwr_sum = 0
+	
+	if f_min is not None or f_max is not None:
+		print(f"{Fore.RED}This hasn't been implemented!{Style.RESET_ALL} Just need to filter pwr in the for loop statement and add the starting index to idx.")
+		return None
+	
+	# Scan over spectrum
+	for idx, s_pt in enumerate(pwr):
+		
+		# Try to find lower freq delta
+		bw_list = []
+		try:
+			bw_new = freqs[idx]-freqs[idx-1]
+			if bw_new == 0:
+				bw_new = freqs[idx-1]-freqs[idx-2]
+			bw_list.append(np.abs(bw_new))
+		except:
+			pass
+		
+		# Try to find upper freq delta
+		try:
+			bw_new = freqs[idx+1]-freqs[idx]
+			if bw_new == 0:
+				bw_new = freqs[idx+2]-freqs[idx+1]
+			bw_list.append(np.abs(bw_new))
+		except:
+			pass
+		
+		# Get minimum BW change
+		bw = min(bw_list)
+		
+		# If BW is large, skip it!
+		if bw > 10e3:
+			continue
+		
+		# Add to BW list
+		all_bws.append(bw)
+		
+		# Add to power sum
+		pwr_sum += dBm2W(s_pt)*bw
+	
+	# Return sum
+	return W2dBm(pwr_sum)
 
 def subplot_size(N:int):
 	# Thanks Copilot
@@ -45,7 +121,7 @@ def plot_drive_conditions(df:pd.DataFrame, fig_no:int=1):
 		plt.grid()
 	
 
-def plot_spectrum(waveform_f_Hz, waveform_s_dBm, waveform_rbw_Hz, rbw_threshold_Hz=5e3, linestyle=':', marker='.', fig_no=1, f_rf=None, f_lo=None, autoshow:bool=False):
+def plot_spectrum(waveform_f_Hz, waveform_s_dBm, waveform_rbw_Hz, rbw_threshold_Hz=5e3, linestyle=':', marker='.', fig_no=1, f_rf=None, f_lo=None, autoshow:bool=False, print_conditions:bool=False):
 	''' Function w functionality of AS2 '''
 	
 	# Calcuate indecies
@@ -107,7 +183,27 @@ def plot_spectrum(waveform_f_Hz, waveform_s_dBm, waveform_rbw_Hz, rbw_threshold_
 		plt.show()
 
 
-def plot_spectrum_df(df_sa, df_cond, index, rbw_threshold_Hz=5e3, linestyle=':', marker='.', fig_no=1, autoshow:bool=False):
+def plot_spectrum_df(df_sa, df_cond, index, rbw_threshold_Hz=5e3, linestyle=':', marker='.', fig_no=1, autoshow:bool=False, print_conditions:bool=False):
+	''' Plots a spectrum and highlights the mixing products. Accepts a pandas dataframe as input. '''
+	
+	if print_conditions:
+		c1 = Fore.CYAN
+		c2 = Fore.LIGHTRED_EX
+		print(f"{Fore.YELLOW}Printing conditions for FIG-{fig_no}:{Style.RESET_ALL}")
+		
+		if df_cond.rf_enabled.iloc[index]:
+			print(f"\tRF = (Enabled: {c1}{df_cond.rf_enabled.iloc[index]}{Style.RESET_ALL}), {c1}{df_cond.power_rf_dBm.iloc[index]}{Style.RESET_ALL} dBm @ {c1}{df_cond.freq_rf_GHz.iloc[index]}{Style.RESET_ALL} GHz")
+		else:
+			print(f"\tRF = (Enabled: {c2}{df_cond.rf_enabled.iloc[index]}{Style.RESET_ALL})")
+		if df_cond.lo_enabled.iloc[index]:
+			print(f"\tLO = (Enabled: {c1}{df_cond.lo_enabled.iloc[index]}{Style.RESET_ALL}), {c1}{df_cond.power_lo_dBm.iloc[index]}{Style.RESET_ALL} dBm @ {c1}{df_cond.freq_lo_GHz.iloc[index]}{Style.RESET_ALL} GHz")
+		else:
+			print(f"\tLO = (Enabled: {c2}{df_cond.lo_enabled.iloc[index]}{Style.RESET_ALL})")
+		
+		print(f"\tPower Meter = {c1}{df_cond.powermeter_dBm.iloc[index]}{Style.RESET_ALL}")
+		# print(f"\t = {c1}{df_cond.}{Style.RESET_ALL}")
+		# print(f"\t = {c1}{df_cond.}{Style.RESET_ALL}")
+	
 	
 	plot_spectrum(df_sa['wav_f_Hz'].iloc[index], df_sa['wav_s_dBm'].iloc[index], df_sa['wav_rbw_Hz'].iloc[index], f_rf=df_cond['freq_rf_GHz'].iloc[index], f_lo=df_cond['freq_lo_GHz'].iloc[index], rbw_threshold_Hz=rbw_threshold_Hz, linestyle=linestyle, marker=marker, fig_no=fig_no, autoshow=autoshow)
 
@@ -220,8 +316,7 @@ def get_datadir_path(rp:int, smc:str, check_drive_letters:list=None):
 			if os.path.exists(try_path):
 				drive_letter = cdl
 				break
-			else:
-				print(f"Path {try_path} doesn't exist.")
+				
 		# Quit if can't find drive
 		if drive_letter is None:
 			return None
@@ -581,3 +676,101 @@ def dict_to_hdf5(json_data:dict, save_file) -> bool:
 	
 	t_hdf = time.time()-t_hdf_0
 	print(f"Wrote HDF5 file in {t_hdf} sec.")
+
+@dataclass
+class PowerSpectrum:
+	
+	rf1:float = None
+	rf2:float = None
+	rf3:float = None
+	lo1:float = None
+	lo2:float = None
+	lo3:float = None
+	mx1l:float = None
+	mx1h:float = None
+	mx2l:float = None
+	mx2h:float = None
+
+def calc_mixing_data_single(df_cond:pd.Series, df_sa:pd.Series) -> PowerSpectrum:
+	
+	nps = PowerSpectrum()
+	
+	frf = df_cond.freq_rf_GHz*1e9
+	flo = df_cond.freq_lo_GHz*1e9
+	
+	nps.rf1 = spectrum_peak(df_sa.wav_f_Hz, df_sa.wav_s_dBm, frf)
+	nps.rf2 = spectrum_peak(df_sa.wav_f_Hz, df_sa.wav_s_dBm, frf*2)
+	nps.rf3 = spectrum_peak(df_sa.wav_f_Hz, df_sa.wav_s_dBm, frf*3)
+	
+	nps.lo1 = spectrum_peak(df_sa.wav_f_Hz, df_sa.wav_s_dBm, flo)
+	nps.lo2 = spectrum_peak(df_sa.wav_f_Hz, df_sa.wav_s_dBm, flo*2)
+	nps.lo3 = spectrum_peak(df_sa.wav_f_Hz, df_sa.wav_s_dBm, flo*3)
+	
+	nps.mx1l = spectrum_peak(df_sa.wav_f_Hz, df_sa.wav_s_dBm, frf-flo)
+	nps.mx1h = spectrum_peak(df_sa.wav_f_Hz, df_sa.wav_s_dBm, frf+flo)
+	nps.mx2l = spectrum_peak(df_sa.wav_f_Hz, df_sa.wav_s_dBm, frf-2*flo)
+	nps.mx2h = spectrum_peak(df_sa.wav_f_Hz, df_sa.wav_s_dBm, frf+2*flo)
+	
+	return nps
+
+def calc_mixing_data(df_cond:pd.DataFrame, df_sa:pd.DataFrame) -> pd.DataFrame:
+	''' Processes input DataFrame and returns a dataframe with peaks, mixing products, etc.'''
+	
+	data_block = []
+	
+	# Assign row one at a time
+	for index, row in df_cond.iterrows():
+		
+		# Get mixing products for this row
+		nps = calc_mixing_data_single(df_cond.iloc[index, :], df_sa.iloc[index, :])
+		
+		nps_list = [nps.rf1, nps.rf2, nps.rf3, nps.lo1, nps.lo2, nps.lo3, nps.mx1l, nps.mx1h, nps.mx2l, nps.mx2h]
+		
+		# Append to data block
+		data_block.append(nps_list)
+	
+	df_out_peaks = pd.DataFrame(data_block, columns=['peak_rf1', 'peak_rf2', 'peak_rf3', 'peak_lo1', 'peak_lo2', 'peak_lo3', 'peak_mx1l', 'peak_mx1h', 'peak_mx2l', 'peak_mx2h'])
+	
+	# Merge with df_cond and df_sa
+	df_out_meister = pd.merge(df_cond, df_sa, left_index=True, right_index=True, how='outer')
+	df_out_meister = pd.merge(df_out_meister, df_out_peaks, left_index=True, right_index=True, how='outer')
+	
+	# Find change!
+	
+	# Calibration things??
+	
+	# Return a dataframe
+	
+	return df_out_meister
+
+def dfplot(df, xparam:str, yparam:str, zparam:str, skip_plot:bool=False, fig_no:int=1):
+	''' Accepts a dataframe as input, and returns a tuple with (X,Y,Z)
+# 	2D lists to plot using contourf(). '''
+	
+	# Thanks copilot!
+	
+	# Ensure the DataFrame contains the necessary columns
+	if not {xparam, yparam, zparam}.issubset(df.columns):
+		raise ValueError("DataFrame missing specified columns")
+
+	# Create a grid of points
+	x = np.linspace(df[xparam].min(), df[xparam].max(), len(df[xparam].unique()))
+	y = np.linspace(df[yparam].min(), df[yparam].max(), len(df[yparam].unique()))
+	X, Y = np.meshgrid(x, y)
+
+	# Reshape zparam to match the grid shape
+	Z = df.pivot_table(index=yparam, columns=xparam, values=zparam).values
+	
+	# Skip plot if asked
+	if not skip_plot:
+		
+		# Create the contourf plot
+		plt.figure(fig_no)
+		plt.contourf(X, Y, Z, levels=15, cmap='viridis')
+		plt.colorbar()  # Add a colorbar to a plot
+		plt.xlabel(xparam)
+		plt.ylabel(yparam)
+		plt.show()
+	
+	# Return data values
+	return (X, Y, Z)

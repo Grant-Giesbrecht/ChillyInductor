@@ -80,7 +80,12 @@ with h5py.File(analysis_file, 'r') as fh:
 	print(f"{Fore.YELLOW}DF_SA:{Style.RESET_ALL}")
 	print(df_sa)
 
-plot_drive_conditions(df_cond, fig_no=10)
+# Plot drive conditions
+plot_drive_conditions(df_cond, fig_no=1)
 
-plot_spectrum_df(df_sa, df_cond, index=5, autoshow=False, fig_no=1)
-plot_spectrum_df(df_sa, df_cond, index=1000, autoshow=True, fig_no=2)
+# Plot spectrum points
+plot_spectrum_df(df_sa, df_cond, index=5, autoshow=False, fig_no=2)
+plot_spectrum_df(df_sa, df_cond, index=1000, autoshow=False, fig_no=3)
+
+# Show plots
+plt.show()

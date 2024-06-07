@@ -1,5 +1,6 @@
 {
 	"python.analysis.extraPaths": [
 		"./Python Sim/"
-	]
+	],
+	"editor.mouseWheelScrollSensitivity": 2
 }

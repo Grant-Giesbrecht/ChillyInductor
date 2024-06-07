@@ -5,7 +5,7 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from scipy.optimize import curve_fit
 from dataclasses import dataclass
-from rp22_helper import *
+from chillyinductor.rp22_helper import *
 from colorama import Fore, Style
 import sys
 
@@ -230,7 +230,7 @@ for irf, ufrf in enumerate(unique_f_rf):
 		Z_mx1H[irf][ilo] = p_mx1H[idx_master][0]
 		Z_mx2L[irf][ilo] = p_mx2L[idx_master][0]
 		Z_mx2H[irf][ilo] = p_mx2H[idx_master][0]
-		
+
 
 c_min = None
 c_max = None
