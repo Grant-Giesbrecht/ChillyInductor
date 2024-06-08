@@ -28,7 +28,7 @@
 			"mode": "dynamic",
 			"span_Hz": 1e6,
 			"RBW_Hz": 1e3,
-			"mixing_products_order": 0,
+			"mixing_products_order": 2,
 			"lo_harmonics": 4,
 			"rf_harmonics": 4
 		},

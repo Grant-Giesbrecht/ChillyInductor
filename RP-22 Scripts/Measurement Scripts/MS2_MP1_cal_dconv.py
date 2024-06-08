@@ -148,6 +148,8 @@ count = 0
 
 # Run in-situ calibration
 
+sa1.set_continuous_trigger(False) # Otherwise wait-ready will not work!
+
 # Turn off LO signal generators
 sg2.set_enable_rf(False)
 
@@ -459,7 +461,7 @@ for fa in freq_rf:
 					log.debug("Autosaving data and logs")
 					
 					# Autosave data and logs
-					save_data(dataset, calset, conf_data, __file__, operator_notes, sweep_name, autosave=True)
+					save_data(dataset, calset, conf_data, __file__, operator_notes, sweep_name, autosave=True, log=log)
 					
 					# Change autosave time
 					t_last_autosave = time.time()
@@ -469,5 +471,5 @@ sg1.set_enable_rf(False)
 sg2.set_enable_rf(False)
 
 # Save data and logs
-save_data(dataset, calset, conf_data, __file__, operator_notes, sweep_name)
+save_data(dataset, calset, conf_data, __file__, operator_notes, sweep_name, autosave=False, log=log)
 

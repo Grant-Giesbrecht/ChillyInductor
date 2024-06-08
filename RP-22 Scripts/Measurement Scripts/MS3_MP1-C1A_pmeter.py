@@ -11,7 +11,7 @@ of frequency.
 from heimdallr.all import *
 import numpy as np
 import os
-from rp22_helper import *
+from chillyinductor.rp22_helper import *
 from collections import Counter
 
 # Set directories for data and sweep configuration
@@ -21,6 +21,43 @@ LOG_DIRECTORY = "logs"
 
 # Create logger
 log = LogPile()
+
+def save_data(calset, conf_data, src_script, operator_notes, sweep_name, autosave:bool=False, log:LogPile=None):
+	
+	append_str = ""
+	if autosave:
+		append_str = "_autosave"
+	
+	conf_dict = {'source_script': src_script, 'operator_notes':operator_notes, 'configuration':json.dumps(conf_data)}
+	
+	# Make hybrid meta-data/dataset file
+	root_dict = {'calibration_data':reform_dictlist(calset), 'info': conf_dict}
+	
+	# # Save data - JSON
+	# t0 = time.time()
+	# with open(os.path.join(DATA_DIRECTORY, f"{sweep_name}{append_str}.json"), "w") as outfile:
+	# 	outfile.write(json.dumps(hybrid, indent=4))
+	# t_save_json = time.time() - t0
+	
+	# if log is not None:
+	# 	log.debug(f"Autosaved data to JSON in {t_save_json} seconds.")
+	
+	# Save log
+	if log is not None:
+		t0 = time.time()
+		log.save_hdf(os.path.join(LOG_DIRECTORY, f"{sweep_name}{append_str}.log.hdf"))
+		t_save_log = time.time() - t0
+	
+	if log is not None:
+		log.debug(f"Autosaved log to HDF in {t_save_log} seconds.")
+	
+	# Save data - HDF5
+	t0 = time.time()
+	save_hdf(root_dict, os.path.join(DATA_DIRECTORY, f"{sweep_name}{append_str}.hdf"))
+	t_save_hdf = time.time() - t0
+	
+	if log is not None:
+		log.debug(f"Autosaved data to HDF in {t_save_hdf} seconds.")
 
 # Get configuration
 conf_file_prefix = input(f"Configuration file name: (No extension or folder)")
@@ -61,6 +98,8 @@ sg1 = Keysight8360L("GPIB::18::INSTR", log)
 sg2 = AgilentE4400("GPIB::19::INSTR", log)
 sa1 = RohdeSchwarzFSQ("TCPIP0::192.168.1.14::INSTR", log)
 nrp = RohdeSchwarzNRP("USB0::0x0AAD::0x0139::101706::INSTR", log)
+
+sa1.set_continuous_trigger(False)
 
 #TODO: Add power calibration
 #TODO: Add frequency calibration
@@ -107,6 +146,11 @@ except Exception as e:
 	print(f"power_LO_dBm = {power_LO_dBm}")
 	print(f"dummy_sa_conditions = {dummy_sa_conditions}")
 count = 0
+
+fb = 1e9
+p_lo_dBm = -40
+sg2.set_freq(fb)
+sg2.set_power(p_lo_dBm)
 
 #RF Points
 fb = 1e9
@@ -207,8 +251,12 @@ for fa in freq_rf:
 		# Append to dataset
 		dataset.append(dp)
 
-# LO Points
 fa = 1e9
+p_rf_dBm = -40
+sg1.set_freq(fa)
+sg1.set_power(p_rf_dBm)
+
+# LO Points
 for fb in freq_lo:
 	
 	log.info(f"Setting freq_lo to >{fb/1e9}< GHz")
@@ -310,16 +358,6 @@ for fb in freq_lo:
 sg1.set_enable_rf(False)
 sg2.set_enable_rf(False)
 
-# Make hybrid meta-data/dataset file
-hybrid = {'dataset':dataset, 'configuration': conf_data, 'source_script': __file__, 'operator_notes':operator_notes}
-
-# Save data - JSON
-with open(os.path.join(DATA_DIRECTORY, f"{sweep_name}.json"), "w") as outfile:
-	outfile.write(json.dumps(hybrid, indent=4))
-
-# Save log
-log.save_hdf(os.path.join(LOG_DIRECTORY, f"{sweep_name}.log.hdf"))
-
-# Save data - HDF5
-dict_to_hdf5(hybrid, os.path.join(DATA_DIRECTORY, f"{sweep_name}.hdf"))
+# Save data and logs
+save_data(dataset, conf_data, __file__, operator_notes, sweep_name, autosave=False, log=log)
 
