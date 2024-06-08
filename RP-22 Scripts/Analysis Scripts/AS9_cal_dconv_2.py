@@ -4,12 +4,12 @@ import time
 import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 from scipy.optimize import curve_fit
-from dataclasses import dataclass
 from chillyinductor.rp22_helper import *
 from colorama import Fore, Style
 import sys
 import os
 import pandas as pd
+
 
 #------------------------------------------------------------
 # Import Data
@@ -21,7 +21,7 @@ else:
 	print(f"{Fore.GREEN}Located data directory at: {Fore.LIGHTBLACK_EX}{datapath}{Style.RESET_ALL}")
 # filename = "dMS2_t3_04June2024_r1.hdf"
 # filename = "dMS2_t4_05June2024_r1.hdf"
-filename = "dMS2_t3_05June2024_r2.hdf"
+filename = "dMS2_t3_06June2024_5mA6_r1.hdf"
 
 analysis_file = os.path.join(datapath, filename)
 
@@ -122,125 +122,26 @@ print(f"Total spectral power: {pwr_sum} dBm")
 ##===========================================================================
 # How about a rudimentary estimate for mixing efficiency?
 
-@dataclass
-class PowerSpectrum:
-	
-	rf1:float = None
-	rf2:float = None
-	rf3:float = None
-	lo1:float = None
-	lo2:float = None
-	lo3:float = None
-	mx1l:float = None
-	mx1h:float = None
-	mx2l:float = None
-	mx2h:float = None
-
-def calc_mixing_data_single(df_cond:pd.Series, df_sa:pd.Series) -> PowerSpectrum:
-	
-	nps = PowerSpectrum()
-	
-	frf = df_cond.freq_rf_GHz*1e9
-	flo = df_cond.freq_lo_GHz*1e9
-	
-	nps.rf1 = spectrum_peak(df_sa.wav_f_Hz, df_sa.wav_s_dBm, frf)
-	nps.rf2 = spectrum_peak(df_sa.wav_f_Hz, df_sa.wav_s_dBm, frf*2)
-	nps.rf3 = spectrum_peak(df_sa.wav_f_Hz, df_sa.wav_s_dBm, frf*3)
-	
-	nps.lo1 = spectrum_peak(df_sa.wav_f_Hz, df_sa.wav_s_dBm, flo)
-	nps.lo2 = spectrum_peak(df_sa.wav_f_Hz, df_sa.wav_s_dBm, flo*2)
-	nps.lo3 = spectrum_peak(df_sa.wav_f_Hz, df_sa.wav_s_dBm, flo*3)
-	
-	nps.mx1l = spectrum_peak(df_sa.wav_f_Hz, df_sa.wav_s_dBm, frf-flo)
-	nps.mx1h = spectrum_peak(df_sa.wav_f_Hz, df_sa.wav_s_dBm, frf+flo)
-	nps.mx2l = spectrum_peak(df_sa.wav_f_Hz, df_sa.wav_s_dBm, frf-2*flo)
-	nps.mx2h = spectrum_peak(df_sa.wav_f_Hz, df_sa.wav_s_dBm, frf+2*flo)
-	
-	return nps
-
-def calc_mixing_data(df_cond:pd.DataFrame, df_sa:pd.DataFrame) -> pd.DataFrame:
-	''' Processes input DataFrame and returns a dataframe with peaks, mixing products, etc.'''
-	
-	data_block = []
-	
-	# Assign row one at a time
-	for index, row in df_cond.iterrows():
-		
-		# Get mixing products for this row
-		nps = calc_mixing_data_single(df_cond.iloc[index, :], df_sa.iloc[index, :])
-		
-		nps_list = [nps.rf1, nps.rf2, nps.rf3, nps.lo1, nps.lo2, nps.lo3, nps.mx1l, nps.mx1h, nps.mx2l, nps.mx2h]
-		
-		# Append to data block
-		data_block.append(nps_list)
-	
-	df_out_peaks = pd.DataFrame(data_block, columns=['peak_rf1', 'peak_rf2', 'peak_rf3', 'peak_lo1', 'peak_lo2', 'peak_lo3', 'peak_mx1l', 'peak_mx1h', 'peak_mx2l', 'peak_mx2h'])
-	
-	# Merge with df_cond and df_sa
-	df_out_meister = pd.merge(df_cond, df_sa, left_index=True, right_index=True, how='outer')
-	df_out_meister = pd.merge(df_out_meister, df_out_peaks, left_index=True, right_index=True, how='outer')
-	
-	# Find change!
-	
-	# Calibration things??
-	
-	# Return a dataframe
-	
-	return df_out_meister
-
-# def dfplot(df_src, xparam:str, yparam:str, zparam:str):
-# 	''' Accepts a dataframe as input, and returns a tuple with (X,Y,Z)
-# 	2D lists to plot using contourf(). '''
-	
-# 	# Get unique axis values
-# 	unique_x = sorted(list(set(df_src[xparam])))
-# 	unique_y = sorted(list(set(df_src[yparam])))
-	
-# 	# Generate X and Y variables
-# 	X, Y = np.meshgrid(unique_y, unique_x)
-	
-# 	# 
-
-def dfplot(df, xparam:str, yparam:str, zparam:str, skip_plot:bool=False, fig_no:int=1):
-	''' Accepts a dataframe as input, and returns a tuple with (X,Y,Z)
-# 	2D lists to plot using contourf(). '''
-	
-	# Thanks copilot!
-	
-	# Ensure the DataFrame contains the necessary columns
-	if not {xparam, yparam, zparam}.issubset(df.columns):
-		raise ValueError("DataFrame missing specified columns")
-
-	# Create a grid of points
-	x = np.linspace(df[xparam].min(), df[xparam].max(), len(df[xparam].unique()))
-	y = np.linspace(df[yparam].min(), df[yparam].max(), len(df[yparam].unique()))
-	X, Y = np.meshgrid(x, y)
-
-	# Reshape zparam to match the grid shape
-	Z = df.pivot_table(index=yparam, columns=xparam, values=zparam).values
-	
-	# Skip plot if asked
-	if not skip_plot:
-		
-		# Create the contourf plot
-		plt.figure(fig_no)
-		plt.contourf(X, Y, Z, levels=15, cmap='viridis')
-		plt.colorbar()  # Add a colorbar to a plot
-		plt.xlabel(xparam)
-		plt.ylabel(yparam)
-		plt.show()
-	
-	# Return data values
-	return (X, Y, Z)
-
 # Calculate mixing data DF
 df_mix = calc_mixing_data(df_cond, df_sa)
 
 # Generate a Nice N' Juicy plot
 mdt = dfplot(df_mix, xparam='freq_rf_GHz', yparam='freq_lo_GHz', zparam='powermeter_dBm', fig_no=5)
-mdt = dfplot(df_mix, xparam='freq_rf_GHz', yparam='freq_lo_GHz', zparam='peak_rf1', fig_no=6)
 
-# X = mdt[0]
-# Y = mdt[1]
+X,Y,Zmx1l = dfplot(df_mix, xparam='freq_rf_GHz', yparam='freq_lo_GHz', zparam='peak_mx1l', skip_plot=False, fig_no=6)
+X,Y,Zrf1 = dfplot(df_mix, xparam='freq_rf_GHz', yparam='freq_lo_GHz', zparam='peak_rf1', skip_plot=False, fig_no=7)
+X,Y,Zlo1 = dfplot(df_mix, xparam='freq_rf_GHz', yparam='freq_lo_GHz', zparam='peak_lo1', skip_plot=False, fig_no=8)
+
+# Create the contourf plot
+plt.figure(9)
+plt.contourf(X, Y, Zmx1l-Zrf1, levels=15, cmap='viridis')
+plt.colorbar()
+plt.xlabel('RF Freq (GHz)')
+plt.ylabel('LO Freq (GHz)')
+# plt.show()
+
+# Make a 3D version
+X,Y,Zrf1 = dfplot3d(df_mix, xparam='freq_rf_GHz', yparam='freq_lo_GHz', zparam='peak_rf1', skip_plot=False, fig_no=10, show_markers=True, hovertips=True)
+
 
 plt.show()

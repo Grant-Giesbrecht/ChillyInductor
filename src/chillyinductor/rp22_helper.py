@@ -10,9 +10,58 @@ import matplotlib.pyplot as plt
 from matplotlib.patches import Rectangle
 import pandas as pd
 from colorama import Fore, Style
+from dataclasses import dataclass
+from mpl_toolkits.mplot3d import axes3d
+
+def plot_nan(x, y):
+	
+	print("TODO: This doesn't work but should be fixed!")
+	
+	# Example DataFrame (replace with your actual data)
+	data = {
+		'idx': x,
+		'col': y
+	}
+	df = pd.DataFrame(data)
+
+	# Convert 'idx' to datetime if needed
+	df['idx'] = pd.to_datetime(df['idx'])
+
+	# Set 'idx' as the index
+	df = df.set_index('idx')
+
+	# Code to find the start and stop index of NaN gaps
+	is_nan = df['col'].isna()
+	n_groups = is_nan.ne(is_nan.shift()).cumsum()
+	gap_list = df[is_nan].groupby(n_groups).aggregate(
+		lambda x: (
+			x.index[0] + pd.DateOffset(days=-1),
+			x.index[-1] + pd.DateOffset(days=+1)
+		)
+	)["col"].values
+
+	# Create the plot
+	plt.plot(df.index, df['col'], marker='o')
+	plt.xticks(df.index, rotation=45)
+
+	# Highlight gaps in red
+	for gap in gap_list:
+		plt.axvspan(gap[0], gap[1], facecolor='r', alpha=0.5)
+
+	plt.grid()
+	plt.title("Time Series with Gap Highlights")
+	plt.xlabel("Date")
+	plt.ylabel("Value")
+	plt.show()
+
 
 def spectrum_peak(freqs, pwr, f_target, num_points:int=5):
 	''' Returns the power at a given frequency. Returns np.nan if invalid '''
+	
+	# Remove all nan values
+	valid_indices = np.where(~np.isnan(freqs) & ~np.isnan(pwr)) # Find indices where neither array has NaN
+	freqs = freqs[valid_indices]
+	pwr = pwr[valid_indices]
 	
 	# Check bounds
 	freqs = np.asarray(freqs)
@@ -21,6 +70,8 @@ def spectrum_peak(freqs, pwr, f_target, num_points:int=5):
 	
 	# Get index of closest frequency
 	idx = (np.abs(freqs - f_target)).argmin()
+	f_match = freqs[idx]
+	print(f"Closest index = {idx}, f={f_match}")
 	
 	# Return Max Power
 	try:
@@ -743,7 +794,7 @@ def calc_mixing_data(df_cond:pd.DataFrame, df_sa:pd.DataFrame) -> pd.DataFrame:
 	
 	return df_out_meister
 
-def dfplot(df, xparam:str, yparam:str, zparam:str, skip_plot:bool=False, fig_no:int=1):
+def dfplot(df, xparam:str, yparam:str, zparam:str, skip_plot:bool=False, fig_no:int=1, autoshow:bool=False,):
 	''' Accepts a dataframe as input, and returns a tuple with (X,Y,Z)
 # 	2D lists to plot using contourf(). '''
 	
@@ -766,10 +817,85 @@ def dfplot(df, xparam:str, yparam:str, zparam:str, skip_plot:bool=False, fig_no:
 		
 		# Create the contourf plot
 		plt.figure(fig_no)
-		plt.contourf(X, Y, Z, levels=15, cmap='viridis')
+		plt.contourf(X, Y, Z, levels=35, cmap='viridis')
+		# plt.contourf(X, Y, Z)
 		plt.colorbar()  # Add a colorbar to a plot
 		plt.xlabel(xparam)
 		plt.ylabel(yparam)
+		plt.title(zparam)
+	
+	if autoshow:
+		plt.show()
+	
+	# Return data values
+	return (X, Y, Z)
+
+def dfplot3d(df, xparam:str, yparam:str, zparam:str, skip_plot:bool=False, fig_no:int=1, autoshow:bool=False, show_markers:bool=False, projections=None, hovertips:bool=True):
+	''' Accepts a dataframe as input, and returns a tuple with (X,Y,Z)
+# 	2D lists to plot using contourf(). '''
+	
+	X, Y, Z = dfplot(df, xparam, yparam, zparam, skip_plot=True, fig_no=fig_no, autoshow=False)
+	
+	fig = plt.figure(fig_no)
+	ax = fig.add_subplot(projection='3d')
+	
+	# ax.plot_surface(X, Y, Z, edgecolor='royalblue', lw=0.5, rstride=8, cstride=8, alpha=0.3)
+	# if projections is not None:
+	# 	ax.contourf(X,Y,Z, zdir='z', offset=-100, cmap='coolwarm')
+	# 	ax.contourf(X,Y,Z, zdir='x', offset=-40, cmap='coolwarm')
+	# 	ax.contourf(X,Y,Z, zdir='y', offset=40, cmap='coolwarm')
+	
+	names = np.array(list("ABCDEFGHIJKLMNO"))
+	
+	# Initialize an empty annotation - Thanks Copilot
+	annot = ax.annotate("", xy=(0, 0), xytext=(20, 20), textcoords="offset points", bbox=dict(boxstyle="round", fc="w"), arrowprops=dict(arrowstyle="->"))
+	annot.set_visible(False)
+	
+	if show_markers:
+		
+		flatX = X.flatten()
+		flatY = Y.flatten()
+		flatZ = Z.flatten()
+		
+		sc = ax.scatter(flatX,flatY, flatZ, color=(0, 0.4, 0.7), s=10, label='Data points', picker=True)
+	
+		# Update the annotation when hovering over points - Thanks Copilot
+		def update_annot(annot_text, mouse_event):
+			annot.xy = (mouse_event.x, mouse_event.y)
+			annot.set_text(annot_text)
+			annot.get_bbox_patch().set_facecolor('white')
+			annot.get_bbox_patch().set_alpha(0.7)
+		
+		def annotate_onclick(event):
+			print(event.ind)
+			# print(event.artist.get_data())
+			point_index = int(event.ind[0])
+			x_coord, y_coord, z_coord = flatX[point_index], flatY[point_index], flatZ[point_index]
+			annot_text = f"Point {point_index}: X={x_coord:.2f}, Y={y_coord:.2f}, Z={z_coord:.2f}"
+			print(annot_text)
+			annot.set_visible(True)
+			
+			update_annot(annot_text, event.mouseevent)
+		
+		# def hover(event):
+		# 	vis = annot.get_visible()
+		# 	if event.inaxes == ax:
+		# 		cont, ind = sc.contains(event)
+		# 		if cont:
+		# 			update_annot(ind)
+		# 			annot.set_visible(True)
+		# 			fig.canvas.draw_idle()
+		# 		else:
+		# 			if vis:
+		# 				annot.set_visible(False)
+		# 				fig.canvas.draw_idle()
+		
+		if hovertips:
+			print(f"Hovertips on")
+			# fig.canvas.mpl_connect("motion_notify_event", hover)
+			fig.canvas.mpl_connect("pick_event", annotate_onclick)
+	
+	if autoshow:
 		plt.show()
 	
 	# Return data values
