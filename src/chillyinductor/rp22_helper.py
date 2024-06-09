@@ -70,8 +70,6 @@ def spectrum_peak(freqs, pwr, f_target, num_points:int=5):
 	
 	# Get index of closest frequency
 	idx = (np.abs(freqs - f_target)).argmin()
-	f_match = freqs[idx]
-	print(f"Closest index = {idx}, f={f_match}")
 	
 	# Return Max Power
 	try:
@@ -836,17 +834,94 @@ def dfplot3d(df, xparam:str, yparam:str, zparam:str, skip_plot:bool=False, fig_n
 	
 	X, Y, Z = dfplot(df, xparam, yparam, zparam, skip_plot=True, fig_no=fig_no, autoshow=False)
 	
+	lplot3d(X, Y, Z, xparam, yparam, zparam, skip_plot=skip_plot, fig_no=fig_no, autoshow=autoshow, show_markers=show_markers, projections=projections, hovertips=hovertips)
+	
+	# fig = plt.figure(fig_no)
+	# ax = fig.add_subplot(projection='3d')
+	# fig.tight_layout()
+	
+	# ax.plot_surface(X, Y, Z, cmap='coolwarm', linewidth=0.5, antialiased=True, rstride=1, cstride=1) #edgecolor='royalblue', lw=0.5, rstride=8, cstride=8, alpha=0.3)
+	# # if projections is not None:
+	# # 	ax.contourf(X,Y,Z, zdir='z', offset=-100, cmap='coolwarm')
+	# # 	ax.contourf(X,Y,Z, zdir='x', offset=-40, cmap='coolwarm')
+	# # 	ax.contourf(X,Y,Z, zdir='y', offset=40, cmap='coolwarm')
+	
+	# ax.set_xlabel(xparam)
+	# ax.set_ylabel(yparam)
+	# ax.set_zlabel(zparam)
+		
+	# # Initialize an empty annotation - Thanks Copilot
+	# annot = ax.annotate("", xy=(0, 0), xytext=(20, 20), textcoords="offset points", bbox=dict(boxstyle="round", fc="w"), arrowprops=dict(arrowstyle="->"))
+	# annot.set_visible(False)
+	
+	# if show_markers:
+		
+	# 	flatX = X.flatten()
+	# 	flatY = Y.flatten()
+	# 	flatZ = Z.flatten()
+		
+	# 	sc = ax.scatter(flatX,flatY, flatZ, color=(0, 0.4, 0.7), s=3, marker='.', label='Data points', picker=True)
+	
+	# 	# Update the annotation when hovering over points - Thanks Copilot
+	# 	def update_annot(annot_text, mouse_event):
+	# 		annot.xy = (mouse_event.x, mouse_event.y)
+	# 		annot.set_text(annot_text)
+	# 		annot.get_bbox_patch().set_facecolor('white')
+	# 		annot.get_bbox_patch().set_alpha(0.7)
+		
+	# 	def annotate_onclick(event):
+	# 		print(event.ind)
+	# 		# print(event.artist.get_data())
+	# 		point_index = int(event.ind[0])
+	# 		x_coord, y_coord, z_coord = flatX[point_index], flatY[point_index], flatZ[point_index]
+	# 		annot_text = f"Point {point_index}: X={x_coord:.2f}, Y={y_coord:.2f}, Z={z_coord:.2f}"
+	# 		print(annot_text)
+	# 		annot.set_visible(True)
+			
+	# 		update_annot(annot_text, event.mouseevent)
+		
+	# 	# def hover(event):
+	# 	# 	vis = annot.get_visible()
+	# 	# 	if event.inaxes == ax:
+	# 	# 		cont, ind = sc.contains(event)
+	# 	# 		if cont:
+	# 	# 			update_annot(ind)
+	# 	# 			annot.set_visible(True)
+	# 	# 			fig.canvas.draw_idle()
+	# 	# 		else:
+	# 	# 			if vis:
+	# 	# 				annot.set_visible(False)
+	# 	# 				fig.canvas.draw_idle()
+		
+	# 	if hovertips:
+	# 		print(f"Hovertips on")
+	# 		# fig.canvas.mpl_connect("motion_notify_event", hover)
+	# 		fig.canvas.mpl_connect("pick_event", annotate_onclick)
+	
+	# if autoshow:
+	# 	plt.show()
+	
+	# Return data values
+	return (X, Y, Z)
+
+def lplot3d(X, Y, Z, xparam:str, yparam:str, zparam:str, skip_plot:bool=False, fig_no:int=1, autoshow:bool=False, show_markers:bool=False, projections=None, hovertips:bool=True):
+	''' Accepts a dataframe as input, and returns a tuple with (X,Y,Z)
+# 	2D lists to plot using contourf(). '''
+	
 	fig = plt.figure(fig_no)
 	ax = fig.add_subplot(projection='3d')
+	fig.tight_layout()
 	
-	# ax.plot_surface(X, Y, Z, edgecolor='royalblue', lw=0.5, rstride=8, cstride=8, alpha=0.3)
-	# if projections is not None:
-	# 	ax.contourf(X,Y,Z, zdir='z', offset=-100, cmap='coolwarm')
-	# 	ax.contourf(X,Y,Z, zdir='x', offset=-40, cmap='coolwarm')
-	# 	ax.contourf(X,Y,Z, zdir='y', offset=40, cmap='coolwarm')
+	ax.plot_surface(X, Y, Z, cmap='coolwarm', linewidth=0.5, antialiased=True, rstride=1, cstride=1) #edgecolor='royalblue', lw=0.5, rstride=8, cstride=8, alpha=0.3)
+	if projections is not None:
+		ax.contourf(X,Y,Z, zdir='z', offset=-100, cmap='coolwarm')
+		ax.contourf(X,Y,Z, zdir='x', offset=-40, cmap='coolwarm')
+		ax.contourf(X,Y,Z, zdir='y', offset=40, cmap='coolwarm')
 	
-	names = np.array(list("ABCDEFGHIJKLMNO"))
-	
+	ax.set_xlabel(xparam)
+	ax.set_ylabel(yparam)
+	ax.set_zlabel(zparam)
+		
 	# Initialize an empty annotation - Thanks Copilot
 	annot = ax.annotate("", xy=(0, 0), xytext=(20, 20), textcoords="offset points", bbox=dict(boxstyle="round", fc="w"), arrowprops=dict(arrowstyle="->"))
 	annot.set_visible(False)
@@ -857,7 +932,7 @@ def dfplot3d(df, xparam:str, yparam:str, zparam:str, skip_plot:bool=False, fig_n
 		flatY = Y.flatten()
 		flatZ = Z.flatten()
 		
-		sc = ax.scatter(flatX,flatY, flatZ, color=(0, 0.4, 0.7), s=10, label='Data points', picker=True)
+		sc = ax.scatter(flatX,flatY, flatZ, color=(0, 0.4, 0.7), s=3, marker='.', label='Data points', picker=True)
 	
 		# Update the annotation when hovering over points - Thanks Copilot
 		def update_annot(annot_text, mouse_event):
@@ -898,5 +973,3 @@ def dfplot3d(df, xparam:str, yparam:str, zparam:str, skip_plot:bool=False, fig_n
 	if autoshow:
 		plt.show()
 	
-	# Return data values
-	return (X, Y, Z)
