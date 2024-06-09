@@ -176,12 +176,19 @@ mfli.set_output_enable(True)
 # Configure oscilloscope
 
 osc.clear_measurements()
-osc.add_measurement(Oscilloscope2Ctg.MEAS_VAVG, 1) # Chan. 1 average 
-osc.add_measurement(Oscilloscope2Ctg.MEAS_VAVG, 2) # Chan. 2 average
+osc.add_measurement(OscilloscopeCtg2.MEAS_VAVG, 1) # Chan. 1 average 
+osc.add_measurement(OscilloscopeCtg2.MEAS_VAVG, 2) # Chan. 2 average
 
+##======================================================
+# Configure spectrum analuzer
+
+sa1.set_ref_level(10)
+
+sa1.set_continuous_rigger(False) # Otherwise wait-ready will not work!
+sa1.set_y_div(20) # Set y scale so *everything* is visible
+
+##======================================================
 # Run in-situ calibration
-
-sa1.set_continuous_trigger(False) # Otherwise wait-ready will not work!
 
 # Turn off LO signal generators
 sg2.set_enable_rf(False)

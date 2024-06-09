@@ -27,8 +27,8 @@
 		"type":"range",
 		"unit": "mA",
 		"start": 1,
-		"step": 1,
-		"end": 15
+		"step": 4,
+		"end": 16
 	},
 	"curr_sense_ohms": 155,
 	"spectrum_analyzer":[

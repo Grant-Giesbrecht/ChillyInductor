@@ -143,5 +143,6 @@ plt.ylabel('LO Freq (GHz)')
 # Make a 3D version
 X,Y,Zrf1 = dfplot3d(df_mix, xparam='freq_rf_GHz', yparam='freq_lo_GHz', zparam='peak_rf1', skip_plot=False, fig_no=10, show_markers=True, hovertips=True)
 
+df_mix[(df_mix.freq_rf_GHz==4.2) & (df_mix.freq_lo_GHz==0.70)].index
 
 plt.show()
