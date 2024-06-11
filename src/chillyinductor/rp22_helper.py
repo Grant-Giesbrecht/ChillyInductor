@@ -13,6 +13,9 @@ from colorama import Fore, Style
 from dataclasses import dataclass
 from mpl_toolkits.mplot3d import axes3d
 
+def rd(x:str, places:int=2):
+	return f"{round(x*(10**places))/(10**places)}"
+
 def plot_nan(x, y):
 	
 	print("TODO: This doesn't work but should be fixed!")
@@ -792,19 +795,139 @@ def calc_mixing_data(df_cond:pd.DataFrame, df_sa:pd.DataFrame) -> pd.DataFrame:
 	
 	return df_out_meister
 
-def dfplot(df, xparam:str, yparam:str, zparam:str, skip_plot:bool=False, fig_no:int=1, autoshow:bool=False,):
-	''' Accepts a dataframe as input, and returns a tuple with (X,Y,Z)
-# 	2D lists to plot using contourf(). '''
+def bin_empirical(data:np.ndarray, jump_size:int=None, jump_scale:int=None, show_work:bool=False, autoscale_fact:float=0.1, autoscale_checks:tuple=(0.05, 0.15)):
+	''' If you have a list of collected datapoints that are supposed to be discrete steps,
+	but have some natural variation, this function automatically attempts to bin them.
+	If it's not sure how to bin the data, it'll shout and yell in red text at you in the
+	terminal. YOu can then set 'show_work' to true so it'll show you the intermediate products.
 	
-	# Thanks copilot!
+	jump_scale allows you to manually set how much the median differential must be scaled for a diff
+		to count as a jump.
+	jump_size allows you to manually set the size of a jump for a differential.
+	autoscale_fact sets how, when automatically binning, the ratio of max/median diff is scaled to determine
+		the starting threshold.
+	autoscale_checks set the autoscale factors that are tried to see if it substantially changes the result.
+	
+	jump_size is determined automatically by comparing the maximum and median diff. If tweaking the jump_size 
+	point by some small about causes the number of selected points to change, it'll
+	print a warning.
+	
+	#TODO: If unsure, check if all bins have same number under some threshold condition. That seems right!
+	#TODO: Try to round to a nice number, or make step sizes similar.
+	#TODO: This should be an iterative function, it doesn't work well on the dataset: X = [0.9, 1, 1.1, 3.1, 3.1, 2.9, 9, 8.8, 9.1].
+		The iterative nature it needs to add is saying, if the diffs [x,y, and z] are jumps, then the actual median is _ because
+		we'll only look at the median over specific bins, and exclude the diffs.
+	'''
+	
+	if jump_scale is not None or jump_size is not None:
+		print(f"{Fore.RED} This feature has not been implemented. Using autoscale. You should fix me!{Style.RESET_ALL}")
+	
+	# Calc parameters of the input data
+	delta = np.abs(np.diff(data))
+	med = np.mean(delta)
+	mx = np.max(delta)
+	# ratio = mx/med # This is the maximum possible scaling value
+	gap = mx - med
+	
+	# Set threshold and check validity
+	thresh = gap*autoscale_fact+med
+	thresh_L = gap*autoscale_checks[0]+med
+	thresh_H = gap*autoscale_checks[1]+med
+	
+	# Find jump indeces
+	idx_jump = np.where(delta > thresh)[0]
+	idx_jump_L = np.where(delta > thresh_L)[0]
+	idx_jump_H = np.where(delta > thresh_H)[0]
+	
+	# Run each threshold
+	nbins = len(idx_jump)
+	nbins_L = len(idx_jump_L)
+	nbins_H = len(idx_jump_H)
+	
+	# Check for instability
+	if nbins != nbins_H or nbins != nbins_L:
+		print(f"{Fore.RED}WARNING: bin_empirical() failed to confidently bin the data! Panic! Check my work!{Style.RESET_ALL}")
+		show_work = True
+		
+	if show_work:
+		print(f"{Fore.YELLOW}Tried values: {Fore.LIGHTBLACK_EX}{thresh}->{nbins} bins, {thresh_H}->{nbins_H} bins, {thresh_L}->{nbins_L} bins,{Style.RESET_ALL}")
+		print(f"{Fore.YELLOW}Max Diff: {Fore.LIGHTBLACK_EX}{mx}{Style.RESET_ALL}")
+		print(f"{Fore.YELLOW}Mean Diff: {Fore.LIGHTBLACK_EX}{med}{Style.RESET_ALL}")
+		print(f"{Fore.YELLOW}Gap: {Fore.LIGHTBLACK_EX}{gap}{Style.RESET_ALL}")
+		
+	
+	# Initialize output data
+	data_out = []
+	
+	# Edge case, add one more
+	idx_jump = np.concatenate([idx_jump, np.array([len(data)-1])])
+	
+	# Now we can bin each result
+	jump_last = 0
+	for jump in idx_jump:
+		
+		# Define bin
+		bin = data[jump_last:jump+1]
+		jump_last = jump+1
+		
+		# Create new homogenous bin data
+		nb = [np.mean(bin)]*len(bin)
+		
+		# Add to output list
+		data_out = data_out + nb
+	
+	
+	
+	return data_out
+	
+	
+	
+	
+	
+	
+	
+
+def dfplot(df, xparam:str, yparam:str, zparam:str, fixedparam:dict=None, skip_plot:bool=False, fig_no:int=1, autoshow:bool=False,):
+	''' Accepts a dataframe as input, and returns a tuple with (X,Y,Z)
+ 	2D lists to plot using contourf(). 
+	
+	Fixed params: Dictionary describing parameters in the dataframe to filter such that it's filtered at a specific value. The dictionary
+	keys are the column names of the dataframe, and the values are tuples with three elements:
+		* Element 0: Value to filter for
+		* Element 1: Percent tolerance. Note this is percent, not a fraction.
+		* Element 2: Absolute tolerance. Note this applies as value +/- tolerance.
+	If the value is set to a scalar instead of a tuple, both tolerance specifiers are set to zero. If both tolerance specifiers are listed,
+	the larger resulting tolerance is used.
+	'''
+	
+	# Trim DF per fixed-parameters
+	if fixedparam is not None:
+		for param, val_tup in fixedparam.items():
+			
+			# Determine tolerance
+			if type(val_tup) != tuple:
+				val = val_tup
+				tol = 0
+			else:
+				val = val_tup[0]
+				tol = np.max([np.abs(val*val_tup[1]/100), np.abs(val_tup[2])])
+			
+			# Apply filtering
+			if tol == 0:
+				df = df[(df[param]==val)]
+			else:
+				df = df[(df[param]>=(val-tol)) & (df[param] <= (val+tol))]
+
 	
 	# Ensure the DataFrame contains the necessary columns
 	if not {xparam, yparam, zparam}.issubset(df.columns):
 		raise ValueError("DataFrame missing specified columns")
 
 	# Create a grid of points
-	x = np.linspace(df[xparam].min(), df[xparam].max(), len(df[xparam].unique()))
-	y = np.linspace(df[yparam].min(), df[yparam].max(), len(df[yparam].unique()))
+	# x = np.linspace(df[xparam].min(), df[xparam].max(), len(df[xparam].unique()))
+	# y = np.linspace(df[yparam].min(), df[yparam].max(), len(df[yparam].unique()))
+	x = df[xparam].unique()
+	y = df[yparam].unique()
 	X, Y = np.meshgrid(x, y)
 
 	# Reshape zparam to match the grid shape
@@ -828,78 +951,16 @@ def dfplot(df, xparam:str, yparam:str, zparam:str, skip_plot:bool=False, fig_no:
 	# Return data values
 	return (X, Y, Z)
 
-def dfplot3d(df, xparam:str, yparam:str, zparam:str, skip_plot:bool=False, fig_no:int=1, autoshow:bool=False, show_markers:bool=False, projections=None, hovertips:bool=True):
+def dfplot3d(df, xparam:str, yparam:str, zparam:str, fixedparam:dict=None, skip_plot:bool=False, fig_no:int=1, autoshow:bool=False, show_markers:bool=False, projections=None, 
+			 hovertips:bool=True):
 	''' Accepts a dataframe as input, and returns a tuple with (X,Y,Z)
 # 	2D lists to plot using contourf(). '''
 	
-	X, Y, Z = dfplot(df, xparam, yparam, zparam, skip_plot=True, fig_no=fig_no, autoshow=False)
+	# Get X Y and Z from dataframe
+	X, Y, Z = dfplot(df, xparam, yparam, zparam, fixedparam=fixedparam, skip_plot=True, fig_no=fig_no, autoshow=False)
 	
+	# Generate 3D plot
 	lplot3d(X, Y, Z, xparam, yparam, zparam, skip_plot=skip_plot, fig_no=fig_no, autoshow=autoshow, show_markers=show_markers, projections=projections, hovertips=hovertips)
-	
-	# fig = plt.figure(fig_no)
-	# ax = fig.add_subplot(projection='3d')
-	# fig.tight_layout()
-	
-	# ax.plot_surface(X, Y, Z, cmap='coolwarm', linewidth=0.5, antialiased=True, rstride=1, cstride=1) #edgecolor='royalblue', lw=0.5, rstride=8, cstride=8, alpha=0.3)
-	# # if projections is not None:
-	# # 	ax.contourf(X,Y,Z, zdir='z', offset=-100, cmap='coolwarm')
-	# # 	ax.contourf(X,Y,Z, zdir='x', offset=-40, cmap='coolwarm')
-	# # 	ax.contourf(X,Y,Z, zdir='y', offset=40, cmap='coolwarm')
-	
-	# ax.set_xlabel(xparam)
-	# ax.set_ylabel(yparam)
-	# ax.set_zlabel(zparam)
-		
-	# # Initialize an empty annotation - Thanks Copilot
-	# annot = ax.annotate("", xy=(0, 0), xytext=(20, 20), textcoords="offset points", bbox=dict(boxstyle="round", fc="w"), arrowprops=dict(arrowstyle="->"))
-	# annot.set_visible(False)
-	
-	# if show_markers:
-		
-	# 	flatX = X.flatten()
-	# 	flatY = Y.flatten()
-	# 	flatZ = Z.flatten()
-		
-	# 	sc = ax.scatter(flatX,flatY, flatZ, color=(0, 0.4, 0.7), s=3, marker='.', label='Data points', picker=True)
-	
-	# 	# Update the annotation when hovering over points - Thanks Copilot
-	# 	def update_annot(annot_text, mouse_event):
-	# 		annot.xy = (mouse_event.x, mouse_event.y)
-	# 		annot.set_text(annot_text)
-	# 		annot.get_bbox_patch().set_facecolor('white')
-	# 		annot.get_bbox_patch().set_alpha(0.7)
-		
-	# 	def annotate_onclick(event):
-	# 		print(event.ind)
-	# 		# print(event.artist.get_data())
-	# 		point_index = int(event.ind[0])
-	# 		x_coord, y_coord, z_coord = flatX[point_index], flatY[point_index], flatZ[point_index]
-	# 		annot_text = f"Point {point_index}: X={x_coord:.2f}, Y={y_coord:.2f}, Z={z_coord:.2f}"
-	# 		print(annot_text)
-	# 		annot.set_visible(True)
-			
-	# 		update_annot(annot_text, event.mouseevent)
-		
-	# 	# def hover(event):
-	# 	# 	vis = annot.get_visible()
-	# 	# 	if event.inaxes == ax:
-	# 	# 		cont, ind = sc.contains(event)
-	# 	# 		if cont:
-	# 	# 			update_annot(ind)
-	# 	# 			annot.set_visible(True)
-	# 	# 			fig.canvas.draw_idle()
-	# 	# 		else:
-	# 	# 			if vis:
-	# 	# 				annot.set_visible(False)
-	# 	# 				fig.canvas.draw_idle()
-		
-	# 	if hovertips:
-	# 		print(f"Hovertips on")
-	# 		# fig.canvas.mpl_connect("motion_notify_event", hover)
-	# 		fig.canvas.mpl_connect("pick_event", annotate_onclick)
-	
-	# if autoshow:
-	# 	plt.show()
 	
 	# Return data values
 	return (X, Y, Z)
