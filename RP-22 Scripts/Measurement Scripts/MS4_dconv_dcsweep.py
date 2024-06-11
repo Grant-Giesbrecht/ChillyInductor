@@ -184,7 +184,7 @@ osc.add_measurement(OscilloscopeCtg2.MEAS_VAVG, 2) # Chan. 2 average
 
 sa1.set_ref_level(10)
 
-sa1.set_continuous_rigger(False) # Otherwise wait-ready will not work!
+sa1.set_continuous_trigger(False) # Otherwise wait-ready will not work!
 sa1.set_y_div(20) # Set y scale so *everything* is visible
 
 ##======================================================
@@ -457,8 +457,8 @@ for Idc in Idc_list_mA:
 						sa1.wait_ready()
 						
 						# Read DC current
-						Vch1 = osc.get_measurement(Oscilloscope2Ctg.MEAS_VAVG, 1)
-						Vch2 = osc.get_measurement(Oscilloscope2Ctg.MEAS_VAVG, 2)
+						Vch1 = osc.get_measurement(OscilloscopeCtg2.MEAS_VAVG, 1)
+						Vch2 = osc.get_measurement(OscilloscopeCtg2.MEAS_VAVG, 2)
 						
 						# Get waveform
 						wvfrm = sa1.get_trace_data(1)
