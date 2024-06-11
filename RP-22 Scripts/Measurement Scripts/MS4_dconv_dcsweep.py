@@ -151,7 +151,11 @@ dataset = []
 dummy_sa_conditions = calc_sa_conditions(sa_conf, 1e9, 1e9, remove_duplicates=False, print_error=True)
 
 try:
-	npts = len(freq_rf)*len(freq_lo)*len(power_RF_dBm)*len(power_LO_dBm)*len(dummy_sa_conditions)
+	npts_local = len(freq_rf)*len(power_RF_dBm)*len(dummy_sa_conditions)
+	npts_rfcal = len(freq_lo)*len(power_LO_dBm)*len(dummy_sa_conditions)
+	npts_main = len(Idc_list_mA)*len(freq_rf)*len(freq_lo)*len(power_RF_dBm)*len(power_LO_dBm)*len(dummy_sa_conditions)
+	
+	npts = npts_local + npts_rfcal + npts_main
 except Exception as e:
 	log.critical(f"Error in configuration settings.")
 	print(f"freq_rf = {freq_rf}")
@@ -160,6 +164,7 @@ except Exception as e:
 	print(f"power_LO_dBm = {power_LO_dBm}")
 	print(f"dummy_sa_conditions = {dummy_sa_conditions}")
 count = 0
+t_start = time.time()
 
 ##======================================================
 # Configure MFLI
@@ -193,13 +198,15 @@ sa1.set_y_div(20) # Set y scale so *everything* is visible
 # Turn off LO signal generators
 sg2.set_enable_rf(False)
 
+log.info(f"Beginning calibration of RF tone power.")
+
 # RF Calibration
 fb = 1e9
 p_lo_dBm = -40
 for fa in freq_rf:
-	log.info(f"Setting freq_rf to >{fa/1e9}< GHz")
+	log.debug(f"Setting freq_rf to >{fa/1e9}< GHz")
 	for p_rf_dBm in power_RF_dBm:
-		log.info(f"Setting RF power to >{p_rf_dBm}< dBm")
+		log.debug(f"Setting RF power to >{p_rf_dBm}< dBm")
 		
 		# Configure SG
 		sg1.set_freq(fa)
@@ -217,10 +224,13 @@ for fa in freq_rf:
 			fend = sac['f_end']
 			frbw = sac['rbw']
 			
-			log.info(f"Measuring frequency range >{fstart/1e6}< MHz to >{fend/1e6}< MHz, RBW = >:q{frbw/1e3}< kHz.")
+			log.debug(f"Measuring frequency range >{fstart/1e6}< MHz to >{fend/1e6}< MHz, RBW = >:q{frbw/1e3}< kHz.")
 			
 			count += 1
-			print(f"Beginning measurement {count} of {npts}.")
+			t_el = time.time() - t_start
+			t_rem = t_el/count*(npts-count)
+			t_rem_h, t_rem_m, t_rem_s = s2hms(t_rem)
+			log.debug(f"Beginning measurement {count} of {npts}. ({rd(count/npts*100, 1)} % complete, est. {t_rem_h}h:{t_rem_m}m:{t_rem_s}s)")
 			
 			# Configure spectrum analyzer
 			sa1.set_res_bandwidth(frbw)
@@ -290,13 +300,15 @@ for fa in freq_rf:
 sg1.set_enable_rf(False)
 sg2.set_enable_rf(False)
 
+log.info(f"Beginning calibration of LO tone power.")
+
 # LO Calibration
 fa = 1e9
 p_rf_dBm = -40
 for fb in freq_lo:
-	log.info(f"Setting freq_lo to >{fb/1e9}< GHz")
+	log.debug(f"Setting freq_lo to >{fb/1e9}< GHz")
 	for p_lo_dBm in power_LO_dBm:
-		log.info(f"Setting LO power to >{p_lo_dBm}< dBm")
+		log.debug(f"Setting LO power to >{p_lo_dBm}< dBm")
 		
 		# Configure SG
 		sg2.set_freq(fb)
@@ -314,10 +326,10 @@ for fb in freq_lo:
 			fend = sac['f_end']
 			frbw = sac['rbw']
 			
-			log.info(f"Measuring frequency range >{fstart/1e6}< MHz to >{fend/1e6}< MHz, RBW = >:q{frbw/1e3}< kHz.")
+			log.debug(f"Measuring frequency range >{fstart/1e6}< MHz to >{fend/1e6}< MHz, RBW = >:q{frbw/1e3}< kHz.")
 			
 			count += 1
-			print(f"Beginning measurement {count} of {npts}.")
+			log.debug(f"Beginning measurement {count} of {npts}.")
 			
 			# Configure spectrum analyzer
 			sa1.set_res_bandwidth(frbw)
@@ -397,19 +409,19 @@ for Idc in Idc_list_mA:
 	
 	for fa in freq_rf:
 		
-		log.info(f"Setting freq_rf to >{fa/1e9}< GHz")
+		log.debug(f"Setting freq_rf to >{fa/1e9}< GHz")
 		
 		for fb in freq_lo:
 			
-			log.info(f"Setting freq_lo to >{fb/1e9}< GHz")
+			log.debug(f"Setting freq_lo to >{fb/1e9}< GHz")
 			
 			for p_rf_dBm in power_RF_dBm:
 				
-				log.info(f"Setting RF power to >{p_rf_dBm}< dBm")
+				log.debug(f"Setting RF power to >{p_rf_dBm}< dBm")
 				
 				for p_lo_dBm in power_LO_dBm:
 					
-					log.info(f"Changing LO power to >{p_lo_dBm}< dBm")
+					log.debug(f"Changing LO power to >{p_lo_dBm}< dBm")
 					
 					# Adjust conditions on signal generators
 					sg1.set_freq(fa)
@@ -431,10 +443,10 @@ for Idc in Idc_list_mA:
 						fend = sac['f_end']
 						frbw = sac['rbw']
 						
-						log.info(f"Measuring frequency range >{fstart/1e6}< MHz to >{fend/1e6}< MHz, RBW = >:q{frbw/1e3}< kHz.")
+						log.debug(f"Measuring frequency range >{fstart/1e6}< MHz to >{fend/1e6}< MHz, RBW = >:q{frbw/1e3}< kHz.")
 						
 						count += 1
-						print(f"Beginning measurement {count} of {npts}.")
+						log.debug(f"Beginning measurement {count} of {npts}.")
 						
 						# Configure spectrum analyzer
 						sa1.set_res_bandwidth(frbw)
