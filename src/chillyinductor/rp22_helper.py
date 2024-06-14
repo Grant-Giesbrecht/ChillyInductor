@@ -642,9 +642,16 @@ def save_hdf(root_data:dict, save_file:str, use_json_backup:bool=True) -> bool:
 		
 		return True
 
+def hdf5_to_dict(filename) -> bool:
+	''' Reads a HDF file and converts the data to a dictionary '''
+	
+	for k in keys
+
 def dict_to_hdf5(json_data:dict, save_file) -> bool:
 	''' Converts a dict from MS1-style datasets to an HDF5 file.
 	'''
+	
+	print(f"{Fore.RED}This function is deprecated and should be replaced with dict_to_hdf.{Style.RESET_ALL}")
 	
 	##---------------------------------------------------
 	# Collect all JSON data into lists
@@ -742,6 +749,8 @@ class PowerSpectrum:
 	mx1h:float = None
 	mx2l:float = None
 	mx2h:float = None
+	
+	total:float=None
 
 def calc_mixing_data_single(df_cond:pd.Series, df_sa:pd.Series) -> PowerSpectrum:
 	
@@ -762,6 +771,25 @@ def calc_mixing_data_single(df_cond:pd.Series, df_sa:pd.Series) -> PowerSpectrum
 	nps.mx1h = spectrum_peak(df_sa.wav_f_Hz, df_sa.wav_s_dBm, frf+flo)
 	nps.mx2l = spectrum_peak(df_sa.wav_f_Hz, df_sa.wav_s_dBm, frf-2*flo)
 	nps.mx2h = spectrum_peak(df_sa.wav_f_Hz, df_sa.wav_s_dBm, frf+2*flo)
+	
+	return nps
+
+def calc_harm_data_single(df_cond:pd.Series, df_sa:pd.Series) -> PowerSpectrum:
+	
+	nps = PowerSpectrum()
+	
+	frf = df_cond.freq_rf_GHz*1e9
+	flo = df_cond.freq_lo_GHz*1e9
+	
+	nps.rf1 = spectrum_peak(df_sa.wav_f_Hz, df_sa.wav_s_dBm, frf)
+	nps.rf2 = spectrum_peak(df_sa.wav_f_Hz, df_sa.wav_s_dBm, frf*2)
+	nps.rf3 = spectrum_peak(df_sa.wav_f_Hz, df_sa.wav_s_dBm, frf*3)
+	
+	nps.lo1 = spectrum_peak(df_sa.wav_f_Hz, df_sa.wav_s_dBm, flo)
+	nps.lo2 = spectrum_peak(df_sa.wav_f_Hz, df_sa.wav_s_dBm, flo*2)
+	nps.lo3 = spectrum_peak(df_sa.wav_f_Hz, df_sa.wav_s_dBm, flo*3)
+	
+	nps.total = spectrum_sum(df_sa.wav_f_Hz, df_sa.wav_s_dBm)
 	
 	return nps
 
@@ -887,7 +915,7 @@ def bin_empirical(data:np.ndarray, jump_size:int=None, jump_scale:int=None, show
 	
 	
 
-def dfplot(df, xparam:str, yparam:str, zparam:str, fixedparam:dict=None, skip_plot:bool=False, fig_no:int=1, autoshow:bool=False,):
+def dfplot(df, xparam:str, yparam:str, zparam:str, fixedparam:dict=None, skip_plot:bool=False, fig_no:int=1, autoshow:bool=False, subplot_no:tuple=None, cmap:str='viridis'):
 	''' Accepts a dataframe as input, and returns a tuple with (X,Y,Z)
  	2D lists to plot using contourf(). 
 	
@@ -938,7 +966,9 @@ def dfplot(df, xparam:str, yparam:str, zparam:str, fixedparam:dict=None, skip_pl
 		
 		# Create the contourf plot
 		plt.figure(fig_no)
-		plt.contourf(X, Y, Z, levels=35, cmap='viridis')
+		if subplot_no is not None:
+			plt.subplot(subplot_no[0], subplot_no[1], subplot_no[2])
+		plt.contourf(X, Y, Z, levels=35, cmap=cmap)
 		# plt.contourf(X, Y, Z)
 		plt.colorbar()  # Add a colorbar to a plot
 		plt.xlabel(xparam)
@@ -951,8 +981,7 @@ def dfplot(df, xparam:str, yparam:str, zparam:str, fixedparam:dict=None, skip_pl
 	# Return data values
 	return (X, Y, Z)
 
-def dfplot3d(df, xparam:str, yparam:str, zparam:str, fixedparam:dict=None, skip_plot:bool=False, fig_no:int=1, autoshow:bool=False, show_markers:bool=False, projections=None, 
-			 hovertips:bool=True):
+def dfplot3d(df, xparam:str, yparam:str, zparam:str, fixedparam:dict=None, skip_plot:bool=False, fig_no:int=1, autoshow:bool=False, show_markers:bool=False, projections=None, hovertips:bool=True, subplot_no:tuple=None, cmap:str='coolwarm'):
 	''' Accepts a dataframe as input, and returns a tuple with (X,Y,Z)
 # 	2D lists to plot using contourf(). '''
 	
@@ -960,20 +989,23 @@ def dfplot3d(df, xparam:str, yparam:str, zparam:str, fixedparam:dict=None, skip_
 	X, Y, Z = dfplot(df, xparam, yparam, zparam, fixedparam=fixedparam, skip_plot=True, fig_no=fig_no, autoshow=False)
 	
 	# Generate 3D plot
-	lplot3d(X, Y, Z, xparam, yparam, zparam, skip_plot=skip_plot, fig_no=fig_no, autoshow=autoshow, show_markers=show_markers, projections=projections, hovertips=hovertips)
+	lplot3d(X, Y, Z, xparam, yparam, zparam, skip_plot=skip_plot, fig_no=fig_no, autoshow=autoshow, show_markers=show_markers, projections=projections, hovertips=hovertips, subplot_no=subplot_no, cmap=cmap)
 	
 	# Return data values
 	return (X, Y, Z)
 
-def lplot3d(X, Y, Z, xparam:str, yparam:str, zparam:str, skip_plot:bool=False, fig_no:int=1, autoshow:bool=False, show_markers:bool=False, projections=None, hovertips:bool=True):
+def lplot3d(X, Y, Z, xparam:str, yparam:str, zparam:str, skip_plot:bool=False, fig_no:int=1, autoshow:bool=False, show_markers:bool=False, projections=None, hovertips:bool=True, subplot_no:tuple=None, cmap:str='coolwarm'):
 	''' Accepts a dataframe as input, and returns a tuple with (X,Y,Z)
 # 	2D lists to plot using contourf(). '''
 	
 	fig = plt.figure(fig_no)
-	ax = fig.add_subplot(projection='3d')
+	if subplot_no is not None:
+		ax = fig.add_subplot(subplot_no[0], subplot_no[1], subplot_no[2], projection='3d')
+	else:
+		ax = fig.add_subplot(projection='3d')
 	fig.tight_layout()
 	
-	ax.plot_surface(X, Y, Z, cmap='coolwarm', linewidth=0.5, antialiased=True, rstride=1, cstride=1) #edgecolor='royalblue', lw=0.5, rstride=8, cstride=8, alpha=0.3)
+	ax.plot_surface(X, Y, Z, cmap=cmap, linewidth=0.5, antialiased=True, rstride=1, cstride=1) #edgecolor='royalblue', lw=0.5, rstride=8, cstride=8, alpha=0.3)
 	if projections is not None:
 		ax.contourf(X,Y,Z, zdir='z', offset=-100, cmap='coolwarm')
 		ax.contourf(X,Y,Z, zdir='x', offset=-40, cmap='coolwarm')
