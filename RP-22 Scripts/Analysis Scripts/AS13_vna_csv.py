@@ -9,6 +9,7 @@ from colorama import Fore, Style
 import os
 import numpy as np
 import argparse
+from ganymede import *
 
 #------------------------------------------------------------
 # Arg Parse
@@ -139,7 +140,8 @@ if args.save:
 	desc_str += f"(which usually connects the cryostat to the bias tee) and the bias tee on the spectrum analyzer."
 	
 	# orient=list tells Pandas to save the data as lists, not dictionaries mapping index to value
-	root_dict = {'through_cal': df_thru.to_dict(orient='list'), 'output_cal':df_thru.to_dict(orient='list'), 'info':{'description':desc_str}}
+	root_dict = {'through_cal': df_thru.to_dict(orient='list'), 'output_cal':df_cbt.to_dict(orient='list'), 'info':{'description':desc_str}}
 	
-	save_hdf(root_dict, save_file_path)
+	dict_to_hdf(root_dict, save_file_path)
+
 

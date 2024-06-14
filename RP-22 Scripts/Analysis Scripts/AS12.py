@@ -19,6 +19,7 @@ import sys
 import os
 import pandas as pd
 import argparse
+from ganymede import *
 
 parser = argparse.ArgumentParser()
 # parser.add_argument('-h', '--help')
@@ -236,14 +237,14 @@ for index, row in df_cal.iterrows():
 df_temp = pd.DataFrame(data_block, columns=['peak_rf1', 'peak_rf2', 'peak_rf3', 'peak_lo1', 'peak_lo2', 'peak_lo3', 'spectrum_total'])
 df_cal = pd.merge(df_cal, df_temp, left_index=True, right_index=True, how='outer')
 
-##===========================================================================
+##--------------------------------------------
 # Plot loss in (Freq-Power space)
 
 X,Y,Z_SaTotRf = dfplot3d(df_cal, xparam='power_rf_dBm', yparam='freq_rf_GHz', zparam='spectrum_total', fixedparam={'rf_enabled':1}, skip_plot=False, fig_no=5, subplot_no=(1, 2, 1), show_markers=True, hovertips=False)
 X,Y,Z_PmRf = dfplot3d(df_cal, xparam='power_rf_dBm', yparam='freq_rf_GHz', zparam='powermeter_dBm', fixedparam={'rf_enabled':1}, skip_plot=False, fig_no=5, subplot_no=(1, 2, 2), show_markers=True, hovertips=False)
 plt.suptitle("Calibration: Input Measurements")
 
-lplot3d(X, Y, Z_SaTotRf-Z_PmRf, xparam='Ibias_mA_bin', yparam='freq_lo_GHz', zparam='mx1l-rf1', fig_no=6, show_markers=True, hovertips=False)
+lplot3d(X, Y, Z_SaTotRf-Z_PmRf, xparam='Ibias_mA_bin', yparam='freq_lo_GHz', zparam='SaTotRf-PmRf', fig_no=6, show_markers=True, hovertips=False)
 plt.suptitle("Calibration: Input Loss")
 
 ##--------------------------------------------
@@ -284,7 +285,7 @@ with h5py.File(analysis_file, 'r') as fh:
 print(f"{Fore.YELLOW}DF_SPARAM:{Style.RESET_ALL}")
 print(df_sparam)
 
-##===========================================================================
+##--------------------------------------------
 # Plot output loss s-parameters
 
 mksz = 6
@@ -302,16 +303,40 @@ plt.title("Calibration: Output S-Parameters")
 
 plt.grid(True)
 
+##--------------------------------------------
+# Define calibrated loss functions
+
+delta = make_loss_lookup_fn(df_sparam.freq_Hz, df_sparam.S21_dB)
+
+##--------------------------------------------
+# Apply loss compensation to DF
+
+def make_cal_fn(peak_name, freq_name:str, freq_b:str='freq_lo_GHz', rf_mult:int=1, lo_mult:int=0):
+	
+	def fn(row):
+		return row[peak_name] - delta(row[freq_name]*1e9*rf_mult + row[freq_b]*1e9*lo_mult)
+	
+	return fn
+
+df_mix['peak_rf1@2'] = df_mix.apply(make_cal_fn('peak_rf1', 'freq_rf_GHz'), axis=1)
+df_mix['peak_mx1l@2'] = df_mix.apply(make_cal_fn('peak_mx1l', 'freq_rf_GHz', lo_mult=-1), axis=1)
 
 
+##--------------------------------------------
+# Make a graph of calibrated mixing loss (Fix: f_rf, X=bias, Y=f_lo)
 
+COLOR_MAP = 'plasma'
 
+X,Y,Zmx1l_PL2 = dfplot3d(df_mix, xparam='Ibias_mA_bin', yparam='freq_lo_GHz', zparam='peak_mx1l@2', fixedparam={'freq_rf_GHz':(4, 0, 0.1)}, skip_plot=False, fig_no=8, subplot_no=(1, 3, 1), show_markers=True, hovertips=False)
+X,Y,Zrf1_PL2 = dfplot3d(df_mix, xparam='Ibias_mA_bin', yparam='freq_lo_GHz', zparam='peak_rf1@2', fixedparam={'freq_rf_GHz':(4, 0, 0.1)}, skip_plot=False, fig_no=8, subplot_no=(1, 3, 2), show_markers=True, hovertips=False)
+lplot3d(X, Y, Zmx1l_PL2-Zrf1_PL2, xparam='Ibias_mA_bin', yparam='freq_lo_GHz', zparam='Plane 2: mx1l-rf1', fig_no=8, subplot_no=(1, 3, 3), show_markers=True, hovertips=False, cmap=COLOR_MAP)
 
+X,Y,Zmx1l = dfplot3d(df_mix, xparam='Ibias_mA_bin', yparam='freq_rf_GHz', zparam='peak_mx1l', fixedparam={'freq_lo_GHz':(0.4, 0, 0.01)}, skip_plot=False, fig_no=9, subplot_no=(1, 3, 1), show_markers=True, hovertips=False)
+X,Y,Zrf1 = dfplot3d(df_mix, xparam='Ibias_mA_bin', yparam='freq_rf_GHz', zparam='peak_rf1', fixedparam={'freq_lo_GHz':(0.4, 0, 0.01)}, skip_plot=False, fig_no=9, subplot_no=(1, 3, 2), show_markers=True, hovertips=False)
+lplot3d(X, Y, Zmx1l-Zrf1, xparam='Ibias_mA_bin', yparam='freq_rf_GHz', zparam='Plane 1: mx1l-rf1', fig_no=9, subplot_no=(1, 3, 3), show_markers=True, hovertips=False, cmap=COLOR_MAP)
 
-
-
-
-
-
+X,Y,Zmx1l_PL2 = dfplot3d(df_mix, xparam='Ibias_mA_bin', yparam='freq_rf_GHz', zparam='peak_mx1l@2', fixedparam={'freq_lo_GHz':(0.4, 0, 0.01)}, skip_plot=False, fig_no=10, subplot_no=(1, 3, 1), show_markers=True, hovertips=False)
+X,Y,Zrf1_PL2 = dfplot3d(df_mix, xparam='Ibias_mA_bin', yparam='freq_rf_GHz', zparam='peak_rf1@2', fixedparam={'freq_lo_GHz':(0.4, 0, 0.01)}, skip_plot=False, fig_no=10, subplot_no=(1, 3, 2), show_markers=True, hovertips=False)
+lplot3d(X, Y, Zmx1l_PL2-Zrf1_PL2, xparam='Ibias_mA_bin', yparam='freq_rf_GHz', zparam='Plane 2: mx1l-rf1', fig_no=10, subplot_no=(1, 3, 3), show_markers=True, hovertips=False, cmap=COLOR_MAP)
 
 plt.show()

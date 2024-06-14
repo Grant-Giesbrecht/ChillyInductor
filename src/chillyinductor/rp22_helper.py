@@ -986,3 +986,32 @@ def lplot3d(X, Y, Z, xparam:str, yparam:str, zparam:str, skip_plot:bool=False, f
 	if autoshow:
 		plt.show()
 	
+def make_loss_lookup_fn(freq, loss):
+	''' Given a list of X and Y values, returns a function that interpolates said values
+	given some target.
+	'''
+	
+	# Convert to numpy
+	freq_np = np.array(freq)
+	loss_np = np.array(loss)
+	
+	# Create template function
+	def template_fn(f, guess_outside:bool=False):
+		
+		# Target is outside!
+		if f < np.min(freq_np) or f > np.max(freq_np):
+			#TODO: Check for guess_outside
+			return None
+		
+		closest_idx = np.argmin(np.abs(freq_np-f)) # Find closest freqeucny
+		
+		try:
+			x1, x2 = freq_np[closest_idx], freq_np[closest_idx + 1]
+			y1, y2 = loss_np[closest_idx], loss_np[closest_idx + 1]
+		except:
+			x1, x2 = freq_np[closest_idx-1], freq_np[closest_idx]
+			y1, y2 = loss_np[closest_idx-1], loss_np[closest_idx]
+
+		return y1 + (f - x1) * (y2 - y1) / (x2 - x1)
+	
+	return template_fn
