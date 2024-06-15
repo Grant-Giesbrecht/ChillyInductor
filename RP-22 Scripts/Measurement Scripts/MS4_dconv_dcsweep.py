@@ -536,6 +536,9 @@ for Idc in Idc_list_mA:
 sg1.set_enable_rf(False)
 sg2.set_enable_rf(False)
 
+mfli.set_offset(0)
+mfli.set_output_enable(False)
+
 # Save data and logs
 save_data(dataset, calset, conf_data, __file__, operator_notes, sweep_name, autosave=False, log=log)
 
