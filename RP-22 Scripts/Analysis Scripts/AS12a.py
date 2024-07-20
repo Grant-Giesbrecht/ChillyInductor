@@ -1,6 +1,5 @@
-''' This takes the functionality of AS11.ipynb and puts it into a script form. 
-
-Adds in calibration abilities
+''' AS12, modified for the t3a sweep instead of t2.Primarily this modifies the RF frequency
+used in the bias vs LO plots. 
 
 '''
 
@@ -34,8 +33,7 @@ if datapath is None:
 	sys.exit()
 else:
 	print(f"{Fore.GREEN}Located data directory at: {Fore.LIGHTBLACK_EX}{datapath}{Style.RESET_ALL}")
-filename = "dMS4_t2_10June2024_r1.hdf"
-# filename = "dMS4_t3a_14June2024_r1.hdf"
+filename = "dMS4_t3a_14June2024_r1.hdf"
 
 analysis_file = os.path.join(datapath, filename)
 
@@ -151,11 +149,11 @@ plt.suptitle("Peaks (fRF-fLO Space)")
 ##===========================================================================
 # Make a graph of mixing loss (Fix: f_rf, X=bias, Y=f_lo)
 
-X,Y,Zmx1l = dfplot3d(df_mix, xparam='Ibias_mA_bin', yparam='freq_lo_GHz', zparam='peak_mx1l', fixedparam={'freq_rf_GHz':(4, 0, 0.1)}, skip_plot=False, fig_no=3, subplot_no=(2, 3, 1), show_markers=True, hovertips=False)
-X,Y,Zmx1h = dfplot3d(df_mix, xparam='Ibias_mA_bin', yparam='freq_lo_GHz', zparam='peak_mx1l', fixedparam={'freq_rf_GHz':(4, 0, 0.1)}, skip_plot=False, fig_no=3, subplot_no=(2, 3, 2), show_markers=True, hovertips=False)
-X,Y,Zmx2l = dfplot3d(df_mix, xparam='Ibias_mA_bin', yparam='freq_lo_GHz', zparam='peak_mx2l', fixedparam={'freq_rf_GHz':(4, 0, 0.1)}, skip_plot=False, fig_no=3, subplot_no=(2, 3, 3), show_markers=True, hovertips=False)
-X,Y,Zmx2h = dfplot3d(df_mix, xparam='Ibias_mA_bin', yparam='freq_lo_GHz', zparam='peak_mx2h', fixedparam={'freq_rf_GHz':(4, 0, 0.1)}, skip_plot=False, fig_no=3, subplot_no=(2, 3, 4), show_markers=True, hovertips=False)
-X,Y,Zrf1 = dfplot3d(df_mix, xparam='Ibias_mA_bin', yparam='freq_lo_GHz', zparam='peak_rf1', fixedparam={'freq_rf_GHz':(4, 0, 0.1)}, skip_plot=False, fig_no=3, subplot_no=(2, 3, 5), show_markers=True, hovertips=False)
+X,Y,Zmx1l = dfplot3d(df_mix, xparam='Ibias_mA_bin', yparam='freq_lo_GHz', zparam='peak_mx1l', fixedparam={'freq_rf_GHz':(3.5, 0, 0.05)}, skip_plot=False, fig_no=3, subplot_no=(2, 3, 1), show_markers=True, hovertips=False)
+X,Y,Zmx1h = dfplot3d(df_mix, xparam='Ibias_mA_bin', yparam='freq_lo_GHz', zparam='peak_mx1l', fixedparam={'freq_rf_GHz':(3.5, 0, 0.05)}, skip_plot=False, fig_no=3, subplot_no=(2, 3, 2), show_markers=True, hovertips=False)
+X,Y,Zmx2l = dfplot3d(df_mix, xparam='Ibias_mA_bin', yparam='freq_lo_GHz', zparam='peak_mx2l', fixedparam={'freq_rf_GHz':(3.5, 0, 0.05)}, skip_plot=False, fig_no=3, subplot_no=(2, 3, 3), show_markers=True, hovertips=False)
+X,Y,Zmx2h = dfplot3d(df_mix, xparam='Ibias_mA_bin', yparam='freq_lo_GHz', zparam='peak_mx2h', fixedparam={'freq_rf_GHz':(3.5, 0, 0.05)}, skip_plot=False, fig_no=3, subplot_no=(2, 3, 4), show_markers=True, hovertips=False)
+X,Y,Zrf1 = dfplot3d(df_mix, xparam='Ibias_mA_bin', yparam='freq_lo_GHz', zparam='peak_rf1', fixedparam={'freq_rf_GHz':(3.5, 0, 0.05)}, skip_plot=False, fig_no=3, subplot_no=(2, 3, 5), show_markers=True, hovertips=False)
 plt.suptitle("Peaks (Bias-fLO Space)")
 
 COLOR_MAP = 'plasma'
@@ -328,19 +326,16 @@ df_mix['peak_mx1l@2'] = df_mix.apply(make_cal_fn('peak_mx1l', 'freq_rf_GHz', lo_
 
 COLOR_MAP = 'plasma'
 
-X,Y,Zmx1l_PL2 = dfplot3d(df_mix, xparam='Ibias_mA_bin', yparam='freq_lo_GHz', zparam='peak_mx1l@2', fixedparam={'freq_rf_GHz':(4, 0, 0.1)}, skip_plot=False, fig_no=8, subplot_no=(1, 3, 1), show_markers=True, hovertips=False)
-X,Y,Zrf1_PL2 = dfplot3d(df_mix, xparam='Ibias_mA_bin', yparam='freq_lo_GHz', zparam='peak_rf1@2', fixedparam={'freq_rf_GHz':(4, 0, 0.1)}, skip_plot=False, fig_no=8, subplot_no=(1, 3, 2), show_markers=True, hovertips=False)
+X,Y,Zmx1l_PL2 = dfplot3d(df_mix, xparam='Ibias_mA_bin', yparam='freq_lo_GHz', zparam='peak_mx1l@2', fixedparam={'freq_rf_GHz':(3.5, 0, 0.05)}, skip_plot=False, fig_no=8, subplot_no=(1, 3, 1), show_markers=True, hovertips=False)
+X,Y,Zrf1_PL2 = dfplot3d(df_mix, xparam='Ibias_mA_bin', yparam='freq_lo_GHz', zparam='peak_rf1@2', fixedparam={'freq_rf_GHz':(3.5, 0, 0.05)}, skip_plot=False, fig_no=8, subplot_no=(1, 3, 2), show_markers=True, hovertips=False)
 lplot3d(X, Y, Zmx1l_PL2-Zrf1_PL2, xparam='Ibias_mA_bin', yparam='freq_lo_GHz', zparam='Plane 2: mx1l-rf1', fig_no=8, subplot_no=(1, 3, 3), show_markers=True, hovertips=False, cmap=COLOR_MAP)
-plt.suptitle("Plane 2 (bias-flo space)")
 
 X,Y,Zmx1l = dfplot3d(df_mix, xparam='Ibias_mA_bin', yparam='freq_rf_GHz', zparam='peak_mx1l', fixedparam={'freq_lo_GHz':(0.4, 0, 0.01)}, skip_plot=False, fig_no=9, subplot_no=(1, 3, 1), show_markers=True, hovertips=False)
 X,Y,Zrf1 = dfplot3d(df_mix, xparam='Ibias_mA_bin', yparam='freq_rf_GHz', zparam='peak_rf1', fixedparam={'freq_lo_GHz':(0.4, 0, 0.01)}, skip_plot=False, fig_no=9, subplot_no=(1, 3, 2), show_markers=True, hovertips=False)
 lplot3d(X, Y, Zmx1l-Zrf1, xparam='Ibias_mA_bin', yparam='freq_rf_GHz', zparam='Plane 1: mx1l-rf1', fig_no=9, subplot_no=(1, 3, 3), show_markers=True, hovertips=False, cmap=COLOR_MAP)
-plt.suptitle("Plane 1 (bias-fRF space)")
 
 X,Y,Zmx1l_PL2 = dfplot3d(df_mix, xparam='Ibias_mA_bin', yparam='freq_rf_GHz', zparam='peak_mx1l@2', fixedparam={'freq_lo_GHz':(0.4, 0, 0.01)}, skip_plot=False, fig_no=10, subplot_no=(1, 3, 1), show_markers=True, hovertips=False)
 X,Y,Zrf1_PL2 = dfplot3d(df_mix, xparam='Ibias_mA_bin', yparam='freq_rf_GHz', zparam='peak_rf1@2', fixedparam={'freq_lo_GHz':(0.4, 0, 0.01)}, skip_plot=False, fig_no=10, subplot_no=(1, 3, 2), show_markers=True, hovertips=False)
 lplot3d(X, Y, Zmx1l_PL2-Zrf1_PL2, xparam='Ibias_mA_bin', yparam='freq_rf_GHz', zparam='Plane 2: mx1l-rf1', fig_no=10, subplot_no=(1, 3, 3), show_markers=True, hovertips=False, cmap=COLOR_MAP)
-plt.suptitle("Plane 2 (bias-fRF space)")
 
 plt.show()

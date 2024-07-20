@@ -835,7 +835,66 @@ def bin_empirical(data:np.ndarray, jump_size:int=None, jump_scale:int=None, show
 	
 	
 
-def dfplot(df, xparam:str, yparam:str, zparam:str, fixedparam:dict=None, skip_plot:bool=False, fig_no:int=1, autoshow:bool=False, subplot_no:tuple=None, cmap:str='viridis'):
+def dfplot2d(df, xparam:str, yparam:str, fixedparam:dict=None, skip_plot:bool=False, fig_no:int=1, autoshow:bool=False, subplot_no:tuple=None, show_markers:bool=True, cmap:str='viridis', hovertips:bool=True):
+	''' Accepts a dataframe as input, and returns a tuple with (x, y)
+ 	2D lists to plot using contourf(). 
+	
+	Fixed params: Dictionary describing parameters in the dataframe to filter such that it's filtered at a specific value. The dictionary
+	keys are the column names of the dataframe, and the values are tuples with three elements:
+		* Element 0: Value to filter for
+		* Element 1: Percent tolerance. Note this is percent, not a fraction.
+		* Element 2: Absolute tolerance. Note this applies as value +/- tolerance.
+	If the value is set to a scalar instead of a tuple, both tolerance specifiers are set to zero. If both tolerance specifiers are listed,
+	the larger resulting tolerance is used.
+	'''
+	
+	# Trim DF per fixed-parameters
+	if fixedparam is not None:
+		for param, val_tup in fixedparam.items():
+			
+			# Determine tolerance
+			if type(val_tup) != tuple:
+				val = val_tup
+				tol = 0
+			else:
+				val = val_tup[0]
+				tol = np.max([np.abs(val*val_tup[1]/100), np.abs(val_tup[2])])
+			
+			# Apply filtering
+			if tol == 0:
+				df = df[(df[param]==val)]
+			else:
+				df = df[(df[param]>=(val-tol)) & (df[param] <= (val+tol))]
+
+	
+	# Ensure the DataFrame contains the necessary columns
+	if not {xparam, yparam}.issubset(df.columns):
+		raise ValueError("DataFrame missing specified columns")
+
+	# Create a grid of points
+	x = df[xparam].unique()
+
+	# Reshape zparam to match the grid shape - transpose to turn column into row (so it's a 1D numpy array). [0] is to access first row.
+	y = df.pivot_table(index=xparam, values=yparam).T.values[0]
+	
+	# Skip plot if asked
+	if not skip_plot:
+		
+		# Create the contourf plot
+		plt.figure(fig_no)
+		if subplot_no is not None:
+			plt.subplot(subplot_no[0], subplot_no[1], subplot_no[2])
+		plt.plot(x, y)
+		plt.xlabel(xparam)
+		plt.ylabel(yparam)
+	
+	if autoshow:
+		plt.show()
+	
+	# Return data values
+	return (x, y, df)
+
+def dfplotcm(df, xparam:str, yparam:str, zparam:str, fixedparam:dict=None, skip_plot:bool=False, fig_no:int=1, autoshow:bool=False, subplot_no:tuple=None, cmap:str='viridis'):
 	''' Accepts a dataframe as input, and returns a tuple with (X,Y,Z)
  	2D lists to plot using contourf(). 
 	
@@ -906,7 +965,7 @@ def dfplot3d(df, xparam:str, yparam:str, zparam:str, fixedparam:dict=None, skip_
 # 	2D lists to plot using contourf(). '''
 	
 	# Get X Y and Z from dataframe
-	X, Y, Z = dfplot(df, xparam, yparam, zparam, fixedparam=fixedparam, skip_plot=True, fig_no=fig_no, autoshow=False)
+	X, Y, Z = dfplotcm(df, xparam, yparam, zparam, fixedparam=fixedparam, skip_plot=True, fig_no=fig_no, autoshow=False)
 	
 	# Generate 3D plot
 	lplot3d(X, Y, Z, xparam, yparam, zparam, skip_plot=skip_plot, fig_no=fig_no, autoshow=autoshow, show_markers=show_markers, projections=projections, hovertips=hovertips, subplot_no=subplot_no, cmap=cmap)

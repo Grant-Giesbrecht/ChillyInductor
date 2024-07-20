@@ -125,11 +125,11 @@ print(f"Total spectral power: {pwr_sum} dBm")
 df_mix = calc_mixing_data(df_cond, df_sa)
 
 # Generate a Nice N' Juicy plot
-mdt = dfplot(df_mix, xparam='freq_rf_GHz', yparam='freq_lo_GHz', zparam='powermeter_dBm', fig_no=5)
+mdt = dfplotcm(df_mix, xparam='freq_rf_GHz', yparam='freq_lo_GHz', zparam='powermeter_dBm', fig_no=5)
 
-X,Y,Zmx1l = dfplot(df_mix, xparam='freq_rf_GHz', yparam='freq_lo_GHz', zparam='peak_mx1l', skip_plot=False, fig_no=6)
-X,Y,Zrf1 = dfplot(df_mix, xparam='freq_rf_GHz', yparam='freq_lo_GHz', zparam='peak_rf1', skip_plot=False, fig_no=7)
-X,Y,Zlo1 = dfplot(df_mix, xparam='freq_rf_GHz', yparam='freq_lo_GHz', zparam='peak_lo1', skip_plot=False, fig_no=8)
+X,Y,Zmx1l = dfplotcm(df_mix, xparam='freq_rf_GHz', yparam='freq_lo_GHz', zparam='peak_mx1l', skip_plot=False, fig_no=6)
+X,Y,Zrf1 = dfplotcm(df_mix, xparam='freq_rf_GHz', yparam='freq_lo_GHz', zparam='peak_rf1', skip_plot=False, fig_no=7)
+X,Y,Zlo1 = dfplotcm(df_mix, xparam='freq_rf_GHz', yparam='freq_lo_GHz', zparam='peak_lo1', skip_plot=False, fig_no=8)
 
 # Create the contourf plot
 plt.figure(9)
