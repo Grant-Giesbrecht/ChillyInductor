@@ -1,4 +1,5 @@
-DATAPATH = fullfile('/Volumes/M6 T7S/ARC0 PhD Data/RP-21 Kinetic Inductance 2023/Data/group4_extflash/NIST September data', "TDR");
+% DATAPATH = fullfile("/", "Volumes", "NO NAME", "NIST September data", "TDR");
+DATAPATH = "E:\ARC0 PhD Data\RP-21 Kinetic Inductance 2023\Data\group4_extflash\NIST September data\TDR";
 load(fullfile(DATAPATH, "TDR_Dataset_2.mat"));
 
 warning("X axis units wrong. For some reason I had to add an extra 1e3!");

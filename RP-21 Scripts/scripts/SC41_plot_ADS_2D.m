@@ -4,13 +4,11 @@ ads_path = '/Volumes/M4 PHD/ARC0 PhD Data/RP-21 Kinetic Inductance 2023/Data/gro
 % [harm_idx, freq_SG, Vbias, Pload_mag, Pload_deg] = load_ADS_2D("fine_100K_2Dsweep.csv");
 % [harm_idx, freq_SG, Vbias, Pload_mag, Pload_deg] = load_ADS_2D("5_15GHz_ultra_sim.csv");
 % [harm_idx, freq_SG, Vbias, Pload_mag, Pload_deg] = load_ADS_2D("1_5GHz_ultra_sim.csv");
-
-% [harm_idx, freq_SG, Vbias, Pload_mag, Pload_deg] = load_ADS_2D(fullfile(ads_path, "ADS_10GHz_Ultrafine.csv"));
-
-% NOTE: freq_SG and harm_idx are flipped for this format! - nope this
-% doesn't have enough sweeps - this file can't work in this script.
-[freq_SG, harm_idx, Vbias, Pload_mag, Pload_deg] = load_ADS_2D(fullfile(ads_path, "Wide_FreqSweep_100K_ForPub.csv"));
-
+if ispc
+	[harm_idx, freq_SG, Vbias, Pload_mag, Pload_deg] = load_ADS_2D(fullfile("E:\ARC0 PhD Data\RP-21 Kinetic Inductance 2023\Data\group4_extflash\ADS Sim Data", "ADS_10GHz_Ultrafine.csv"));
+else
+	[harm_idx, freq_SG, Vbias, Pload_mag, Pload_deg] = load_ADS_2D(fullfile("/", "Volumes", "NO NAME", "ADS Sim Data", "ADS_10GHz_Ultrafine.csv"));
+end
 max_allowed_bias = 1.5;
 
 % Get unique values
