@@ -16,9 +16,9 @@ import datetime
 DATA_DIRECTORY = "data"
 LOG_DIRECTORY = "logs"
 
-LOGGING_PERIOD_S = 2
+LOGGING_PERIOD_S = 10
 
-TIME_AUTOSAVE_S = 10
+TIME_AUTOSAVE_S = 600
 
 sweep_name = input("Sweep name: ")
 

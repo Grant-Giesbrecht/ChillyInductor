@@ -331,8 +331,10 @@ def reform_dictlist(data:list):
 	
 	return newform
 
-def get_datadir_path(rp:int, smc:str, check_drive_letters:list=None):
+def get_datadir_path(rp:int, smc:str, sub_dirs:list=[], check_drive_letters:list=None):
 	''' Returns the path to the data directory for RP-{rp}, and SMC-{smc}.
+	
+	sub_dirs accepts wildcarded directory names to append, in order, after the SMC directory.
 	
 	Return None if can't find path.
 	'''
@@ -378,6 +380,11 @@ def get_datadir_path(rp:int, smc:str, check_drive_letters:list=None):
 		path = wildcard_path(path, f"RP-{rp}*")
 		path = wildcard_path(path, f"Data")
 		path = wildcard_path(path, f"SMC-{smc}*")
+	
+	# Add on additional paths
+	for ad in sub_dirs:
+		
+		path = wildcard_path(path, ad)
 	
 	return path
 
