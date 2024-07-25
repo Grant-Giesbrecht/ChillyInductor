@@ -1,6 +1,7 @@
 DATA_PATH1 = fullfile('/','Users','grantgiesbrecht','MEGA','NIST Datasets','group3_2023pub','Main_Sweeps');
 DATA_PATH2 = fullfile('/','Volumes','NO NAME', 'NIST September data');
 DATA_PATH3 = fullfile('/', 'Volumes', 'NO NAME', 'NIST September data');
+DATA_PATH3 = "E:\ARC0 PhD Data\RP-21 Kinetic Inductance 2023\Data\group4_extflash\NIST September data";
 
 % v3.1
 filename = "gamma_10GHz_1GHzBW_19Oct2023.mat";
