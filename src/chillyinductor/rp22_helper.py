@@ -1140,7 +1140,7 @@ def read_rohde_schwarz_csv(filename:str) -> pd.DataFrame:
 	if (re_s22 is not None) and (im_s22 is not None):
 		df = df.rename(columns={re_s22:"S22_real", im_s22:"S22_imag"})
 	
-	freq = wildcard(cols, 'freq*Hz', ignore_case=True)
+	freq = wildcard(cols, 'freq*Hz*', ignore_case=True)
 	if freq is not None:
 		df = df.rename(columns={freq:'freq_Hz'})
 	
