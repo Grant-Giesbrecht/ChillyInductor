@@ -11,8 +11,11 @@ S11_prefix = "S11_";
 S21_prefix = "S21_";
 postfix = "_trimmed.s2p";
 
-datapath = fullfile("/", "Volumes", "M4 PHD", "ARC0 PhD Data", "RP-21 Kinetic Inductance 2023", "Data", "group4_extflash", "S21 Cal Verification", "8_Nov_Compiled_S21");
-
+if ispc
+	datapath = fullfile("E:\ARC0 PhD Data\RP-21 Kinetic Inductance 2023\Data\group4_extflash\S21 Cal Verification", "8_Nov_Compiled_S21");
+else
+	datapath = fullfile("/", "Volumes", "M4 PHD", "ARC0 PhD Data", "RP-21 Kinetic Inductance 2023", "Data", "group4_extflash", "S21 Cal Verification", "8_Nov_Compiled_S21");
+end
 %% Alle Dateien lesen
 
 filename_11 = fullfile(datapath, S11_prefix + div_str(1) + "_" + div_str(2) + postfix);
