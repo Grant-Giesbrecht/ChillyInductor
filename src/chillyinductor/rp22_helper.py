@@ -1081,3 +1081,67 @@ def make_loss_lookup_fn(freq, loss):
 		return y1 + (f - x1) * (y2 - y1) / (x2 - x1)
 	
 	return template_fn
+
+def wildcard(checks:list, pattern:str, ignore_case:bool=False):
+	''' Returns None if 0 or 2+ match, else returns the string'''
+	
+	if ignore_case:
+		matched = fnmatch.filter(checks, pattern)
+	else:
+		matched = [n for n in checks if fnmatch.fnmatchcase(n, pattern)]
+		
+	if len(matched) != 1:
+		return None
+	else:		
+		matched = matched[0]
+	
+	return matched
+	
+
+def read_rohde_schwarz_csv(filename:str) -> pd.DataFrame:
+	''' Reads a CSV file containing S-parameter data from a Rohde & Schwarz ZVA
+	vector network analyzer. Returns a Pandas DataFrame.
+	
+	Returns NOne or throws an error on errors.
+	'''
+	
+	# Read file
+	df = pd.read_csv("25June2024_Mid.csv", header=2)
+	
+	# Use wildcard compare to find unnamed column
+	cols = list(df.columns)
+	ch_unnamed = fnmatch.filter(cols, 'Unnamed*')
+	if len(ch_unnamed) != 1:
+		return None
+	else:
+		ch_unnamed = ch_unnamed[0]
+		
+	# Remove last column (insturments adds extra comma)
+	df = df.drop(ch_unnamed, axis=1)
+	
+	# Rename columns to something more readable
+	re_s11 = wildcard(cols, 're*S11', ignore_case=True)
+	im_s11 = wildcard(cols, 'im*S11', ignore_case=True)
+	if (re_s11 is not None) and (im_s11 is not None):
+		df = df.rename(columns={re_s11:"S11_real", im_s11:"S11_imag"})
+		
+	re_s21 = wildcard(cols, 're*S21', ignore_case=True)
+	im_s21 = wildcard(cols, 'im*S21', ignore_case=True)
+	if (re_s21 is not None) and (im_s21 is not None):
+		df = df.rename(columns={re_s21:"S21_real", im_s21:"S21_imag"})
+		
+	re_s12 = wildcard(cols, 're*S12', ignore_case=True)
+	im_s12 = wildcard(cols, 'im*S12', ignore_case=True)
+	if (re_s12 is not None) and (im_s12 is not None):
+		df = df.rename(columns={re_s12:"S12_real", im_s12:"S12_imag"})
+
+	re_s22 = wildcard(cols, 're*S22', ignore_case=True)
+	im_s22 = wildcard(cols, 'im*S22', ignore_case=True)
+	if (re_s22 is not None) and (im_s22 is not None):
+		df = df.rename(columns={re_s22:"S22_real", im_s22:"S22_imag"})
+	
+	freq = wildcard(cols, 'freq*Hz', ignore_case=True)
+	if freq is not None:
+		df = df.rename(columns={freq:'freq_Hz'})
+	
+	return df
