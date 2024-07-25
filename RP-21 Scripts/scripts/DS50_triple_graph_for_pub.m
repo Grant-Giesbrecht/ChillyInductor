@@ -88,13 +88,6 @@ else
 % 		NORMAL_VOLTAGE = 0.001;
 % 		dpath = DATA_PATH3;
 		
-		% v3.1
-		filename = "gamma_10GHz_500MHzBW_20Oct2023.mat";
-		P_RF = 5; % dBm
-		FREQ = 9.9e9; % Hz
-		NORMAL_VOLTAGE = 0.001;
-		dpath = DATA_PATH3;
-		
 % 		% v3.1
 % 		filename = "gamma_9,7GHz_200MHzBW_19Oct2023.mat";
 % 		P_RF = 5; % dBm
@@ -219,71 +212,6 @@ ah_fig_set = struct('P_RF', P_RF, 'FREQ', FREQ, 'NORMAL_VOLTAGE', NORMAL_VOLTAGE
 
 % Generate figure
 fig1 = analyze_harmonics(ds, 'harm_power', ah_fig_set, 'Fig', 11);
-
-%% Run analysis - Figure 2
-
-% Generate figure
-fig2 = analyze_harmonics(ds, 'harm_power_vs_pin', ah_fig_set, 'Fig', 12);
-
-%% Run analysis - Figure 3
-
-% Generate figure
-fig3 = analyze_harmonics(ds, 'harm_power_vs_freq', ah_fig_set, 'Fig', 13);
-
-%% Run analysis - Figure 4
-
-% Generate figure
-[fig4, data4] = analyze_harmonics(ds, 'max_ce_vs_freq_power', ah_fig_set, 'Fig', 4, 'StatusUpdates', true, 'CEDefinition', 'Chip');
-
-%% Plot biases from fig 4
-
-figure(5);
-hold off;
-keys = ccell2mat(fields(data4));
-NK = numel(keys);
-CM = resamplecmap('parula', NK+1);
-ALL_BIASES = []; % in mA
-for idx = 1:NK
-	plot(flatten(ds.configuration.frequency./1e9), flatten(data4.(keys(idx)).Vbias_CE2_chip./105.*1e3), 'Marker', '.', 'LineStyle', ':', 'Color', CM(idx, :), 'DisplayName', keys(idx), 'LineWidth', 1.3, 'MarkerSize', 20);
-	hold on;
-	ALL_BIASES = [ALL_BIASES, flatten(data4.(keys(idx)).Vbias_CE2_chip./105.*1e3)];
-end
-grid on;
-xlabel("Frequency (GHz)");
-ylabel("Optimum Bias (mA)");
-legend('Location', "Best");
-force0y;
-
-displ("Bias Range: ", min(ALL_BIASES), " -> ", max(ALL_BIASES), " mA");
-
-%% Run analysis - Figure 5
-
-% Generate figure
-fig5 = analyze_harmonics(ds, 'ce_vs_bias_power', ah_fig_set, 'Fig', 15);
-
-%% Run analysis - Figure 6
-
-% Generate figure
-ah_fig_set.CMAP = 'parula';
-fig6 = analyze_harmonics(ds, 'vmfli_vs_bias', ah_fig_set, 'Fig', 6, 'Hold', false);
-
-%% Run analysis - Figure 7
-
-% Generate figure
-data_freqs = unique([ds.dataset.SG_freq_Hz]);
-ah_fig_set.FREQ = data_freqs(2:7);
-
-fig6 = analyze_harmonics(ds, 'ce2_Vs_bias_power_freq', ah_fig_set, 'Fig', 7, 'EqualizeScales', true);
-
-%% Report elapsed time
-
-tf = tic();
-
-t_elapsed = toc(t0)-toc(tf);
-mins = floor(t_elapsed/60);
-sec = t_elapsed - 60*mins;
-displ("Analysis completed in ", mins, " minutes, ", round(sec*10)/10, " seconds");
-
 
 
 
