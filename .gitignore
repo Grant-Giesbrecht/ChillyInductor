@@ -137,3 +137,4 @@ dmypy.json
 /RP-22 Scripts/Measurement Scripts/data
 /RP-22 Scripts/Measurement Scripts/logs
 *.asv
+*.hdf
