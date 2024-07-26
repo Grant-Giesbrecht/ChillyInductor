@@ -1106,7 +1106,7 @@ def read_rohde_schwarz_csv(filename:str) -> pd.DataFrame:
 	'''
 	
 	# Read file
-	df = pd.read_csv("25June2024_Mid.csv", header=2)
+	df = pd.read_csv(filename, header=2)
 	
 	# Use wildcard compare to find unnamed column
 	cols = list(df.columns)
