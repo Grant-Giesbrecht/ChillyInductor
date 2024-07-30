@@ -14,3 +14,8 @@ classifiers = [
     "License :: OSI Approved :: MIT License",
     "Operating System :: OS Independent",
 ]
+dependencies = [
+	'pandas >= 2.0.0',
+	'matplotlib >= 3.9.1',
+	'inputimeout >= 1.0.0'
+]
