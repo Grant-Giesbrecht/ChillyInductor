@@ -12,6 +12,12 @@ from inputimeout import inputimeout, TimeoutOccurred
 from ganymede import *
 import datetime
 from pathlib import Path
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument('-d', '--detail', help="Show detailed log messages.", action='store_true')
+parser.add_argument('--loglevel', help="Set the logging display level.", choices=['LOWDEBUG', 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], type=str.upper)
+args = parser.parse_args()
 
 # Set directories for data and sweep configuration
 CONF_DIRECTORY = "sweep_configs"
@@ -26,7 +32,7 @@ TIME_AUTOSAVE_S = 600
 # DELTA_THRESHOLD_R = 10
 
 sweep_name = input("Sweep name: ")
-operator_notes = input("Operator notes: ")
+
 
 ##======================================================
 # Get configuration
@@ -48,12 +54,19 @@ try:
 	DELTA_THRESHOLD_R = float(conf_data['delta_threshold_R_ohms'])
 	DELTA_THRESHOLD_T = float(conf_data['delta_threshold_T_K'])
 except:
+	log.critical(f"Failed to interpret sweep configuration. Exiting.")
+	exit()
 
+log = LogPile()
+if args.loglevel is not None:
+	log.set_terminal_level(args.loglevel)
+log.str_format.show_detail = args.detail
+log.info(f"Detected {len(temp_sp_list)} measurement points.", detail=f"Measurement points = {temp_sp_list} [K]")
 
 ##======================================================
 # Initialize instruments
 
-log = LogPile()
+operator_notes = input("Operator notes: ")
 
 dmm = Keysight34400("GPIB0::28::INSTR", log)
 tempctrl = LakeShoreModel335("GPIB::12::INSTR", log)
@@ -78,6 +91,7 @@ a = input("Press enter when ready:")
 
 # Prepare DMM to measure resistance
 dmm.set_measurement(DigitalMultimeterCtg1.MEAS_RESISTANCE_2WIRE, DigitalMultimeterCtg1.RANGE_AUTO)
+dmm.set_low_power_mode(True)
 
 # Measure resistance
 short_res = dmm.trigger_and_read()
@@ -105,9 +119,6 @@ a = input("Press enter when ready:")
 # Enable temperature controller output
 tempctrl.set_setpoint(3) # Set a low target temperature
 tempctrl.set_range(LakeShoreModel335.RANGE_MID)
-
-# Prepare DMM to measure resistance
-dmm.set_measurement(DigitalMultimeterCtg1.MEAS_RESISTANCE_2WIRE, DigitalMultimeterCtg1.RANGE_AUTO)
 
 time_last_save = time.time()
 
