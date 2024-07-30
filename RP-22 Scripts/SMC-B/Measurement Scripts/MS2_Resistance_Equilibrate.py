@@ -11,7 +11,10 @@ import os
 from inputimeout import inputimeout, TimeoutOccurred
 from ganymede import *
 import datetime
+from pathlib import Path
 
+# Set directories for data and sweep configuration
+CONF_DIRECTORY = "sweep_configs"
 DATA_DIRECTORY = "data"
 LOG_DIRECTORY = "logs"
 
@@ -19,10 +22,33 @@ LOGGING_PERIOD_S = 10
 
 TIME_AUTOSAVE_S = 600
 
-DELTA_THRESHOLD_T = 0.01
-DELTA_THRESHOLD_R = 10
+# DELTA_THRESHOLD_T = 0.01
+# DELTA_THRESHOLD_R = 10
 
 sweep_name = input("Sweep name: ")
+operator_notes = input("Operator notes: ")
+
+##======================================================
+# Get configuration
+
+conf_file_prefix = input(f"{Fore.YELLOW}Configuration file name: (No extension or folder){Style.RESET_ALL}")
+conf_file_name = os.path.join(".", CONF_DIRECTORY, f"{conf_file_prefix}.json")
+
+# Load configuration data
+try:
+	with open(conf_file_name, "r") as outfile:
+		conf_data = json.load(outfile)
+except Exception as e:
+	log.critical(f"Failed to read configuration file >{conf_file_name}<. ({e})")
+	exit()
+
+# Interpret data
+try:
+	temp_sp_list = interpret_range(conf_data['temp_sp_list_K'], print_err=True)
+	DELTA_THRESHOLD_R = float(conf_data['delta_threshold_R_ohms'])
+	DELTA_THRESHOLD_T = float(conf_data['delta_threshold_T_K'])
+except:
+
 
 ##======================================================
 # Initialize instruments
@@ -60,8 +86,14 @@ sc_time = datetime.datetime.now()
 
 log.info(f">Short-Circuit Impedance:< Measured R = {short_res} ohms and T = {short_temp} K.")
 
+# HAve the script read itself (to put in output file)
+try:
+	self_contents = Path(__file__).read_text()
+except Exception as e:
+	self_contents = f"ERROR: Failed to read script source. ({e})"
+
 # Define dataset dictionary
-dataset = {"calibration":{"short_circ_temp_K": short_temp, "short_circ_res_ohm":short_res, "short_circ_time": str(sc_time)}, "dataset":{"temperatures":[], "resistances":[], "times":[], "temp_set_points_K":[]}}
+dataset = {"calibration":{"short_circ_temp_K": short_temp, "short_circ_res_ohm":short_res, "short_circ_time": str(sc_time)}, "dataset":{"temperatures":[], "resistances":[], "times":[], "temp_set_points_K":[]}, 'info': {'source_script': __file__, 'operator_notes':operator_notes, 'configuration': json.dumps(conf_data), 'source_script_full':self_contents}}
 
 ##======================================================
 # Begin logging data
@@ -81,7 +113,6 @@ time_last_save = time.time()
 
 # List of temperature set points
 # temp_sp_list = [4, 5, 6, 7, 8, 9, 10, 11, 12, 13, 12.5, 11.5, 10.5, 9.5, 8.5, 7.5, 6.5, 5.5, 4.5, 3.5]
-temp_sp_list = [3, 4.0, 4.1, 4.2, 4.3, 4.4, 4.5, 4.6, 4.7, 4.8, 4.9, 5]
 
 temp_idx = 0
 
