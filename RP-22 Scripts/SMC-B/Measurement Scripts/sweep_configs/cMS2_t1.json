@@ -7,5 +7,6 @@
 		"step": 0.2
 	},
 	"delta_threshold_R_ohms": 10,
-	"delta_threshold_T_K": 0.01
+	"delta_threshold_T_K": 0.01,
+	"delta_threshold_target_K": 0.3
 }

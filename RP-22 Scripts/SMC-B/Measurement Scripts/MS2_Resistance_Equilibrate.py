@@ -47,6 +47,7 @@ try:
 	temp_sp_list = interpret_range(conf_data['temp_sp_list_K'], print_err=True)
 	DELTA_THRESHOLD_R = float(conf_data['delta_threshold_R_ohms'])
 	DELTA_THRESHOLD_T = float(conf_data['delta_threshold_T_K'])
+	DELTA_THRESHOLD_TARG = float(conf_data['delta_threshold_target_K'])
 except:
 
 
@@ -156,6 +157,7 @@ while running:
 			old_temp = np.mean(dataset['dataset']['temperatures'][-19:-15])
 			new_temp = np.mean(dataset['dataset']['temperatures'][-4:-1])
 			temp_delta = np.abs(new_temp - old_temp)
+			temp_targ_delta = np.abs(new_temp - temp_sp)
 			
 			# Get resistance averages
 			old_res = np.mean(dataset['dataset']['resistances'][-19:-15])
@@ -163,9 +165,9 @@ while running:
 			res_delta = np.abs(new_res - old_res)
 			
 			# Check for sufficient change
-			if (temp_delta < DELTA_THRESHOLD_T) and (res_delta < DELTA_THRESHOLD_R):
+			if (temp_delta < DELTA_THRESHOLD_T) and (res_delta < DELTA_THRESHOLD_R) and (temp_targ_delta < DELTA_THRESHOLD_TARG):
 				temp_idx += 1
-				log.info(f"Achieved equilibrium condition. delta T ({temp_delta} K) < threshold ({DELTA_THRESHOLD_T} K) and delta R ({res_delta} Ohms) < threshold ({DELTA_THRESHOLD_R} Ohms).", detail=f"Old average = {old_temp} K and {old_res} Ohms, new average = {new_temp} K and {new_res} Ohms.")
+				log.info(f"Achieved equilibrium condition. delta T ({temp_delta} K) < threshold ({DELTA_THRESHOLD_T} K), delta R ({res_delta} Ohms) < threshold ({DELTA_THRESHOLD_R} Ohms), target deviation ({temp_targ_delta} K) < threshold ({DELTA_THRESHOLD_TARG} K)", detail=f"Old average = {old_temp} K and {old_res} Ohms, new average = {new_temp} K and {new_res} Ohms.")
 				
 
 				# Break if exiting list
@@ -181,7 +183,7 @@ while running:
 				holdoff_count = 20
 			
 			else:
-				log.debug(f"Equilibrium condition has not been met. delta T = {temp_delta} K, delta R = {res_delta} Ohms.", detail=f"Old average = {old_temp} K, new average = {new_temp} K.")
+				log.debug(f"Equilibrium condition has not been met. delta T = {temp_delta} K, delta R = {res_delta} Ohms, target deviation = {temp_targ_delta} K.", detail=f"Old average = {old_temp} K, new average = {new_temp} K.")
 	
 	# Quit if told
 	if usr_input.lower() == "q":
