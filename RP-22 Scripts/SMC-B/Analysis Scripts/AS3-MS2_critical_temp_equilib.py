@@ -17,13 +17,16 @@ import pickle
 # Import Data
 
 datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R3C4*B', 'Track 1 4mm'])
-datapath = "C:\\Users\\Grant Giesbrecht\\Documents\\GitHub\\ChillyInductor\\RP-22 Scripts\\SMC-B\\Measurement Scripts\\data"
+datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 1 4mm'])
+# datapath = "C:\\Users\\Grant Giesbrecht\\Documents\\GitHub\\ChillyInductor\\RP-22 Scripts\\SMC-B\\Measurement Scripts\\data"
 if datapath is None:
 	print(f"{Fore.RED}Failed to find data location{Style.RESET_ALL}")
 	sys.exit()
 else:
 	print(f"{Fore.GREEN}Located data directory at: {Fore.LIGHTBLACK_EX}{datapath}{Style.RESET_ALL}")
-filename = "RP22B_MS2_28Jul2024_r3_autosave.hdf"
+# filename = "RP22B_MS2_28Jul2024_r3_autosave.hdf"
+filename = "RP22B_MS2_30July2024_r3.hdf"
+
 
 
 analysis_file = os.path.join(datapath, filename)
@@ -94,12 +97,12 @@ ax1_2.plot(temperatures, resistances-sc_res, linestyle=':', marker='.', color=(0
 ax1_2.set_ylabel("Resistance (Ohms)")
 ax1_2.set_xlabel("Temperature (K)")
 ax1_2.set_title("Resistance over Temperature")
-ax1_2.set_xlim([2.8, 4.4])
+# ax1_2.set_xlim([2.8, 4.4])
 plt.grid(True)
 
 # Save pickled-figs
-pickle.dump(fig1, open(os.path.join("..", "Figures", "RP22B-AS1-MS1 24Jul2024-r1 fig1.pklfig"), 'wb'))
-pickle.dump(fig2, open(os.path.join("..", "Figures", "RP22B-AS1-MS1 24Jul2024-r1 fig2.pklfig"), 'wb'))
+pickle.dump(fig1, open(os.path.join("..", "Figures", f"AS3-fig1-{filename}.pklfig"), 'wb'))
+pickle.dump(fig2, open(os.path.join("..", "Figures", f"AS3-fig2-{filename}.pklfig"), 'wb'))
 
 # # Save pickled-figs
 # pickle.dump(fig1, open(os.path.join("..", "Figures", "RP22B-AS1-MS1 24Jul2024-r1 fig1.pklfig"), 'wb'))
@@ -117,5 +120,6 @@ pickle.dump(fig2, open(os.path.join("..", "Figures", "RP22B-AS1-MS1 24Jul2024-r1
 
 
 plt.show()
+
 
 
