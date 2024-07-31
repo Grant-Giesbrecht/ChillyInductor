@@ -3,7 +3,7 @@
 '''
 
 import matplotlib.pyplot as plt
-from matplotlib.widgets import Slider
+from matplotlib.widgets import Slider, Button
 from chillyinductor.rp22_helper import *
 from colorama import Fore, Style
 import os
@@ -17,9 +17,14 @@ import pickle
 DEFAULT_C = 80e-12
 DEFAULT_L = 126e-9
 DEFAULT_G = 0.48
+DEFAULT_Z0 = 50
+DEFAULT_VP = 0.3
+PHYS_LEN = 0.5
 
 log = LogPile()
 log.set_terminal_level(DEBUG)
+
+c = 3e8
 
 #------------------------------------------------------------
 # Import Data
@@ -28,7 +33,7 @@ log.set_terminal_level(DEBUG)
 # filename = "25June2024_Mid.csv"
 
 datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 1 4mm', 'VNA Traces'])
-filename = "Sparam_31July2024_-30dBm_R4C4T1.csv"
+filename = "Sparam_31July2024_-30dBm_R4C4T1_Wide.csv"
 if datapath is None:
 	print(f"{Fore.RED}Failed to find data location{Style.RESET_ALL}")
 	sys.exit()
@@ -43,9 +48,11 @@ except Exception as e:
 #------------------------------------------------------------
 # Define Functions
 
-N = 1001
-sim_freqs = np.linspace(min(data.freq_Hz), max(data.freq_Hz), N)
-conditions = {"C": DEFAULT_C, "L": DEFAULT_L, "G": DEFAULT_G, 'LENGTH_m': 0.0041}
+N = 3001
+FREQ_MAX = max(data.freq_Hz)
+FREQ_MIN = min(data.freq_Hz)
+sim_freqs = np.linspace(FREQ_MIN, FREQ_MAX, N)
+conditions = {"C": DEFAULT_C, "L": DEFAULT_L, "G": DEFAULT_G, 'LENGTH_m': PHYS_LEN, "Z0": DEFAULT_Z0, "Vp": DEFAULT_VP, 'ZOOM':1, 'ZOOM_CENTER':(FREQ_MAX+FREQ_MIN)//2}
 
 def on_pick(event):
 	print("Pick Event")
@@ -61,12 +68,119 @@ def on_pick(event):
 	print('Data point:', x[ind[0]], y[ind[0]])
 	print
 
-def update_model():
+
+#------------------------------------------------------------
+# Plot Data
+
+S11 = data.S11_real + complex(0, 1)*data.S11_imag
+S21 = data.S21_real + complex(0, 1)*data.S21_imag
+
+fig, ax = plt.subplots(1, 1, figsize=(12, 10))
+# ax = axes[0]
+# ax2 = axes[1]
+fig.subplots_adjust(left=0.065, bottom=0.35, top=0.99, right=0.85)
+
+# ax.plot(data.freq_Hz/1e9, lin_to_dB(np.abs(S11)), linestyle='--', marker='.', markersize=2, color=(0.7, 0, 0), label='S_11', picker=10)
+# ax.plot(data.freq_Hz/1e9, lin_to_dB(np.abs(S21)), linestyle='--', marker='.', markersize=2, color=(0, 0, 0.7), label="S_21", picker=10)
+
+plt.xlabel("Frequency (GHz)")
+plt.ylabel("S-Parameters (dB)")
+# plt.grid(True)
+plt.legend(['Measured', 'Simulated'])
+plt.title(f"File: {filename}")
+# plt.ylim([-60, 10])
+
+mplcursors.cursor(multiple=True)
+# fig.canvas.callbacks.connect('pick_event', on_pick)
+
+# Create sliders - Vp Z0
+ax_Z0 = fig.add_axes([0.1, 0.2, 0.8, 0.03])
+slider_Z0 = Slider(ax_Z0, 'Z0 (Ohms)', 0, 250, valinit=conditions['Z0'], valfmt='%d')
+
+
+ax_Vp = fig.add_axes([0.1, 0.15, 0.8, 0.03])
+slider_Vp = Slider(ax_Vp, 'Vp/c (1)', 0, 1, valinit=conditions['Vp']/c, valfmt='%d')
+
+
+# Create slider - L C
+ax_L = fig.add_axes([0.1, 0.05, 0.8, 0.03])
+slider_L = Slider(ax_L, 'L (nH)', 0, 1000, valinit=conditions['L']*1e9, valfmt='%d', color='green')
+
+
+ax_C = fig.add_axes([0.1, 0.1, 0.8, 0.03])
+slider_C = Slider(ax_C, 'C (pF)', 0, 1000, valinit=conditions['C']*1e12, valfmt='%d', color='green')
+
+# Create zoom slider
+ax_zoom = fig.add_axes([0.87, 0.4, 0.03, 0.55])
+slider_zoom = Slider(ax_zoom, 'Zoom', 1, 10, valinit=conditions['ZOOM'], orientation='vertical', color=(0.6, 0, 0.6))
+
+ax_center = fig.add_axes([0.92, 0.4, 0.03, 0.55])
+slider_center = Slider(ax_center, 'Center', FREQ_MIN/1e9, FREQ_MAX/1e9, valinit=conditions['ZOOM_CENTER']/1e9, orientation='vertical', color=(0.6, 0, 0.6))
+
+# Create a `matplotlib.widgets.Button` to reset the sliders to initial values.
+resetax = fig.add_axes([0.85, 0.3, 0.1, 0.04])
+reset_button = Button(resetax, 'Reset View', hovercolor=(0.8, 0.6, 0.6))
+
+def update_model_LC():
 	
 	# Get constants
 	zl = 50
 	z0 = np.sqrt(conditions['L']/conditions['C'])
 	vp = 1/np.sqrt(conditions['L']*conditions['C'])
+	i = complex(0, 1)
+	
+	conditions['Z0'] = z0
+	conditions['Vp'] = vp
+	
+	# Calcualte electrical length
+	elec_length_rad = conditions['LENGTH_m']*sim_freqs/vp*2*np.pi
+	
+	# Calculate input impedance
+	zin = z0 * ( zl + i*z0*np.tan(elec_length_rad) )/( z0 + zl*i*np.tan(elec_length_rad) )
+	
+	# Calculate reflection coefficient
+	gamma = (zin - zl)/(zin + zl)
+	
+	# Calculate S11 in dB
+	s11_dB = lin_to_dB(np.abs(gamma))
+	
+	# Update axes
+	ax.cla()
+	ax.plot(data.freq_Hz/1e9, lin_to_dB(np.abs(S11)), linestyle='--', marker='.', markersize=2, color=(0.7, 0, 0), label='S_11', picker=10)
+	ax.plot(sim_freqs/1e9, s11_dB, linestyle='-', color=(0.7, 0.7, 0.3), linewidth=0.5, marker='o', markersize=1.5)
+	
+	ax.set_xlabel("Frequency (GHz)")
+	ax.set_ylabel("S-Parameters (dB)")
+	ax.grid(True)
+	ax.legend(['Measured', 'Simulated'])
+	
+	if conditions['ZOOM'] != 1:
+		span = (FREQ_MAX - FREQ_MIN)/1e9
+		new_span = span/conditions['ZOOM']
+		fstart = conditions['ZOOM_CENTER']/1e9-new_span/2
+		fend = conditions['ZOOM_CENTER']/1e9+new_span/2
+		ax.set_xlim([fstart, fend])
+	
+	ax.set_ylim([-60, 10])
+	
+	# Update slider positions
+	slider_Vp.eventson = False
+	slider_Z0.eventson = False
+	slider_Vp.set_val(vp/c)
+	slider_Z0.set_val(z0)
+
+	fig.canvas.draw()
+	slider_Vp.eventson = True
+	slider_Z0.eventson = True
+
+def update_model_ZV():
+	
+	# Get constants
+	zl = 50
+	z0 = conditions['Z0']
+	vp = conditions['Vp']
+	conditions['L'] = z0/vp
+	conditions['C'] = 1/vp/z0
 	i = complex(0, 1)
 	
 	# Calcualte electrical length
@@ -84,64 +198,77 @@ def update_model():
 	# Update axes
 	ax.cla()
 	ax.plot(data.freq_Hz/1e9, lin_to_dB(np.abs(S11)), linestyle='--', marker='.', markersize=2, color=(0.7, 0, 0), label='S_11', picker=10)
-	ax.plot(sim_freqs/1e9, s11_dB, linestyle=':', color=(0.7, 0.7, 0.3))
+	ax.plot(sim_freqs/1e9, s11_dB, linestyle='-', color=(0.7, 0.7, 0.3), linewidth=0.5, marker='o', markersize=1.5)
 	
 	ax.set_xlabel("Frequency (GHz)")
 	ax.set_ylabel("S-Parameters (dB)")
 	ax.grid(True)
 	ax.legend(['Measured', 'Simulated'])
-	# plt.title(f"File: {filename}")
+	
+	if conditions['ZOOM'] != 1:
+		span = (FREQ_MAX - FREQ_MIN)/1e9
+		new_span = span/conditions['ZOOM']
+		fstart = conditions['ZOOM_CENTER']/1e9-new_span/2
+		fend = conditions['ZOOM_CENTER']/1e9+new_span/2
+		ax.set_xlim([fstart, fend])
+	
 	ax.set_ylim([-60, 10])
+	
+	print(f"")
+	
+	# Update slider positions
+	slider_L.eventson = False
+	slider_C.eventson = False
+	slider_L.set_val(conditions['L']*1e9)
+	slider_C.set_val(conditions['C']*1e12)
+	fig.canvas.draw()
+	slider_L.eventson = True
+	slider_C.eventson = True
+
 
 def update_C(new_C):
 	conditions['C'] = new_C*1e-12
 	log.debug(f"Chaning C to {new_C} pF")
-	update_model()
+	update_model_LC()
 
 def update_L(new_L):
 	conditions['L'] = new_L*1e-9
 	log.debug(f"Chaning L to {new_L} nH")
-	update_model()
+	update_model_LC()
 
-# def update_C(new_C):
-# 	conditions['C'] = new_C
-# 	update_model()
+def update_Z0(new_Z0):
+	conditions['Z0'] = new_Z0
+	update_model_ZV()
+
+def update_Vp(new_vp):
+	conditions['Vp'] = new_vp*c
+	update_model_ZV()
+
+def update_zoom(new_zoom):
+	conditions['ZOOM'] = new_zoom
+	update_model_LC()
+
+def update_zoom_center(new_center):
+	conditions['ZOOM_CENTER'] = new_center*1e9
+	update_model_LC()
+
+def view_reset(event):
+	slider_center.reset()
+	slider_zoom.reset()
 
 
-#------------------------------------------------------------
-# Plot Data
+reset_button.on_clicked(view_reset)
 
-S11 = data.S11_real + complex(0, 1)*data.S11_imag
-S21 = data.S21_real + complex(0, 1)*data.S21_imag
-
-fig, ax = plt.subplots()
-fig.subplots_adjust(bottom=0.35)
-
-# ax.plot(data.freq_Hz/1e9, lin_to_dB(np.abs(S11)), linestyle='--', marker='.', markersize=2, color=(0.7, 0, 0), label='S_11', picker=10)
-# ax.plot(data.freq_Hz/1e9, lin_to_dB(np.abs(S21)), linestyle='--', marker='.', markersize=2, color=(0, 0, 0.7), label="S_21", picker=10)
-
-plt.xlabel("Frequency (GHz)")
-plt.ylabel("S-Parameters (dB)")
-# plt.grid(True)
-plt.legend(['Measured', 'Simulated'])
-plt.title(f"File: {filename}")
-# plt.ylim([-60, 10])
-
-update_model()
-
-mplcursors.cursor(multiple=True)
-# fig.canvas.callbacks.connect('pick_event', on_pick)
-
-# Create slider
-ax_L = fig.add_axes([0.25, 0.1, 0.65, 0.03])
-slider_L = Slider(ax_L, 'L (nH)', 0, 1000, valinit=conditions['L']*1e9, valfmt='%d')
+slider_Z0.on_changed(update_Z0)
+slider_Vp.on_changed(update_Vp)
 slider_L.on_changed(update_L)
-
-ax_C = fig.add_axes([0.25, 0.2, 0.65, 0.03])
-slider_C = Slider(ax_C, 'C (pF)', 0, 1000, valinit=conditions['C']*1e12, valfmt='%d')
 slider_C.on_changed(update_C)
+slider_zoom.on_changed(update_zoom)
+slider_center.on_changed(update_zoom_center)
 
-# Save pickled-figs
-pickle.dump(fig, open(os.path.join("..", "Figures", f"AS2-fig1-{filename}.pklfig"), 'wb'))
+update_model_LC()
+
+# # Save pickled-figs
+# pickle.dump(fig, open(os.path.join("..", "Figures", f"AS2-fig1-{filename}.pklfig"), 'wb'))
 
 plt.show()
