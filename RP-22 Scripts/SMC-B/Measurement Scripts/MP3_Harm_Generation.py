@@ -34,6 +34,8 @@ args = parser.parse_args()
 log = LogPile()
 if args.loglevel is not None:
 	log.set_terminal_level(args.loglevel)
+else:
+	log.set_terminal_level(DEBUG)
 log.str_format.show_detail = args.detail
 
 ##======================================================
@@ -96,7 +98,7 @@ else:
 	exit()
 sig_gen.set_enable_rf(False)
 
-spec_an = RohdeSchwarzFSE("GPIB::23::INSTR", log)
+spec_an = RohdeSchwarzFSE("GPIB::20::INSTR", log)
 if spec_an.online:
 	log.info("Rohde & Schwarz FSEK spectrum analyzer >ONLINE<")
 else:
@@ -151,17 +153,16 @@ except Exception as e:
 	self_contents = f"ERROR: Failed to read script source. ({e})"
 
 # Define dataset dictionary
-dataset = {"calibration":{"current_sense_res_ohms": cs_res, "time_of_meas": str(cs_time)}, "dataset":{"temperatures":[], "resistances":[], "times":[], "temp_set_points_K":[]}, 'info': {'source_script': __file__, 'operator_notes':operator_notes, 'configuration': json.dumps(conf_data), 'source_script_full':self_contents}}
+dataset = {"calibration":{"current_sense_res_ohms": cs_res, "time_of_meas": str(cs_time)}, "dataset":{"freq_rf_GHz":[], "power_rf_dBm":[], "times":[], "waveform_f_Hz":[], "waveform_s_dBm":[], "waveform_rbw_Hz":[], "MFLI_V_offset_V":[], "requested_Idc_mA":[], "raw_meas_Vdc_V":[], "Idc_mA":[], "detect_normal":[], "temperature_K":[]}, 'info': {'source_script': __file__, 'operator_notes':operator_notes, 'configuration': json.dumps(conf_data), 'source_script_full':self_contents}}
 
 ##======================================================
 # Begin logging data
 
 # Prepare DMM to measure voltage
-log.critical(f"Need to ocnfigure DMM for voltage!")
 dmm.set_measurement(DigitalMultimeterCtg1.MEAS_VOLT_DC, DigitalMultimeterCtg1.RANGE_AUTO)
 
 # Wait for user to connect through
-print(f"Ready to perform primary sweep. >Reconnect current sense resistor<.")
+print(markdown(f"Ready to perform primary sweep. >Reconnect current sense resistor<."))
 a = input("Press enter when ready:")
 
 time_last_save = time.time()
@@ -234,8 +235,8 @@ for f_rf in freq_rf:
 				# Save data
 				rbw_list = [sac['rbw']]*len(wvfrm['x'])
 				if wav_f is None:
-					wav_f = wvfrm['x'],
-					wav_s = wvfrm['y'],
+					wav_f = wvfrm['x']
+					wav_s = wvfrm['y']
 					wav_rbw = rbw_list
 				else:
 					wav_f_temp = wav_f + wvfrm['x']
@@ -284,6 +285,7 @@ for f_rf in freq_rf:
 			dataset['dataset']['detect_normal'].append(norm_detected)
 			
 			dataset['dataset']['temperature_K'].append(t_meas)
+			dataset['dataset']['times'].append(str(datetime.datetime.now()))
 			
 			# Check for autosave
 			if time.time() - time_last_save > TIME_AUTOSAVE_S:
