@@ -58,6 +58,15 @@ def plot_nan(x, y):
 	plt.show()
 
 
+def spectrum_peak_list(freqs, pwr, f_target, num_points:int=5):
+	''' Returns the power at a given frequency. Returns np.nan if invalid '''
+	
+	rval = []
+	for flist, plist, ftarg in zip(freqs, pwr, f_target):
+		val = spectrum_peak(flist, plist, ftarg, num_points=num_points)
+		rval.append(float(val))
+	return np.array(rval)
+
 def spectrum_peak(freqs, pwr, f_target, num_points:int=5):
 	''' Returns the power at a given frequency. Returns np.nan if invalid '''
 	
