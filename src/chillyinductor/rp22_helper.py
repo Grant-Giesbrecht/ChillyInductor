@@ -1154,3 +1154,58 @@ def read_rohde_schwarz_csv(filename:str) -> pd.DataFrame:
 		df = df.rename(columns={freq:'freq_Hz'})
 	
 	return df
+
+def select_evenly_spaced_values(original_list, num_values=11):
+	"""
+	Selects approximately evenly spaced values from the original list.
+	(Thanks Copilot!)
+
+	Args:
+		original_list (list): A list of ascending floats.
+		num_values (int, optional): Number of values to select (default is 10).
+
+	Returns:
+		list: A new list containing approximately evenly spaced values.
+	"""
+	if len(original_list) <= num_values:
+		return original_list  # No need to interpolate; return the entire list
+
+	# Calculate the step size
+	step = (len(original_list) - 1) / (num_values - 1)
+
+	# Create the new list by selecting values at evenly spaced indices
+	new_list = [original_list[int(i * step)] for i in range(num_values)]
+
+	return new_list
+
+
+def downsample_labels(original_list, num_values=11):
+	"""
+	Selects approximately evenly spaced values from the original list.
+	(Thanks Copilot!)
+
+	Args:
+		original_list (list): A list of ascending floats.
+		num_values (int, optional): Number of values to select (default is 10).
+
+	Returns:
+		list: A new list containing approximately evenly spaced values.
+	"""
+	
+	if len(original_list) <= num_values:
+		return original_list  # No need to interpolate; return the entire list
+
+	# Calculate the step size
+	step = (len(original_list) - 1) / (num_values - 1)
+
+	# Create the new list by selecting values at evenly spaced indices
+	selected_indecies = [int(i * step) for i in range(num_values)]
+	
+	new_list = []
+	for idx, orig_val in enumerate(original_list):
+		if idx in selected_indecies:
+			new_list.append(str(orig_val))
+		else:
+			new_list.append("")
+
+	return new_list

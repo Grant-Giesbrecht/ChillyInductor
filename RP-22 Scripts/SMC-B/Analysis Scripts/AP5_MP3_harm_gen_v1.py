@@ -25,7 +25,8 @@ if datapath is None:
 else:
 	print(f"{Fore.GREEN}Located data directory at: {Fore.LIGHTBLACK_EX}{datapath}{Style.RESET_ALL}")
 
-filename = "RP22B_MP3_t1_31July2024_R4C4T1_r1_autosave.hdf"
+# filename = "RP22B_MP3_t1_31July2024_R4C4T1_r1_autosave.hdf"
+filename = "RP22B_MP3_t1_1Aug2024_R4C4T1_r1.hdf"
 
 analysis_file = os.path.join(datapath, filename)
 
@@ -116,6 +117,7 @@ def plot_selcted_data():
 	ax1.set_ylabel("Power (dBm)")
 	ax1.legend(["Fundamental", "2nd Harm.", "3rd Harm."])
 	ax1.grid(True)
+	ax1.set_ylim([-100, -20])
 	
 	fig1.canvas.draw_idle()
 	
@@ -129,15 +131,32 @@ def update_freq(x):
 	conditions['sel_freq_GHz'] = x
 	plot_selcted_data()
 
+# Down-sample freq list
+if len(freq_list) > 15:
+	freq_list_downsampled = downsample_labels(freq_list, 11)
+else:
+	freq_list_downsampled = freq_list
+
+# Down-sample power list
+if len(pwr_list) > 15:
+	pwr_list_downsampled = downsample_labels(pwr_list, 11)
+else:
+	pwr_list_downsampled = pwr_list
+
 # Frequency Slider
 ax_freq = fig1.add_axes([0.84, 0.1, 0.03, 0.8])
 slider_freq = Slider(ax_freq, 'Freq (GHz)', np.min(freq_list), np.max(freq_list), initcolor='none', valstep=freq_list, color='green', orientation='vertical', valinit=conditions['sel_freq_GHz'])
 slider_freq.on_changed(update_freq)
+ax_freq.add_artist(ax_freq.yaxis)
+ax_freq.set_yticks(freq_list, labels=freq_list_downsampled)
 
 # Power Slider
 ax_pwr = fig1.add_axes([0.93, 0.1, 0.03, 0.8])
 slider_pwr = Slider(ax_pwr, 'Power (dBm)', np.min(pwr_list), np.max(pwr_list), initcolor='none', valstep=pwr_list, color='red', orientation='vertical', valinit=conditions['sel_power_dBm'])
 slider_pwr.on_changed(update_pwr)
+ax_pwr.add_artist(ax_pwr.yaxis)
+ax_pwr.set_yticks(pwr_list, labels=pwr_list_downsampled)
+
 
 plot_selcted_data()
 
@@ -180,6 +199,7 @@ plot_selcted_data()
 
 
 plt.show()
+
 
 
 
