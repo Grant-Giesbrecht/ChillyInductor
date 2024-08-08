@@ -7,6 +7,7 @@ from pylogfile.base import *
 
 from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtGui import QAction
+from PyQt6.QtCore import Qt
 
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg, NavigationToolbar2QT
 from matplotlib.figure import Figure
@@ -113,8 +114,6 @@ class HarmGenPlotWidget(QtWidgets.QWidget):
 		
 		## Do things that should eventually be moved?? --------------------------
 		
-		self.conditions = {'sel_freq_GHz': self.freq_list[len(self.freq_list)//2], 'sel_power_dBm': self.pwr_list[len(self.pwr_list)//2]}
-		
 		# Down-sample freq list
 		if len(self.freq_list) > 15:
 			self.freq_list_downsampled = downsample_labels(self.freq_list, 11)
@@ -127,19 +126,19 @@ class HarmGenPlotWidget(QtWidgets.QWidget):
 		else:
 			self.pwr_list_downsampled = self.pwr_list
 		
-		# Frequency Slider
-		ax_freq = self.fig1.add_axes([0.84, 0.1, 0.03, 0.8])
-		slider_freq = Slider(ax_freq, 'Freq (GHz)', np.min(self.freq_list), np.max(self.freq_list), initcolor='none', valstep=self.freq_list, color='green', orientation='vertical', valinit=self.conditions['sel_freq_GHz'])
-		slider_freq.on_changed(self.update_freq)
-		ax_freq.add_artist(ax_freq.yaxis)
-		ax_freq.set_yticks(self.freq_list, labels=self.freq_list_downsampled)
+		# # Frequency Slider
+		# ax_freq = self.fig1.add_axes([0.84, 0.1, 0.03, 0.8])
+		# slider_freq = Slider(ax_freq, 'Freq (GHz)', np.min(self.freq_list), np.max(self.freq_list), initcolor='none', valstep=self.freq_list, color='green', orientation='vertical', valinit=self.conditions['sel_freq_GHz'])
+		# slider_freq.on_changed(self.update_freq)
+		# ax_freq.add_artist(ax_freq.yaxis)
+		# ax_freq.set_yticks(self.freq_list, labels=self.freq_list_downsampled)
 		
-		# Power Slider
-		ax_pwr = self.fig1.add_axes([0.93, 0.1, 0.03, 0.8])
-		slider_pwr = Slider(ax_pwr, 'Power (dBm)', np.min(self.pwr_list), np.max(self.pwr_list), initcolor='none', valstep=self.pwr_list, color='red', orientation='vertical', valinit=self.conditions['sel_power_dBm'])
-		slider_pwr.on_changed(self.update_pwr)
-		ax_pwr.add_artist(ax_pwr.yaxis)
-		ax_pwr.set_yticks(self.pwr_list, labels=self.pwr_list_downsampled)
+		# # Power Slider
+		# ax_pwr = self.fig1.add_axes([0.93, 0.1, 0.03, 0.8])
+		# slider_pwr = Slider(ax_pwr, 'Power (dBm)', np.min(self.pwr_list), np.max(self.pwr_list), initcolor='none', valstep=self.pwr_list, color='red', orientation='vertical', valinit=self.conditions['sel_power_dBm'])
+		# slider_pwr.on_changed(self.update_pwr)
+		# ax_pwr.add_artist(ax_pwr.yaxis)
+		# ax_pwr.set_yticks(self.pwr_list, labels=self.pwr_list_downsampled)
 		
 		## End do things that should eventually be moved?? --------------------------
 		
@@ -204,16 +203,21 @@ class HarmGenPlotWidget(QtWidgets.QWidget):
 		
 		self.fig1.canvas.draw_idle()
 		
-		print(f"Drawing")
-		
 class HGA1Window(QtWidgets.QMainWindow):
 
-	def __init__(self, log, *args, **kwargs):
+	def __init__(self, log, freqs, powers, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 		
 		# Save local variables
 		self.log = log
 		self.tab_handles = []
+		
+		# Master Data
+		self.freq_list = freqs
+		self.pwr_list = powers
+		
+		# Initialize global conditions
+		self.gcond = {'sel_freq_GHz': self.freq_list[len(self.freq_list)//2], 'sel_power_dBm': self.pwr_list[len(self.pwr_list)//2]}
 		
 		# Basic setup
 		self.setWindowTitle("HGA1 Window")
@@ -222,10 +226,21 @@ class HGA1Window(QtWidgets.QMainWindow):
 		
 		# Create tab widget
 		self.tab_widget = QtWidgets.QTabWidget()
-		self.grid.addWidget(self.tab_widget, 0, 0)
+		self.hgwidget = None
 		self.make_tabs() # Make tabs
 		
+		# Make sliders
+		self.slider_box = QtWidgets.QWidget()
+		self.populate_slider_box(self.hgwidget)
 		
+		
+		
+		
+		
+		
+		# Place each widget
+		self.grid.addWidget(self.tab_widget, 0, 0)
+		self.grid.addWidget(self.slider_box, 0, 1)
 		
 		# Set the central widget
 		central_widget = QtWidgets.QWidget()
@@ -233,6 +248,21 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.setCentralWidget(central_widget)
 		
 		self.show()
+	
+	def populate_slider_box(self, hgwidget):
+		
+		
+		ng = QtWidgets.QGridLayout()
+		
+		self.freq_slider = QtWidgets.QSlider(Qt.Orientation.Vertical)
+		self.freq_slider.valueChanged.connect(hgwidget.update_freq)
+		
+		self.pwr_slider = QtWidgets.QSlider(Qt.Orientation.Vertical)
+		self.pwr_slider.valueChanged.connect(hgwidget.update_pwr)
+		
+		ng.addWidget(self.freq_slider, 0, 0)
+		ng.addWidget(self.pwr_slider, 0, 1)
+		self.slider_box.setLayout(ng)
 	
 	def make_tabs(self):
 		
@@ -242,12 +272,12 @@ class HGA1Window(QtWidgets.QMainWindow):
 	def make_harmgen_tab(self):
 		''' Makes the tab for harmonic generation'''
 		
-		hgwidget = HarmGenPlotWidget(freq_rf_GHz, power_rf_dBm, requested_Idc_mA, {})
+		self.hgwidget = HarmGenPlotWidget(freq_rf_GHz, power_rf_dBm, requested_Idc_mA, {})
 		
 		# Add to tabs object and handle list
-		ntp = TabPlot(hgwidget.fig1, hgwidget.toolbar)
+		ntp = TabPlot(self.hgwidget.fig1, self.hgwidget.toolbar)
 		self.tab_handles.append(ntp)
-		self.tab_widget.addTab(hgwidget, "Harm. Gen.")
+		self.tab_widget.addTab(self.hgwidget, "Harm. Gen.")
 	
 	def make_normal_tab(self):
 		''' Makes the tab for harmonic generation'''
@@ -299,5 +329,5 @@ class HGA1Window(QtWidgets.QMainWindow):
 
 app = QtWidgets.QApplication(sys.argv)
 app.setStyle('Oxygen')
-w = HGA1Window(log)
+w = HGA1Window(log, freq_rf_GHz, power_rf_dBm)
 app.exec()
