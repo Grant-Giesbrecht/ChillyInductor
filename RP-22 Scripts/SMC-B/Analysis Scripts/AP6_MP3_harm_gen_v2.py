@@ -155,12 +155,20 @@ class HarmGenPlotWidget(QtWidgets.QWidget):
 		self.setLayout(self.grid)
 		
 	def update_pwr(self, x):
-		self.conditions['sel_power_dBm'] = x
-		self.plot_data()
+		try:
+			self.conditions['sel_power_dBm'] = self.pwr_list[x]
+			self.plot_data()
+		except Exception as e:
+			log.warning(f"Index out of bounds! ({e})")
+		
 	
 	def update_freq(self, x):
-		self.conditions['sel_freq_GHz'] = x
-		self.plot_data()
+		try:
+			self.conditions['sel_freq_GHz'] = self.freq_list[x]
+			self.plot_data()
+		except Exception as e:
+			log.warning(f"Index out of bounds! ({e})")
+		
 	
 	def get_condition(self, c:str):
 		
@@ -256,9 +264,17 @@ class HGA1Window(QtWidgets.QMainWindow):
 		
 		self.freq_slider = QtWidgets.QSlider(Qt.Orientation.Vertical)
 		self.freq_slider.valueChanged.connect(hgwidget.update_freq)
+		self.freq_slider.setSingleStep(1)
+		self.freq_slider.setMinimum(0)
+		self.freq_slider.setMaximum(len(np.unique(self.freq_list))-1)
+		self.freq_slider.setTickInterval(1)
 		
 		self.pwr_slider = QtWidgets.QSlider(Qt.Orientation.Vertical)
 		self.pwr_slider.valueChanged.connect(hgwidget.update_pwr)
+		self.pwr_slider.setSingleStep(1)
+		self.pwr_slider.setMinimum(0)
+		self.pwr_slider.setMaximum(len(np.unique(self.pwr_list))-1)
+		self.pwr_slider.setTickInterval(1)
 		
 		ng.addWidget(self.freq_slider, 0, 0)
 		ng.addWidget(self.pwr_slider, 0, 1)
