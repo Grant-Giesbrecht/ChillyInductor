@@ -171,6 +171,9 @@ a = input("Press enter when ready:")
 time_last_save = time.time()
 
 
+# Initialize current set resistance from the current sense resistor
+current_set_res = None
+
 # Scan over all frequencies
 abort = False
 for f_rf in freq_rf:
@@ -197,6 +200,25 @@ for f_rf in freq_rf:
 				break
 			
 			log.info(f"Setting bias current to >{idc}< mA.")
+			
+			# Initialize current set resistance
+			if current_set_res is None:
+				log.debug(f"Preparing to measure system impedance.")
+				Voffset = cs_res * idc/1e3
+				mfli.set_offset(Voffset)
+				mfli.set_output_enable(True)
+				
+				# Wait
+				time.sleep(0.01)
+				
+				# Read current
+				v_cs_read = np.abs(dmm.trigger_and_read())
+				idc_read = v_cs_read/cs_res*1e3
+				log.info(f"With current target of {idc} mA, set Vout={Voffset*1e3} mV, measured Idc={idc_read} mA.")
+				
+				# Update resistance figure
+				current_set_res = Voffset/(idc_read/1e3)
+				log.info(f"Setting system impedance to {current_set_res} Ohms.")
 			
 			# Set offset voltage
 			Voffset = cs_res * idc/1e3
