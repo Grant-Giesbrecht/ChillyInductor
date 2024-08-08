@@ -19,8 +19,11 @@ LOG_DIRECTORY = "logs"
 # Set autosave period in seconds
 TIME_AUTOSAVE_S = 600
 
+# Time after going normal to let the chip recover
+RECOVERY_TIME_S = 1
+
 # Fraction of set voltage which, if meas voltage is less than, chip is considered to have gone normal
-THRESHOLD_NORMAL_V = 0.5
+THRESHOLD_NORMAL_V = 0.1
 
 ##======================================================
 # Read user arguments
@@ -167,13 +170,21 @@ a = input("Press enter when ready:")
 
 time_last_save = time.time()
 
+
 # Scan over all frequencies
+abort = False
 for f_rf in freq_rf:
+	
+	if abort:
+		break
 	
 	log.info(f"Setting freq_rf to >{f_rf/1e9}< GHz.")
 	
 	# Scan over all powers
 	for p_rf in power_rf_dBm:
+		
+		if abort:
+			break
 		
 		norm_detected = False
 		
@@ -181,6 +192,9 @@ for f_rf in freq_rf:
 		
 		# Scan over each bias current
 		for idc in idc_list_mA:
+			
+			if abort:
+				break
 			
 			log.info(f"Setting bias current to >{idc}< mA.")
 			
@@ -298,11 +312,33 @@ for f_rf in freq_rf:
 				
 				time_last_save = time.time()
 			
+			# Wait for user input - check to quit
+			try:
+				usr_input = inputimeout(prompt="Enter 'q' to quit (will work next cycle): ", timeout=0.01)
+			except TimeoutOccurred:
+				usr_input = ''
+				
+			# Quit if told
+			if usr_input.lower() == "q":
+				log.info(f"Received exit signal quitting.")
+				abort = True
+			
 			# Check for skip to next power condition
 			if norm_detected:
+				
+				# Let chip recover
+				log.info("Turning off DC bias and signal generator to let chip recover")
+				sig_gen.set_enable_rf(False)
+				mfli.set_offset(0)
+				log.debug(f"Waiting {RECOVERY_TIME_S} seconds for chip to recover.")
+				time.sleep(RECOVERY_TIME_S)
+				log.debug("Post-normal recovery procedure complete. Proceeding to next sweep point.")
 				break
 
-log.info("Sweep completed. Shutting off signal generator and DC bias.")
+if abort:
+	log.info(f"Sweep has been aborted. Shutting off signal generator and DC bias.")
+else:
+	log.info("Sweep completed. Shutting off signal generator and DC bias.")
 
 sig_gen.set_enable_rf(False)
 sig_gen.set_power(-50)
