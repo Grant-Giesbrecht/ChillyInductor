@@ -154,23 +154,26 @@ class HarmGenPlotWidget(QtWidgets.QWidget):
 		self.grid.addWidget(self.fig1c, 1, 0)
 		self.setLayout(self.grid)
 		
-	def update_pwr(self, x):
-		try:
-			self.conditions['sel_power_dBm'] = self.pwr_list[x]
-			self.plot_data()
-		except Exception as e:
-			log.warning(f"Index out of bounds! ({e})")
+	# def update_pwr(self, x):
+	# 	try:
+	# 		self.conditions['sel_power_dBm'] = self.pwr_list[x]
+	# 		self.plot_data()
+	# 	except Exception as e:
+	# 		log.warning(f"Index out of bounds! ({e})")
 		
 	
-	def update_freq(self, x):
-		try:
-			self.conditions['sel_freq_GHz'] = self.freq_list[x]
-			self.plot_data()
-		except Exception as e:
-			log.warning(f"Index out of bounds! ({e})")
+	# def update_freq(self, x):
+	# 	try:
+	# 		self.conditions['sel_freq_GHz'] = self.freq_list[x]
+	# 		self.plot_data()
+	# 	except Exception as e:
+	# 		log.warning(f"Index out of bounds! ({e})")
 		
 	
 	def get_condition(self, c:str):
+		
+		print(f"{self.conditions}")
+		print(f"{self.global_conditions}")
 		
 		if c in self.conditions:
 			return self.conditions[c]
@@ -194,7 +197,7 @@ class HarmGenPlotWidget(QtWidgets.QWidget):
 		# Check correct number of points
 		mask_len = np.sum(mask)
 		if len(self.req_bias_list) != mask_len:
-			log.warning(f"Cannot display data: Mismatched number of points (mask: {mask_len}, bias: {len(self.req_bias_list)})")
+			log.warning(f"Cannot display data: Mismatched number of points (freq = {f} GHz, pwr = {p} dBm, mask: {mask_len}, bias: {len(self.req_bias_list)})")
 			self.fig1.canvas.draw_idle()
 			return
 		
@@ -224,8 +227,12 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.freq_list = freqs
 		self.pwr_list = powers
 		
+		self.unique_freq_list = np.unique(freqs)
+		self.unique_pwr_list = np.unique(powers)
+		
 		# Initialize global conditions
 		self.gcond = {'sel_freq_GHz': self.freq_list[len(self.freq_list)//2], 'sel_power_dBm': self.pwr_list[len(self.pwr_list)//2]}
+		self.gcond_subscribers = []
 		
 		# Basic setup
 		self.setWindowTitle("HGA1 Window")
@@ -239,7 +246,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 		
 		# Make sliders
 		self.slider_box = QtWidgets.QWidget()
-		self.populate_slider_box(self.hgwidget)
+		self.populate_slider_box()
 		
 		
 		
@@ -257,27 +264,76 @@ class HGA1Window(QtWidgets.QMainWindow):
 		
 		self.show()
 	
-	def populate_slider_box(self, hgwidget):
+	def set_gcond(self, key, value):
+		
+		self.gcond[key] = value
+		
+		for sub in self.gcond_subscribers:
+			sub.global_conditions[key] = value
+	
+	def update_freq(self, x):
+		print(x)
+		try:
+			new_freq = self.unique_freq_list[x]
+			print(new_freq)
+			self.set_gcond('sel_freq_GHz', new_freq)
+			print(f"gcond = {self.gcond}")
+			self.hgwidget.plot_data()
+		except Exception as e:
+			log.warning(f"Index out of bounds! ({e})")
+		
+		self.freq_slider_vallabel.setText(f"{new_freq} GHz")
+	
+	def update_pwr(self, x):
+		try:
+			new_pwr = self.unique_pwr_list[x]
+			self.set_gcond('sel_power_dBm', new_pwr)
+			self.hgwidget.plot_data()
+		except Exception as e:
+			log.warning(f"Index out of bounds! ({e})")
+		
+		self.pwr_slider_vallabel.setText(f"{new_pwr} dBm")
+	
+	def populate_slider_box(self):
 		
 		
 		ng = QtWidgets.QGridLayout()
 		
+		self.freq_slider_hdrlabel = QtWidgets.QLabel()
+		self.freq_slider_hdrlabel.setText("Frequency (GHz)")
+		
+		self.freq_slider_vallabel = QtWidgets.QLabel()
+		self.freq_slider_vallabel.setText("VOID (GHz)")
+		
 		self.freq_slider = QtWidgets.QSlider(Qt.Orientation.Vertical)
-		self.freq_slider.valueChanged.connect(hgwidget.update_freq)
+		self.freq_slider.valueChanged.connect(self.update_freq)
 		self.freq_slider.setSingleStep(1)
 		self.freq_slider.setMinimum(0)
 		self.freq_slider.setMaximum(len(np.unique(self.freq_list))-1)
 		self.freq_slider.setTickInterval(1)
+		self.freq_slider.setTickPosition(QtWidgets.QSlider.TickPosition.TicksLeft)
+		
+		self.pwr_slider_hdrlabel = QtWidgets.QLabel()
+		self.pwr_slider_hdrlabel.setText("Power (dBm)")
+		
+		self.pwr_slider_vallabel = QtWidgets.QLabel()
+		self.pwr_slider_vallabel.setText("VOID (dBm)")
 		
 		self.pwr_slider = QtWidgets.QSlider(Qt.Orientation.Vertical)
-		self.pwr_slider.valueChanged.connect(hgwidget.update_pwr)
+		self.pwr_slider.valueChanged.connect(self.update_pwr)
 		self.pwr_slider.setSingleStep(1)
 		self.pwr_slider.setMinimum(0)
 		self.pwr_slider.setMaximum(len(np.unique(self.pwr_list))-1)
 		self.pwr_slider.setTickInterval(1)
+		self.pwr_slider.setTickPosition(QtWidgets.QSlider.TickPosition.TicksLeft)
 		
-		ng.addWidget(self.freq_slider, 0, 0)
-		ng.addWidget(self.pwr_slider, 0, 1)
+		ng.addWidget(self.freq_slider_hdrlabel, 0, 0)
+		ng.addWidget(self.freq_slider, 1, 0, alignment=Qt.AlignmentFlag.AlignHCenter)
+		ng.addWidget(self.freq_slider_vallabel, 2, 0)
+		
+		ng.addWidget(self.pwr_slider_hdrlabel, 0, 1)
+		ng.addWidget(self.pwr_slider, 1, 1, alignment=Qt.AlignmentFlag.AlignHCenter)
+		ng.addWidget(self.pwr_slider_vallabel, 2, 1)
 		self.slider_box.setLayout(ng)
 	
 	def make_tabs(self):
@@ -288,7 +344,8 @@ class HGA1Window(QtWidgets.QMainWindow):
 	def make_harmgen_tab(self):
 		''' Makes the tab for harmonic generation'''
 		
-		self.hgwidget = HarmGenPlotWidget(freq_rf_GHz, power_rf_dBm, requested_Idc_mA, {})
+		self.hgwidget = HarmGenPlotWidget(freq_rf_GHz, power_rf_dBm, requested_Idc_mA, conditions={}, global_conditions=self.gcond)
+		self.gcond_subscribers.append(self.hgwidget)
 		
 		# Add to tabs object and handle list
 		ntp = TabPlot(self.hgwidget.fig1, self.hgwidget.toolbar)
