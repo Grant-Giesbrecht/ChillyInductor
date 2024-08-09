@@ -25,14 +25,14 @@ from matplotlib.widgets import Slider, Button
 # TODO:
 # 1. Init graph properly (says void and stuff)
 # 2. Add labels to values on freq and power sliders
-# 3. Initialze other types of graphs/tabs
-# 4. Add log viewer?
-# 5. Add save log, save graph, zoom controls, etc.
-#
+# 3. Add save log, save graph, zoom controls, etc.
+# 4. Frequency-domain plots!
+# 5. Datatips
+# 6. Buttons to zoom to max efficiency
 
 # TODO: Graphs to add
 # 1. Applied voltage, measured current, target current, estimated additional impedance.
-#
+# 2. Temperature vs time
 #
 
 #------------------------------------------------------------
@@ -86,6 +86,10 @@ rf1 = spectrum_peak_list(waveform_f_Hz, waveform_s_dBm, freq_rf_GHz*1e9)
 rf2 = spectrum_peak_list(waveform_f_Hz, waveform_s_dBm, freq_rf_GHz*2e9)
 rf3 = spectrum_peak_list(waveform_f_Hz, waveform_s_dBm, freq_rf_GHz*3e9)
 
+rf1W = dBm2W(rf1)
+rf2W = dBm2W(rf2)
+rf3W = dBm2W(rf3)
+
 #-------------------------------------------
 
 req_bias_list = np.unique(requested_Idc_mA)
@@ -105,7 +109,7 @@ class TabPlot():
 		self.fig = fig
 		self.toolbar = toolbar
 
-class CE23PlotWidget(QtWidgets.QWidget):
+class CE23BiasDomainPlotWidget(QtWidgets.QWidget):
 	
 	def __init__(self, conditions:dict, global_conditions:dict={}):
 		super().__init__()
@@ -115,9 +119,11 @@ class CE23PlotWidget(QtWidgets.QWidget):
 		self.global_conditions = global_conditions
 		
 		# Calculate total power and CE
-		self.total_power = rf1 + rf2 + rf3
-		self.ce2 = rf2/self.total_power
-		self.ce3 = rf2/self.total_power
+		
+		
+		self.total_power = rf1W + rf2W + rf3W
+		self.ce2 = rf2W/self.total_power*100
+		self.ce3 = rf3W/self.total_power*100
 		
 		# Create figure
 		self.fig1, self.ax1 = plt.subplots(1, 1)
@@ -175,17 +181,17 @@ class CE23PlotWidget(QtWidgets.QWidget):
 			return
 		
 		
-		self.ax1.plot(requested_Idc_mA[mask], Idc_mA[mask], linestyle=':', marker='o', markersize=2, color=(0.6, 0, 0.7))
-		self.ax2.plot(requested_Idc_mA[mask], self.extra_z[mask], linestyle=':', marker='o', markersize=2, color=(0.45, 0.05, 0.1))
+		self.ax1.plot(requested_Idc_mA[mask], self.ce2[mask], linestyle=':', marker='o', markersize=2, color=(0.6, 0, 0.7))
+		self.ax2.plot(requested_Idc_mA[mask], self.ce3[mask], linestyle=':', marker='o', markersize=2, color=(0.45, 0.05, 0.1))
 		
-		self.ax1.set_title(f"f = {f} GHz, p = {p} dBm")
+		self.ax1.set_title(f"f-fund = {f} GHz, f-harm2 = {2*f} GHz, p = {p} dBm")
 		self.ax1.set_xlabel("Requested DC Bias (mA)")
-		self.ax1.set_ylabel("Measured DC Bias (mA)")
+		self.ax1.set_ylabel("2nd Harm. Conversion Efficiency (%)")
 		self.ax1.grid(True)
 		
-		self.ax2.set_title(f"f = {f} GHz, p = {p} dBm")
+		self.ax2.set_title(f"f-fund = {f} GHz, f-harm3 = {3*f} GHz, p = {p} dBm")
 		self.ax2.set_xlabel("Requested DC Bias (mA)")
-		self.ax2.set_ylabel("Additional Impedance (Ohms)")
+		self.ax2.set_ylabel("3rd Harm. Conversion Efficiency (%)")
 		self.ax2.grid(True)
 		
 		self.fig1.canvas.draw_idle()
@@ -474,11 +480,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 	
 	def make_tabs(self):
 		
-		self.make_harmgen_tab()
-		self.make_normal_tab()
-	
-	def make_harmgen_tab(self):
-		''' Makes the tab for harmonic generation'''
+		#------------ Harmonics widget
 		
 		self.hgwidget = HarmGenPlotWidget(freq_rf_GHz, power_rf_dBm, requested_Idc_mA, conditions={}, global_conditions=self.gcond)
 		self.gcond_subscribers.append(self.hgwidget)
@@ -486,10 +488,21 @@ class HGA1Window(QtWidgets.QMainWindow):
 		# Add to tabs object and handle list
 		ntp = TabPlot(self.hgwidget.fig1, self.hgwidget.toolbar)
 		self.tab_handles.append(ntp)
-		self.tab_widget.addTab(self.hgwidget, "Harm. Gen.")
-	
-	def make_normal_tab(self):
-		''' Makes the tab for harmonic generation'''
+		self.tab_widget.addTab(self.hgwidget, "Harmonic Generation")
+		
+		#------------ CE widget
+		
+		self.cebdwidget = CE23BiasDomainPlotWidget(conditions={}, global_conditions=self.gcond)
+		self.gcond_subscribers.append(self.cebdwidget)
+		
+		# Add to tabs object and handle list
+		ntp1 = TabPlot(self.cebdwidget.fig1, self.cebdwidget.toolbar1)
+		ntp2 = TabPlot(self.cebdwidget.fig2, self.cebdwidget.toolbar2) #TODO I don't need these
+		self.tab_handles.append(ntp1)
+		self.tab_handles.append(ntp2)
+		self.tab_widget.addTab(self.cebdwidget, "Efficiency")
+		
+		#------------ Harmonics widget
 		
 		self.ivwidget = IVPlotWidget(conditions={}, global_conditions=self.gcond)
 		self.gcond_subscribers.append(self.ivwidget)
@@ -499,7 +512,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 		ntp2 = TabPlot(self.ivwidget.fig2, self.ivwidget.toolbar2) #TODO I don't need these
 		self.tab_handles.append(ntp1)
 		self.tab_handles.append(ntp2)
-		self.tab_widget.addTab(self.ivwidget, "I-V")
+		self.tab_widget.addTab(self.ivwidget, "Bias Current")
 	
 	# def make_normal_tab(self):
 	# 	''' Makes the tab for harmonic generation'''
