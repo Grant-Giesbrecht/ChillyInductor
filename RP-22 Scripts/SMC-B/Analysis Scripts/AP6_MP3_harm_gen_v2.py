@@ -22,6 +22,19 @@ import numpy as np
 import pickle
 from matplotlib.widgets import Slider, Button
 
+# TODO:
+# 1. Init graph properly (says void and stuff)
+# 2. Add labels to values on freq and power sliders
+# 3. Initialze other types of graphs/tabs
+# 4. Add log viewer?
+# 5. Add save log, save graph, zoom controls, etc.
+#
+
+# TODO: Graphs to add
+# 1. Applied voltage, measured current, target current, estimated additional impedance.
+#
+#
+
 #------------------------------------------------------------
 # Import Data
 
@@ -73,6 +86,9 @@ rf1 = spectrum_peak_list(waveform_f_Hz, waveform_s_dBm, freq_rf_GHz*1e9)
 rf2 = spectrum_peak_list(waveform_f_Hz, waveform_s_dBm, freq_rf_GHz*2e9)
 rf3 = spectrum_peak_list(waveform_f_Hz, waveform_s_dBm, freq_rf_GHz*3e9)
 
+#-------------------------------------------
+
+req_bias_list = np.unique(requested_Idc_mA)
 
 ##--------------------------------------------
 # Create GUI
@@ -88,6 +104,173 @@ class TabPlot():
 	def __init__(self, fig, toolbar):
 		self.fig = fig
 		self.toolbar = toolbar
+
+class CE23PlotWidget(QtWidgets.QWidget):
+	
+	def __init__(self, conditions:dict, global_conditions:dict={}):
+		super().__init__()
+		
+		# Conditions dictionaries
+		self.conditions = conditions
+		self.global_conditions = global_conditions
+		
+		# Calculate total power and CE
+		self.total_power = rf1 + rf2 + rf3
+		self.ce2 = rf2/self.total_power
+		self.ce3 = rf2/self.total_power
+		
+		# Create figure
+		self.fig1, self.ax1 = plt.subplots(1, 1)
+		self.fig2, self.ax2 = plt.subplots(1, 1)
+		
+		# Estimate system Z
+		expected_Z = MFLI_V_offset_V[1]/(requested_Idc_mA[1]/1e3) #TODO: Do something more general than index 1
+		system_Z = MFLI_V_offset_V/(Idc_mA/1e3)
+		self.extra_z = system_Z - expected_Z
+		
+		
+		self.plot_data()
+		
+		# Create widgets
+		self.fig1c = FigureCanvas(self.fig1)
+		self.toolbar1 = NavigationToolbar2QT(self.fig1c, self)
+		self.fig2c = FigureCanvas(self.fig2)
+		self.toolbar2 = NavigationToolbar2QT(self.fig2c, self)
+		
+		# Add widgets to parent-widget and set layout
+		self.grid = QtWidgets.QGridLayout()
+		self.grid.addWidget(self.toolbar1, 0, 0)
+		self.grid.addWidget(self.fig1c, 1, 0)
+		self.grid.addWidget(self.toolbar2, 0, 1)
+		self.grid.addWidget(self.fig2c, 1, 1)
+		self.setLayout(self.grid)	
+	
+	def get_condition(self, c:str):
+		
+		if c in self.conditions:
+			return self.conditions[c]
+		elif c in self.global_conditions:
+			return self.global_conditions[c]
+		else:
+			return None
+	
+	def plot_data(self):
+		f = self.get_condition('sel_freq_GHz')
+		p = self.get_condition('sel_power_dBm')
+		
+		# Filter relevant data
+		mask_freq = (freq_rf_GHz == f)
+		mask_pwr = (power_rf_dBm == p)
+		mask = (mask_freq & mask_pwr)
+		
+		# Plot results
+		self.ax1.cla()
+		self.ax2.cla()
+		
+		# Check correct number of points
+		mask_len = np.sum(mask)
+		if len(req_bias_list) != mask_len:
+			log.warning(f"Cannot display data: Mismatched number of points (freq = {f} GHz, pwr = {p} dBm, mask: {mask_len}, bias: {len(self.req_bias_list)})")
+			self.fig1.canvas.draw_idle()
+			return
+		
+		
+		self.ax1.plot(requested_Idc_mA[mask], Idc_mA[mask], linestyle=':', marker='o', markersize=2, color=(0.6, 0, 0.7))
+		self.ax2.plot(requested_Idc_mA[mask], self.extra_z[mask], linestyle=':', marker='o', markersize=2, color=(0.45, 0.05, 0.1))
+		
+		self.ax1.set_title(f"f = {f} GHz, p = {p} dBm")
+		self.ax1.set_xlabel("Requested DC Bias (mA)")
+		self.ax1.set_ylabel("Measured DC Bias (mA)")
+		self.ax1.grid(True)
+		
+		self.ax2.set_title(f"f = {f} GHz, p = {p} dBm")
+		self.ax2.set_xlabel("Requested DC Bias (mA)")
+		self.ax2.set_ylabel("Additional Impedance (Ohms)")
+		self.ax2.grid(True)
+		
+		self.fig1.canvas.draw_idle()
+		self.fig2.canvas.draw_idle()
+
+class IVPlotWidget(QtWidgets.QWidget):
+	
+	def __init__(self, conditions:dict, global_conditions:dict={}):
+		super().__init__()
+		
+		# Conditions dictionaries
+		self.conditions = conditions
+		self.global_conditions = global_conditions
+		
+		# Create figure
+		self.fig1, self.ax1 = plt.subplots(1, 1)
+		self.fig2, self.ax2 = plt.subplots(1, 1)
+		
+		# Estimate system Z
+		expected_Z = MFLI_V_offset_V[1]/(requested_Idc_mA[1]/1e3) #TODO: Do something more general than index 1
+		system_Z = MFLI_V_offset_V/(Idc_mA/1e3)
+		self.extra_z = system_Z - expected_Z
+		
+		
+		self.plot_data()
+		
+		# Create widgets
+		self.fig1c = FigureCanvas(self.fig1)
+		self.toolbar1 = NavigationToolbar2QT(self.fig1c, self)
+		self.fig2c = FigureCanvas(self.fig2)
+		self.toolbar2 = NavigationToolbar2QT(self.fig2c, self)
+		
+		# Add widgets to parent-widget and set layout
+		self.grid = QtWidgets.QGridLayout()
+		self.grid.addWidget(self.toolbar1, 0, 0)
+		self.grid.addWidget(self.fig1c, 1, 0)
+		self.grid.addWidget(self.toolbar2, 0, 1)
+		self.grid.addWidget(self.fig2c, 1, 1)
+		self.setLayout(self.grid)	
+	
+	def get_condition(self, c:str):
+		
+		if c in self.conditions:
+			return self.conditions[c]
+		elif c in self.global_conditions:
+			return self.global_conditions[c]
+		else:
+			return None
+	
+	def plot_data(self):
+		f = self.get_condition('sel_freq_GHz')
+		p = self.get_condition('sel_power_dBm')
+		
+		# Filter relevant data
+		mask_freq = (freq_rf_GHz == f)
+		mask_pwr = (power_rf_dBm == p)
+		mask = (mask_freq & mask_pwr)
+		
+		# Plot results
+		self.ax1.cla()
+		self.ax2.cla()
+		
+		# Check correct number of points
+		mask_len = np.sum(mask)
+		if len(req_bias_list) != mask_len:
+			log.warning(f"Cannot display data: Mismatched number of points (freq = {f} GHz, pwr = {p} dBm, mask: {mask_len}, bias: {len(self.req_bias_list)})")
+			self.fig1.canvas.draw_idle()
+			return
+		
+		
+		self.ax1.plot(requested_Idc_mA[mask], Idc_mA[mask], linestyle=':', marker='o', markersize=2, color=(0.6, 0, 0.7))
+		self.ax2.plot(requested_Idc_mA[mask], self.extra_z[mask], linestyle=':', marker='o', markersize=2, color=(0.45, 0.05, 0.1))
+		
+		self.ax1.set_title(f"f = {f} GHz, p = {p} dBm")
+		self.ax1.set_xlabel("Requested DC Bias (mA)")
+		self.ax1.set_ylabel("Measured DC Bias (mA)")
+		self.ax1.grid(True)
+		
+		self.ax2.set_title(f"f = {f} GHz, p = {p} dBm")
+		self.ax2.set_xlabel("Requested DC Bias (mA)")
+		self.ax2.set_ylabel("Additional Impedance (Ohms)")
+		self.ax2.grid(True)
+		
+		self.fig1.canvas.draw_idle()
+		self.fig2.canvas.draw_idle()
 
 class HarmGenPlotWidget(QtWidgets.QWidget):
 	
@@ -112,36 +295,6 @@ class HarmGenPlotWidget(QtWidgets.QWidget):
 		self.fig1, self.ax1 = plt.subplots(1, 1, figsize=(12, 7))
 		self.fig1.subplots_adjust(left=0.065, bottom=0.065, top=0.95, right=0.8)
 		
-		## Do things that should eventually be moved?? --------------------------
-		
-		# Down-sample freq list
-		if len(self.freq_list) > 15:
-			self.freq_list_downsampled = downsample_labels(self.freq_list, 11)
-		else:
-			self.freq_list_downsampled = self.freq_list
-		
-		# Down-sample power list
-		if len(self.pwr_list) > 15:
-			self.pwr_list_downsampled = downsample_labels(self.pwr_list, 11)
-		else:
-			self.pwr_list_downsampled = self.pwr_list
-		
-		# # Frequency Slider
-		# ax_freq = self.fig1.add_axes([0.84, 0.1, 0.03, 0.8])
-		# slider_freq = Slider(ax_freq, 'Freq (GHz)', np.min(self.freq_list), np.max(self.freq_list), initcolor='none', valstep=self.freq_list, color='green', orientation='vertical', valinit=self.conditions['sel_freq_GHz'])
-		# slider_freq.on_changed(self.update_freq)
-		# ax_freq.add_artist(ax_freq.yaxis)
-		# ax_freq.set_yticks(self.freq_list, labels=self.freq_list_downsampled)
-		
-		# # Power Slider
-		# ax_pwr = self.fig1.add_axes([0.93, 0.1, 0.03, 0.8])
-		# slider_pwr = Slider(ax_pwr, 'Power (dBm)', np.min(self.pwr_list), np.max(self.pwr_list), initcolor='none', valstep=self.pwr_list, color='red', orientation='vertical', valinit=self.conditions['sel_power_dBm'])
-		# slider_pwr.on_changed(self.update_pwr)
-		# ax_pwr.add_artist(ax_pwr.yaxis)
-		# ax_pwr.set_yticks(self.pwr_list, labels=self.pwr_list_downsampled)
-		
-		## End do things that should eventually be moved?? --------------------------
-		
 		self.plot_data()
 		
 		# Create widgets
@@ -152,28 +305,9 @@ class HarmGenPlotWidget(QtWidgets.QWidget):
 		self.grid = QtWidgets.QGridLayout()
 		self.grid.addWidget(self.toolbar, 0, 0)
 		self.grid.addWidget(self.fig1c, 1, 0)
-		self.setLayout(self.grid)
-		
-	# def update_pwr(self, x):
-	# 	try:
-	# 		self.conditions['sel_power_dBm'] = self.pwr_list[x]
-	# 		self.plot_data()
-	# 	except Exception as e:
-	# 		log.warning(f"Index out of bounds! ({e})")
-		
-	
-	# def update_freq(self, x):
-	# 	try:
-	# 		self.conditions['sel_freq_GHz'] = self.freq_list[x]
-	# 		self.plot_data()
-	# 	except Exception as e:
-	# 		log.warning(f"Index out of bounds! ({e})")
-		
+		self.setLayout(self.grid)	
 	
 	def get_condition(self, c:str):
-		
-		print(f"{self.conditions}")
-		print(f"{self.global_conditions}")
 		
 		if c in self.conditions:
 			return self.conditions[c]
@@ -271,14 +405,16 @@ class HGA1Window(QtWidgets.QMainWindow):
 		for sub in self.gcond_subscribers:
 			sub.global_conditions[key] = value
 	
+	def plot_all(self):
+		
+		for sub in self.gcond_subscribers:
+			sub.plot_data()
+	
 	def update_freq(self, x):
-		print(x)
 		try:
 			new_freq = self.unique_freq_list[x]
-			print(new_freq)
 			self.set_gcond('sel_freq_GHz', new_freq)
-			print(f"gcond = {self.gcond}")
-			self.hgwidget.plot_data()
+			self.plot_all()
 		except Exception as e:
 			log.warning(f"Index out of bounds! ({e})")
 		
@@ -288,7 +424,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 		try:
 			new_pwr = self.unique_pwr_list[x]
 			self.set_gcond('sel_power_dBm', new_pwr)
-			self.hgwidget.plot_data()
+			self.plot_all()
 		except Exception as e:
 			log.warning(f"Index out of bounds! ({e})")
 		
@@ -355,33 +491,46 @@ class HGA1Window(QtWidgets.QMainWindow):
 	def make_normal_tab(self):
 		''' Makes the tab for harmonic generation'''
 		
-		# Prepare tab
-		ntab = QtWidgets.QWidget()
-		ntlayout = QtWidgets.QGridLayout()
-		ntab.setLayout(ntlayout)
-		
-		# Prepare new figure and toolbar
-		fig_left = plt.figure()
-		figc_left = FigureCanvas(fig_left)
-		tbar_left = NavigationToolbar2QT(figc_left, self)
-		
-		# Prepare new figure and toolbar
-		fig_right = plt.figure()
-		figc_right = FigureCanvas(fig_right)
-		tbar_right = NavigationToolbar2QT(figc_right, self)
-		
-		# Add to layout
-		ntlayout.addWidget(tbar_left, 0, 0)
-		ntlayout.addWidget(figc_left, 1, 0)
-		ntlayout.addWidget(tbar_right, 0, 1)
-		ntlayout.addWidget(figc_right, 1, 1)
+		self.ivwidget = IVPlotWidget(conditions={}, global_conditions=self.gcond)
+		self.gcond_subscribers.append(self.ivwidget)
 		
 		# Add to tabs object and handle list
-		ntpl = TabPlot(fig_left, tbar_left)
-		ntpr = TabPlot(fig_right, tbar_right)
-		self.tab_handles.append(ntpl)
-		self.tab_handles.append(ntpr)
-		self.tab_widget.addTab(ntab, "Normal")
+		ntp1 = TabPlot(self.ivwidget.fig1, self.ivwidget.toolbar1)
+		ntp2 = TabPlot(self.ivwidget.fig2, self.ivwidget.toolbar2) #TODO I don't need these
+		self.tab_handles.append(ntp1)
+		self.tab_handles.append(ntp2)
+		self.tab_widget.addTab(self.ivwidget, "I-V")
+	
+	# def make_normal_tab(self):
+	# 	''' Makes the tab for harmonic generation'''
+		
+	# 	# Prepare tab
+	# 	ntab = QtWidgets.QWidget()
+	# 	ntlayout = QtWidgets.QGridLayout()
+	# 	ntab.setLayout(ntlayout)
+		
+	# 	# Prepare new figure and toolbar
+	# 	fig_left = plt.figure()
+	# 	figc_left = FigureCanvas(fig_left)
+	# 	tbar_left = NavigationToolbar2QT(figc_left, self)
+		
+	# 	# Prepare new figure and toolbar
+	# 	fig_right = plt.figure()
+	# 	figc_right = FigureCanvas(fig_right)
+	# 	tbar_right = NavigationToolbar2QT(figc_right, self)
+		
+	# 	# Add to layout
+	# 	ntlayout.addWidget(tbar_left, 0, 0)
+	# 	ntlayout.addWidget(figc_left, 1, 0)
+	# 	ntlayout.addWidget(tbar_right, 0, 1)
+	# 	ntlayout.addWidget(figc_right, 1, 1)
+		
+	# 	# Add to tabs object and handle list
+	# 	ntpl = TabPlot(fig_left, tbar_left)
+	# 	ntpr = TabPlot(fig_right, tbar_right)
+	# 	self.tab_handles.append(ntpl)
+	# 	self.tab_handles.append(ntpr)
+	# 	self.tab_widget.addTab(ntab, "Normal")
 	
 	def add_menu(self):
 		''' Adds menus to the window'''
