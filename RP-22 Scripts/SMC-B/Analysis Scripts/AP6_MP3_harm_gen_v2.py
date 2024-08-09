@@ -29,6 +29,7 @@ from matplotlib.widgets import Slider, Button
 # 4. Frequency-domain plots!
 # 5. Datatips
 # 6. Buttons to zoom to max efficiency
+# 7. auto-set axis limits
 
 # TODO: Graphs to add
 # 1. Applied voltage, measured current, target current, estimated additional impedance.
@@ -111,19 +112,14 @@ class TabPlot():
 
 class CE23BiasDomainPlotWidget(QtWidgets.QWidget):
 	
-	def __init__(self, conditions:dict, global_conditions:dict={}):
+	def __init__(self, global_conditions:dict={}):
 		super().__init__()
 		
 		# Conditions dictionaries
-		self.conditions = conditions
+		self.conditions = {'rounding_step1': 0.1, 'rounding_step2': 0.01}
 		self.global_conditions = global_conditions
 		
-		# Calculate total power and CE
-		
-		
-		self.total_power = rf1W + rf2W + rf3W
-		self.ce2 = rf2W/self.total_power*100
-		self.ce3 = rf3W/self.total_power*100
+		self.manual_init()
 		
 		# Create figure
 		self.fig1, self.ax1 = plt.subplots(1, 1)
@@ -149,7 +145,30 @@ class CE23BiasDomainPlotWidget(QtWidgets.QWidget):
 		self.grid.addWidget(self.fig1c, 1, 0)
 		self.grid.addWidget(self.toolbar2, 0, 1)
 		self.grid.addWidget(self.fig2c, 1, 1)
-		self.setLayout(self.grid)	
+		self.setLayout(self.grid)
+	
+	def manual_init(self):
+		
+		# Calculate total power and CE
+		self.total_power = rf1W + rf2W + rf3W
+		self.ce2 = rf2W/self.total_power*100
+		self.ce3 = rf3W/self.total_power*100
+		
+		# Get autoscale choices
+		umax1 = np.max(self.ce2)
+		umin1 = np.min(self.ce2)
+		umax2 = np.max(self.ce3)
+		umin2 = np.min(self.ce3)
+		
+		rstep1 = self.get_condition('rounding_step1')
+		rstep2 = self.get_condition('rounding_step2')
+		if rstep1 is None:
+			rstep1 = 10
+		if rstep2 is None:
+			rstep2 = 10
+		
+		self.ylims1 = [np.floor(umin1/rstep1)*rstep1, np.ceil(umax1/rstep1)*rstep1]
+		self.ylims2 = [np.floor(umin2/rstep2)*rstep2, np.ceil(umax2/rstep2)*rstep2]
 	
 	def get_condition(self, c:str):
 		
@@ -184,37 +203,39 @@ class CE23BiasDomainPlotWidget(QtWidgets.QWidget):
 		self.ax1.plot(requested_Idc_mA[mask], self.ce2[mask], linestyle=':', marker='o', markersize=2, color=(0.6, 0, 0.7))
 		self.ax2.plot(requested_Idc_mA[mask], self.ce3[mask], linestyle=':', marker='o', markersize=2, color=(0.45, 0.05, 0.1))
 		
-		self.ax1.set_title(f"f-fund = {f} GHz, f-harm2 = {2*f} GHz, p = {p} dBm")
+		self.ax1.set_title(f"f-fund = {f} GHz, f-harm2 = {rd(2*f)} GHz, p = {p} dBm")
 		self.ax1.set_xlabel("Requested DC Bias (mA)")
 		self.ax1.set_ylabel("2nd Harm. Conversion Efficiency (%)")
 		self.ax1.grid(True)
 		
-		self.ax2.set_title(f"f-fund = {f} GHz, f-harm3 = {3*f} GHz, p = {p} dBm")
+		if self.get_condition('fix_scale'):
+			self.ax1.set_ylim(self.ylims1)
+		
+		self.ax2.set_title(f"f-fund = {f} GHz, f-harm3 = {rd(3*f)} GHz, p = {p} dBm")
 		self.ax2.set_xlabel("Requested DC Bias (mA)")
 		self.ax2.set_ylabel("3rd Harm. Conversion Efficiency (%)")
 		self.ax2.grid(True)
+		
+		if self.get_condition('fix_scale'):
+			self.ax2.set_ylim(self.ylims2)
 		
 		self.fig1.canvas.draw_idle()
 		self.fig2.canvas.draw_idle()
 
 class IVPlotWidget(QtWidgets.QWidget):
 	
-	def __init__(self, conditions:dict, global_conditions:dict={}):
+	def __init__(self, global_conditions:dict={}):
 		super().__init__()
 		
 		# Conditions dictionaries
-		self.conditions = conditions
+		self.conditions = self.conditions = {'rounding_step1': 0.1, 'rounding_step2': 0.01}
 		self.global_conditions = global_conditions
 		
 		# Create figure
 		self.fig1, self.ax1 = plt.subplots(1, 1)
 		self.fig2, self.ax2 = plt.subplots(1, 1)
 		
-		# Estimate system Z
-		expected_Z = MFLI_V_offset_V[1]/(requested_Idc_mA[1]/1e3) #TODO: Do something more general than index 1
-		system_Z = MFLI_V_offset_V/(Idc_mA/1e3)
-		self.extra_z = system_Z - expected_Z
-		
+		self.manual_init()
 		
 		self.plot_data()
 		
@@ -230,7 +251,30 @@ class IVPlotWidget(QtWidgets.QWidget):
 		self.grid.addWidget(self.fig1c, 1, 0)
 		self.grid.addWidget(self.toolbar2, 0, 1)
 		self.grid.addWidget(self.fig2c, 1, 1)
-		self.setLayout(self.grid)	
+		self.setLayout(self.grid)
+		
+	def manual_init(self):
+		
+		# Estimate system Z
+		expected_Z = MFLI_V_offset_V[1]/(requested_Idc_mA[1]/1e3) #TODO: Do something more general than index 1
+		system_Z = MFLI_V_offset_V/(Idc_mA/1e3)
+		self.extra_z = system_Z - expected_Z
+		
+		# Get autoscale choices
+		umax1 = np.max(Idc_mA)
+		umin1 = np.min(Idc_mA)
+		umax2 = np.max(self.extra_z)
+		umin2 = np.min(self.extra_z)
+		
+		rstep1 = self.get_condition('rounding_step1')
+		rstep2 = self.get_condition('rounding_step2')
+		if rstep1 is None:
+			rstep1 = 10
+		if rstep2 is None:
+			rstep2 = 10
+		
+		self.ylims1 = [np.floor(umin1/rstep1)*rstep1, np.ceil(umax1/rstep1)*rstep1]
+		self.ylims2 = [np.floor(umin2/rstep2)*rstep2, np.ceil(umax2/rstep2)*rstep2]
 	
 	def get_condition(self, c:str):
 		
@@ -269,28 +313,35 @@ class IVPlotWidget(QtWidgets.QWidget):
 		self.ax1.set_xlabel("Requested DC Bias (mA)")
 		self.ax1.set_ylabel("Measured DC Bias (mA)")
 		self.ax1.grid(True)
+		if self.get_condition('fix_scale'):
+			self.ax1.set_ylim(self.ylims1)
 		
 		self.ax2.set_title(f"f = {f} GHz, p = {p} dBm")
 		self.ax2.set_xlabel("Requested DC Bias (mA)")
 		self.ax2.set_ylabel("Additional Impedance (Ohms)")
 		self.ax2.grid(True)
 		
+		if self.get_condition('fix_scale'):
+			self.ax2.set_ylim(self.ylims2)
+		
 		self.fig1.canvas.draw_idle()
 		self.fig2.canvas.draw_idle()
 
 class HarmGenPlotWidget(QtWidgets.QWidget):
 	
-	def __init__(self, f_GHz:list, p_dBm:list, ridc:list, conditions:dict, global_conditions:dict={}):
+	def __init__(self, f_GHz:list, p_dBm:list, ridc:list, global_conditions:dict={}):
 		super().__init__()
 		
 		# Conditions dictionaries
-		self.conditions = conditions
+		self.conditions = {'rounding_step':10}
 		self.global_conditions = global_conditions
 		
 		# Save primary data
 		self.freq_rf_GHz = f_GHz
 		self.power_rf_dBm = p_dBm
 		self.requested_Idc_mA = ridc
+		
+		self.manual_init()
 		
 		# Save lists of freq/power options
 		self.freq_list = np.unique(self.freq_rf_GHz)
@@ -311,7 +362,19 @@ class HarmGenPlotWidget(QtWidgets.QWidget):
 		self.grid = QtWidgets.QGridLayout()
 		self.grid.addWidget(self.toolbar, 0, 0)
 		self.grid.addWidget(self.fig1c, 1, 0)
-		self.setLayout(self.grid)	
+		self.setLayout(self.grid)
+	
+	def manual_init(self):
+		
+		# Get autoscale choices
+		umax = np.max([np.max(rf1), np.max(rf2), np.max(rf3)])
+		umin = np.min([np.min(rf1), np.min(rf2), np.min(rf3)])
+		
+		rstep = self.get_condition('rounding_step')
+		if rstep is None:
+			rstep = 10
+		
+		self.ylims = [np.floor(umin/rstep)*rstep, np.ceil(umax/rstep)*rstep]
 	
 	def get_condition(self, c:str):
 		
@@ -350,7 +413,9 @@ class HarmGenPlotWidget(QtWidgets.QWidget):
 		self.ax1.set_ylabel("Power (dBm)")
 		self.ax1.legend(["Fundamental", "2nd Harm.", "3rd Harm."])
 		self.ax1.grid(True)
-		self.ax1.set_ylim([-100, -20])
+		
+		if self.get_condition('fix_scale'):
+			self.ax1.set_ylim(self.ylims)
 		
 		self.fig1.canvas.draw_idle()
 		
@@ -482,7 +547,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 		
 		#------------ Harmonics widget
 		
-		self.hgwidget = HarmGenPlotWidget(freq_rf_GHz, power_rf_dBm, requested_Idc_mA, conditions={}, global_conditions=self.gcond)
+		self.hgwidget = HarmGenPlotWidget(freq_rf_GHz, power_rf_dBm, requested_Idc_mA, global_conditions=self.gcond)
 		self.gcond_subscribers.append(self.hgwidget)
 		
 		# Add to tabs object and handle list
@@ -492,7 +557,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 		
 		#------------ CE widget
 		
-		self.cebdwidget = CE23BiasDomainPlotWidget(conditions={}, global_conditions=self.gcond)
+		self.cebdwidget = CE23BiasDomainPlotWidget(global_conditions=self.gcond)
 		self.gcond_subscribers.append(self.cebdwidget)
 		
 		# Add to tabs object and handle list
@@ -504,7 +569,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 		
 		#------------ Harmonics widget
 		
-		self.ivwidget = IVPlotWidget(conditions={}, global_conditions=self.gcond)
+		self.ivwidget = IVPlotWidget(global_conditions=self.gcond)
 		self.gcond_subscribers.append(self.ivwidget)
 		
 		# Add to tabs object and handle list
@@ -514,41 +579,12 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.tab_handles.append(ntp2)
 		self.tab_widget.addTab(self.ivwidget, "Bias Current")
 	
-	# def make_normal_tab(self):
-	# 	''' Makes the tab for harmonic generation'''
-		
-	# 	# Prepare tab
-	# 	ntab = QtWidgets.QWidget()
-	# 	ntlayout = QtWidgets.QGridLayout()
-	# 	ntab.setLayout(ntlayout)
-		
-	# 	# Prepare new figure and toolbar
-	# 	fig_left = plt.figure()
-	# 	figc_left = FigureCanvas(fig_left)
-	# 	tbar_left = NavigationToolbar2QT(figc_left, self)
-		
-	# 	# Prepare new figure and toolbar
-	# 	fig_right = plt.figure()
-	# 	figc_right = FigureCanvas(fig_right)
-	# 	tbar_right = NavigationToolbar2QT(figc_right, self)
-		
-	# 	# Add to layout
-	# 	ntlayout.addWidget(tbar_left, 0, 0)
-	# 	ntlayout.addWidget(figc_left, 1, 0)
-	# 	ntlayout.addWidget(tbar_right, 0, 1)
-	# 	ntlayout.addWidget(figc_right, 1, 1)
-		
-	# 	# Add to tabs object and handle list
-	# 	ntpl = TabPlot(fig_left, tbar_left)
-	# 	ntpr = TabPlot(fig_right, tbar_right)
-	# 	self.tab_handles.append(ntpl)
-	# 	self.tab_handles.append(ntpr)
-	# 	self.tab_widget.addTab(ntab, "Normal")
-	
 	def add_menu(self):
 		''' Adds menus to the window'''
 		
 		self.bar = self.menuBar()
+		
+		# File Menu --------------------------------------
 		
 		self.file_menu = self.bar.addMenu("File")
 		self.file_menu.triggered[QAction].connect(self._process_file_menu)
@@ -557,10 +593,26 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.save_graph_act.setShortcut("Ctrl+Shift+G")
 		self.file_menu.addAction(self.save_graph_act)
 		
+		# Graph Menu --------------------------------------
+		
+		self.graph_menu = self.bar.addMenu("Graph")
+		self.graph_menu.triggered[QAction].connect(self._process_graph_menu)
+		
+		self.fix_scales_act = QAction("Fix Scales", self, checkable=True)
+		self.fix_scales_act.setShortcut("Ctrl+F")
+		self.fix_scales_act.setChecked(True)
+		self.set_gcond('fix_scale', self.fix_scales_act.isChecked())
+		self.graph_menu.addAction(self.fix_scales_act)
+		
 	def _process_file_menu(self, q):
 		
 		if q.text() == "Save Graph":
 			self.log.warning("TODO: Implement save graph")
+	
+	def _process_graph_menu(self, q):
+		
+		if q.text() == "Fix Scales":
+			self.set_gcond('fix_scale', self.fix_scales_act.isChecked())
 
 app = QtWidgets.QApplication(sys.argv)
 app.setStyle('Oxygen')
