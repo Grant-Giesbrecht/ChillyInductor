@@ -21,6 +21,7 @@ import sys
 import numpy as np
 import pickle
 from matplotlib.widgets import Slider, Button
+# import qdarktheme
 
 # TODO:
 # 1. Init graph properly (says void and stuff)
@@ -29,7 +30,9 @@ from matplotlib.widgets import Slider, Button
 # 4. Frequency-domain plots!
 # 5. Datatips
 # 6. Buttons to zoom to max efficiency
-# 7. auto-set axis limits
+# 7. Data panel at bottom showing file stats:
+#		- collection date, operator notes, file size, num points, open log in lumberjack button
+# 8. Better way to load any data file
 
 # TODO: Graphs to add
 # 1. Applied voltage, measured current, target current, estimated additional impedance.
@@ -48,7 +51,8 @@ else:
 	print(f"{Fore.GREEN}Located data directory at: {Fore.LIGHTBLACK_EX}{datapath}{Style.RESET_ALL}")
 
 # filename = "RP22B_MP3_t1_31July2024_R4C4T1_r1_autosave.hdf"
-filename = "RP22B_MP3_t1_1Aug2024_R4C4T1_r1.hdf"
+# filename = "RP22B_MP3_t1_1Aug2024_R4C4T1_r1.hdf"
+filename = "RP22B_MP3_t2_8Aug2024_R4C4T1_r1.hdf"
 
 analysis_file = os.path.join(datapath, filename)
 
@@ -446,17 +450,13 @@ class HGA1Window(QtWidgets.QMainWindow):
 		
 		# Create tab widget
 		self.tab_widget = QtWidgets.QTabWidget()
+		self.tab_widget.currentChanged.connect(self._tab_changed)
 		self.hgwidget = None
 		self.make_tabs() # Make tabs
 		
 		# Make sliders
 		self.slider_box = QtWidgets.QWidget()
 		self.populate_slider_box()
-		
-		
-		
-		
-		
 		
 		# Place each widget
 		self.grid.addWidget(self.tab_widget, 0, 0)
@@ -491,6 +491,11 @@ class HGA1Window(QtWidgets.QMainWindow):
 		
 		self.freq_slider_vallabel.setText(f"{new_freq} GHz")
 	
+	def _tab_changed(self, x):
+		
+		print(self.tab_widget.currentWidget())
+		print(type(self.tab_widget.currentWidget()))
+	
 	def update_pwr(self, x):
 		try:
 			new_pwr = self.unique_pwr_list[x]
@@ -500,11 +505,22 @@ class HGA1Window(QtWidgets.QMainWindow):
 			log.warning(f"Index out of bounds! ({e})")
 		
 		self.pwr_slider_vallabel.setText(f"{new_pwr} dBm")
+		
+	def update_bias(self, x):
+		try:
+			new_b = req_bias_list[x]
+			self.set_gcond('sel_bias_mA', new_b)
+			self.plot_all()
+		except Exception as e:
+			log.warning(f"Index out of bounds! ({e})")
+		
+		self.bias_slider_vallabel.setText(f"{new_b} dBm")
 	
 	def populate_slider_box(self):
 		
 		
 		ng = QtWidgets.QGridLayout()
+		
 		
 		self.freq_slider_hdrlabel = QtWidgets.QLabel()
 		self.freq_slider_hdrlabel.setText("Frequency (GHz)")
@@ -519,6 +535,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.freq_slider.setMaximum(len(np.unique(self.freq_list))-1)
 		self.freq_slider.setTickInterval(1)
 		self.freq_slider.setTickPosition(QtWidgets.QSlider.TickPosition.TicksLeft)
+		self.freq_slider.setSliderPosition(0)
 		
 		self.pwr_slider_hdrlabel = QtWidgets.QLabel()
 		self.pwr_slider_hdrlabel.setText("Power (dBm)")
@@ -533,6 +550,22 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.pwr_slider.setMaximum(len(np.unique(self.pwr_list))-1)
 		self.pwr_slider.setTickInterval(1)
 		self.pwr_slider.setTickPosition(QtWidgets.QSlider.TickPosition.TicksLeft)
+		self.pwr_slider.setSliderPosition(0)
+		
+		self.bias_slider_hdrlabel = QtWidgets.QLabel()
+		self.bias_slider_hdrlabel.setText("Bias (mA)")
+		
+		self.bias_slider_vallabel = QtWidgets.QLabel()
+		self.bias_slider_vallabel.setText("VOID (mA)")
+		
+		self.bias_slider = QtWidgets.QSlider(Qt.Orientation.Vertical)
+		self.bias_slider.valueChanged.connect(self.update_bias)
+		self.bias_slider.setSingleStep(1)
+		self.bias_slider.setMinimum(0)
+		self.bias_slider.setMaximum(len(req_bias_list)-1)
+		self.bias_slider.setTickInterval(1)
+		self.bias_slider.setTickPosition(QtWidgets.QSlider.TickPosition.TicksLeft)
+		self.bias_slider.setSliderPosition(0)
 		
 		ng.addWidget(self.freq_slider_hdrlabel, 0, 0)
 		ng.addWidget(self.freq_slider, 1, 0, alignment=Qt.AlignmentFlag.AlignHCenter)
@@ -541,6 +574,11 @@ class HGA1Window(QtWidgets.QMainWindow):
 		ng.addWidget(self.pwr_slider_hdrlabel, 0, 1)
 		ng.addWidget(self.pwr_slider, 1, 1, alignment=Qt.AlignmentFlag.AlignHCenter)
 		ng.addWidget(self.pwr_slider_vallabel, 2, 1)
+		
+		ng.addWidget(self.bias_slider_hdrlabel, 0, 2)
+		ng.addWidget(self.bias_slider, 1, 2, alignment=Qt.AlignmentFlag.AlignHCenter)
+		ng.addWidget(self.bias_slider_vallabel, 2, 2)
+		
 		self.slider_box.setLayout(ng)
 	
 	def make_tabs(self):
@@ -615,6 +653,12 @@ class HGA1Window(QtWidgets.QMainWindow):
 			self.set_gcond('fix_scale', self.fix_scales_act.isChecked())
 
 app = QtWidgets.QApplication(sys.argv)
-app.setStyle('Oxygen')
+
+# qdarktheme.setup_theme(theme='dark')
+
+# app.setStyle('windowsvista')
+# app.setStyle('fusion')
+# app.setStyle('Windows')
+# print(f"Style = {app.getStyle()}")
 w = HGA1Window(log, freq_rf_GHz, power_rf_dBm)
 app.exec()
