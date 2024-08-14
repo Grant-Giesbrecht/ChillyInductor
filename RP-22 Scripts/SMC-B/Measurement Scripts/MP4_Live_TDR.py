@@ -49,15 +49,19 @@ while True:
 	
 	# Exit command
 	if usr_input.upper() == "EXIT":
+		log.info("Exiting.")
 		break
 	else:
 		
 		# Record trace
 		wav = csa.get_waveform(4)
+		log.debug(f"Measured waveform.")
 		
 		# Get path
 		words = usr_input.split('/')
 		words.insert(0, "dataset")
+		
+		log.info(f"Saving TDR waveform to location: {usr_input}")
 		
 		# Walk through levels and create/access dictionaries
 		curr_dict = dataset
