@@ -110,6 +110,22 @@ unique_freqs = np.unique(freq_rf_GHz)
 ##--------------------------------------------
 # Create GUI
 
+def get_graph_lims(data:list, step=None):
+	
+	umin = np.min(data)
+	umax = np.max(data)
+	
+	# # Pick approx best step
+	# if step is None:
+	# 	base_step = 5
+	# 	delta = umax-umin
+	# 	ratio = delta/base_step
+	# 	order_of_mag = 10**(np.floor(np.log10(ratio)))
+		
+	# 	step = order_of_mag*base_step
+	
+	return [np.floor(umin/step)*step, np.ceil(umax/step)*step]
+
 class MplCanvas(FigureCanvasQTAgg):
 
 	def __init__(self, parent=None, width=5, height=4, dpi=100):
@@ -358,14 +374,16 @@ class IVPlotWidget(QtWidgets.QWidget):
 		super().__init__()
 		
 		# Conditions dictionaries
-		self.conditions = self.conditions = {'rounding_step1': 0.1, 'rounding_step2': 0.01}
+		self.conditions = self.conditions = {'rounding_step1': 0.1, 'rounding_step2': 0.01, 'rounding_step_x1b':0.05}
 		self.global_conditions = global_conditions
 		
 		# Create figure
-		self.fig1, self.ax1 = plt.subplots(1, 1)
-		self.fig2, ax_arr = plt.subplots(2, 1)
-		self.ax2t = ax_arr[0]
-		self.ax2b = ax_arr[1]
+		self.fig1, ax_arr1 = plt.subplots(2, 1)
+		self.fig2, ax_arr2 = plt.subplots(2, 1)
+		self.ax1t = ax_arr1[0]
+		self.ax1b = ax_arr1[1]
+		self.ax2t = ax_arr2[0]
+		self.ax2b = ax_arr2[1]
 		
 		self.manual_init()
 		
@@ -408,6 +426,7 @@ class IVPlotWidget(QtWidgets.QWidget):
 		self.ylims1 = [np.floor(umin1/rstep1)*rstep1, np.ceil(umax1/rstep1)*rstep1]
 		self.ylims2 = [np.floor(umin2/rstep2)*rstep2, np.ceil(umax2/rstep2)*rstep2]
 		self.xlims2b = self.ylims1
+		self.xlims1b = get_graph_lims(MFLI_V_offset_V, self.get_condition('rounding_step_x1b'))
 	
 	def get_condition(self, c:str):
 		
@@ -428,7 +447,8 @@ class IVPlotWidget(QtWidgets.QWidget):
 		mask = (mask_freq & mask_pwr)
 		
 		# Plot results
-		self.ax1.cla()
+		self.ax1t.cla()
+		self.ax1b.cla()
 		self.ax2t.cla()
 		self.ax2b.cla()
 		
@@ -440,16 +460,23 @@ class IVPlotWidget(QtWidgets.QWidget):
 			return
 		
 		
-		self.ax1.plot(requested_Idc_mA[mask], Idc_mA[mask], linestyle=':', marker='o', markersize=2, color=(0.6, 0, 0.7))
+		self.ax1t.plot(requested_Idc_mA[mask], Idc_mA[mask], linestyle=':', marker='o', markersize=4, color=(0.6, 0, 0.7))
+		self.ax1b.plot(MFLI_V_offset_V[mask], Idc_mA[mask], linestyle=':', marker='s', markersize=4, color=(0.2, 0, 0.8))
+		
 		self.ax2t.plot(requested_Idc_mA[mask], self.extra_z[mask], linestyle=':', marker='o', markersize=4, color=(0.45, 0.5, 0.1))
 		self.ax2b.plot(Idc_mA[mask], self.extra_z[mask], linestyle=':', marker='o', markersize=4, color=(0, 0.5, 0.8))
 		
-		self.ax1.set_title(f"f = {f} GHz, p = {p} dBm")
-		self.ax1.set_xlabel("Requested DC Bias (mA)")
-		self.ax1.set_ylabel("Measured DC Bias (mA)")
-		self.ax1.grid(True)
-		if self.get_condition('fix_scale'):
-			self.ax1.set_ylim(self.ylims1)
+		self.ax1t.set_title(f"f = {f} GHz, p = {p} dBm")
+		self.ax1t.set_xlabel("Requested DC Bias (mA)")
+		self.ax1t.set_ylabel("Measured DC Bias (mA)")
+		self.ax1t.grid(True)
+		
+			
+		self.ax1b.set_title(f"f = {f} GHz, p = {p} dBm")
+		self.ax1b.set_xlabel("Applied DC Voltage (V)")
+		self.ax1b.set_ylabel("Measured DC Bias (mA)")
+		self.ax1b.grid(True)
+			
 		
 		self.ax2t.set_title(f"f = {f} GHz, p = {p} dBm")
 		self.ax2t.set_xlabel("Requested DC Bias (mA)")
@@ -462,6 +489,11 @@ class IVPlotWidget(QtWidgets.QWidget):
 		self.ax2b.grid(True)
 		
 		if self.get_condition('fix_scale'):
+			self.ax1t.set_ylim(self.ylims1)
+			self.ax1b.set_ylim(self.ylims1)
+			
+			self.ax1b.set_xlim(self.xlims1b)
+			
 			self.ax2t.set_ylim(self.ylims2)
 			self.ax2b.set_ylim(self.ylims2)
 			
