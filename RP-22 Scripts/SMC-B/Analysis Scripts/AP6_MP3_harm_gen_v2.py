@@ -422,6 +422,40 @@ class HarmGenPlotWidget(QtWidgets.QWidget):
 			self.ax1.set_ylim(self.ylims)
 		
 		self.fig1.canvas.draw_idle()
+
+class BiasDomainTabWidget(QtWidgets.QTabWidget):
+	
+	def __init__(self, global_conditions:dict, main_window):
+		super().__init__()
+		
+		self.gcond = global_conditions
+		self.main_window = main_window
+		
+		#------------ Harmonics widget
+		
+		self.hgwidget = HarmGenPlotWidget(freq_rf_GHz, power_rf_dBm, requested_Idc_mA, global_conditions=self.gcond)
+		self.main_window.gcond_subscribers.append(self.hgwidget)
+		
+		# Add to tabs object and handle list
+		ntp = TabPlot(self.hgwidget.fig1, self.hgwidget.toolbar)
+		self.addTab(self.hgwidget, "Harmonic Generation")
+		
+		#------------ CE widget
+		
+		self.cebdwidget = CE23BiasDomainPlotWidget(global_conditions=self.gcond)
+		self.main_window.gcond_subscribers.append(self.cebdwidget)
+		
+		# Add to tabs object and handle list
+
+		self.addTab(self.cebdwidget, "Efficiency")
+		
+		#------------ Harmonics widget
+		
+		self.ivwidget = IVPlotWidget(global_conditions=self.gcond)
+		self.main_window.gcond_subscribers.append(self.ivwidget)
+		
+		# Add to tabs object and handle list
+		self.addTab(self.ivwidget, "Bias Current")
 		
 class HGA1Window(QtWidgets.QMainWindow):
 
@@ -430,7 +464,6 @@ class HGA1Window(QtWidgets.QMainWindow):
 		
 		# Save local variables
 		self.log = log
-		self.tab_handles = []
 		
 		# Master Data
 		self.freq_list = freqs
@@ -451,7 +484,6 @@ class HGA1Window(QtWidgets.QMainWindow):
 		# Create tab widget
 		self.tab_widget = QtWidgets.QTabWidget()
 		self.tab_widget.currentChanged.connect(self._tab_changed)
-		self.hgwidget = None
 		self.make_tabs() # Make tabs
 		
 		# Make sliders
@@ -583,39 +615,42 @@ class HGA1Window(QtWidgets.QMainWindow):
 	
 	def make_tabs(self):
 		
-		#------------ Harmonics widget
+		self.bias_domain_widget = BiasDomainTabWidget(self.gcond, self)
+		self.tab_widget.addTab(self.bias_domain_widget, "Bias Domain")
 		
-		self.hgwidget = HarmGenPlotWidget(freq_rf_GHz, power_rf_dBm, requested_Idc_mA, global_conditions=self.gcond)
-		self.gcond_subscribers.append(self.hgwidget)
+		# #------------ Harmonics widget
 		
-		# Add to tabs object and handle list
-		ntp = TabPlot(self.hgwidget.fig1, self.hgwidget.toolbar)
-		self.tab_handles.append(ntp)
-		self.tab_widget.addTab(self.hgwidget, "Harmonic Generation")
+		# self.hgwidget = HarmGenPlotWidget(freq_rf_GHz, power_rf_dBm, requested_Idc_mA, global_conditions=self.gcond)
+		# self.gcond_subscribers.append(self.hgwidget)
 		
-		#------------ CE widget
+		# # Add to tabs object and handle list
+		# ntp = TabPlot(self.hgwidget.fig1, self.hgwidget.toolbar)
+		# self.tab_handles.append(ntp)
+		# self.tab_widget.addTab(self.hgwidget, "Harmonic Generation")
 		
-		self.cebdwidget = CE23BiasDomainPlotWidget(global_conditions=self.gcond)
-		self.gcond_subscribers.append(self.cebdwidget)
+		# #------------ CE widget
 		
-		# Add to tabs object and handle list
-		ntp1 = TabPlot(self.cebdwidget.fig1, self.cebdwidget.toolbar1)
-		ntp2 = TabPlot(self.cebdwidget.fig2, self.cebdwidget.toolbar2) #TODO I don't need these
-		self.tab_handles.append(ntp1)
-		self.tab_handles.append(ntp2)
-		self.tab_widget.addTab(self.cebdwidget, "Efficiency")
+		# self.cebdwidget = CE23BiasDomainPlotWidget(global_conditions=self.gcond)
+		# self.gcond_subscribers.append(self.cebdwidget)
 		
-		#------------ Harmonics widget
+		# # Add to tabs object and handle list
+		# ntp1 = TabPlot(self.cebdwidget.fig1, self.cebdwidget.toolbar1)
+		# ntp2 = TabPlot(self.cebdwidget.fig2, self.cebdwidget.toolbar2) #TODO I don't need these
+		# self.tab_handles.append(ntp1)
+		# self.tab_handles.append(ntp2)
+		# self.tab_widget.addTab(self.cebdwidget, "Efficiency")
 		
-		self.ivwidget = IVPlotWidget(global_conditions=self.gcond)
-		self.gcond_subscribers.append(self.ivwidget)
+		# #------------ Harmonics widget
 		
-		# Add to tabs object and handle list
-		ntp1 = TabPlot(self.ivwidget.fig1, self.ivwidget.toolbar1)
-		ntp2 = TabPlot(self.ivwidget.fig2, self.ivwidget.toolbar2) #TODO I don't need these
-		self.tab_handles.append(ntp1)
-		self.tab_handles.append(ntp2)
-		self.tab_widget.addTab(self.ivwidget, "Bias Current")
+		# self.ivwidget = IVPlotWidget(global_conditions=self.gcond)
+		# self.gcond_subscribers.append(self.ivwidget)
+		
+		# # Add to tabs object and handle list
+		# ntp1 = TabPlot(self.ivwidget.fig1, self.ivwidget.toolbar1)
+		# ntp2 = TabPlot(self.ivwidget.fig2, self.ivwidget.toolbar2) #TODO I don't need these
+		# self.tab_handles.append(ntp1)
+		# self.tab_handles.append(ntp2)
+		# self.tab_widget.addTab(self.ivwidget, "Bias Current")
 	
 	def add_menu(self):
 		''' Adds menus to the window'''
@@ -654,11 +689,5 @@ class HGA1Window(QtWidgets.QMainWindow):
 
 app = QtWidgets.QApplication(sys.argv)
 
-# qdarktheme.setup_theme(theme='dark')
-
-# app.setStyle('windowsvista')
-# app.setStyle('fusion')
-# app.setStyle('Windows')
-# print(f"Style = {app.getStyle()}")
 w = HGA1Window(log, freq_rf_GHz, power_rf_dBm)
 app.exec()

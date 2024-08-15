@@ -12,7 +12,7 @@ S21_prefix = "S21_";
 postfix = "_trimmed.s2p";
 
 if ispc
-	datapath = fullfile("E:\ARC0 PhD Data\RP-21 Kinetic Inductance 2023\Data\group4_extflash\S21 Cal Verification", "8_Nov_Compiled_S21");
+	datapath = fullfile("G:\ARC0 PhD Data\RP-21 Kinetic Inductance 2023\Data\group4_extflash\S21 Cal Verification", "8_Nov_Compiled_S21");
 else
 	datapath = fullfile("/", "Volumes", "M4 PHD", "ARC0 PhD Data", "RP-21 Kinetic Inductance 2023", "Data", "group4_extflash", "S21 Cal Verification", "8_Nov_Compiled_S21");
 end
