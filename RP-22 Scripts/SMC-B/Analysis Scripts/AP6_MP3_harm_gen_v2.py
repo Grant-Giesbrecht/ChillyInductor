@@ -6,7 +6,7 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from pylogfile.base import *
 
 from PyQt6 import QtCore, QtGui, QtWidgets
-from PyQt6.QtGui import QAction
+from PyQt6.QtGui import QAction, QActionGroup
 from PyQt6.QtCore import Qt
 
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg, NavigationToolbar2QT
@@ -22,6 +22,11 @@ import numpy as np
 import pickle
 from matplotlib.widgets import Slider, Button
 # import qdarktheme
+
+# TODO: Important
+#
+# * Tests show if only the presently displayed graph is rendered, when the sliders are adjusted, the update speed is far better (no kidding).
+# * Tests also show pre-allocating a mask isn't super useful. It's mostly the matplotlib rendering that slows it down.
 
 # TODO:
 # 1. Init graph properly (says void and stuff)
@@ -98,6 +103,9 @@ rf3W = dBm2W(rf3)
 #-------------------------------------------
 
 req_bias_list = np.unique(requested_Idc_mA)
+unique_bias = req_bias_list
+unique_pwr = np.unique(power_rf_dBm)
+unique_freqs = np.unique(freq_rf_GHz)
 
 ##--------------------------------------------
 # Create GUI
@@ -184,13 +192,13 @@ class CE23FreqDomainPlotWidget(QtWidgets.QWidget):
 			return None
 	
 	def plot_data(self):
-		f = self.get_condition('sel_freq_GHz')
+		b = self.get_condition('sel_bias_mA')
 		p = self.get_condition('sel_power_dBm')
 		
 		# Filter relevant data
-		mask_freq = (freq_rf_GHz == f)
+		mask_bias = (requested_Idc_mA == b)
 		mask_pwr = (power_rf_dBm == p)
-		mask = (mask_freq & mask_pwr)
+		mask = (mask_bias & mask_pwr)
 		
 		# Plot results
 		self.ax1.cla()
@@ -198,16 +206,16 @@ class CE23FreqDomainPlotWidget(QtWidgets.QWidget):
 		
 		# Check correct number of points
 		mask_len = np.sum(mask)
-		if len(req_bias_list) != mask_len:
-			log.warning(f"Cannot display data: Mismatched number of points (freq = {f} GHz, pwr = {p} dBm, mask: {mask_len}, bias: {len(self.req_bias_list)})")
+		if len(unique_freqs) != mask_len:
+			log.warning(f"Cannot display data: Mismatched number of points (bias = {b} mA, pwr = {p} dBm, mask: {mask_len}, freq: {len(unique_freqs)})")
 			self.fig1.canvas.draw_idle()
 			return
 		
 		
-		self.ax1.plot(requested_Idc_mA[mask], self.ce2[mask], linestyle=':', marker='o', markersize=2, color=(0.6, 0, 0.7))
-		self.ax2.plot(requested_Idc_mA[mask], self.ce3[mask], linestyle=':', marker='o', markersize=2, color=(0.45, 0.05, 0.1))
+		self.ax1.plot(freq_rf_GHz[mask]*2, self.ce2[mask], linestyle=':', marker='o', markersize=2, color=(0.6, 0, 0.7))
+		self.ax2.plot(freq_rf_GHz[mask]*3, self.ce3[mask], linestyle=':', marker='o', markersize=2, color=(0.45, 0.05, 0.1))
 		
-		self.ax1.set_title(f"f-fund = {f} GHz, f-harm2 = {rd(2*f)} GHz, p = {p} dBm")
+		self.ax1.set_title(f"Bias = {b} mA, p = {p} dBm")
 		self.ax1.set_xlabel("Requested DC Bias (mA)")
 		self.ax1.set_ylabel("2nd Harm. Conversion Efficiency (%)")
 		self.ax1.grid(True)
@@ -215,13 +223,16 @@ class CE23FreqDomainPlotWidget(QtWidgets.QWidget):
 		if self.get_condition('fix_scale'):
 			self.ax1.set_ylim(self.ylims1)
 		
-		self.ax2.set_title(f"f-fund = {f} GHz, f-harm3 = {rd(3*f)} GHz, p = {p} dBm")
+		self.ax2.set_title(f"Bias = {b} mA, p = {p} dBm")
 		self.ax2.set_xlabel("Requested DC Bias (mA)")
 		self.ax2.set_ylabel("3rd Harm. Conversion Efficiency (%)")
 		self.ax2.grid(True)
 		
 		if self.get_condition('fix_scale'):
 			self.ax2.set_ylim(self.ylims2)
+		
+		self.fig1.tight_layout()
+		self.fig2.tight_layout()
 		
 		self.fig1.canvas.draw_idle()
 		self.fig2.canvas.draw_idle()
@@ -335,6 +346,9 @@ class CE23BiasDomainPlotWidget(QtWidgets.QWidget):
 		if self.get_condition('fix_scale'):
 			self.ax2.set_ylim(self.ylims2)
 		
+		self.fig1.tight_layout()
+		self.fig2.tight_layout()
+		
 		self.fig1.canvas.draw_idle()
 		self.fig2.canvas.draw_idle()
 
@@ -349,7 +363,9 @@ class IVPlotWidget(QtWidgets.QWidget):
 		
 		# Create figure
 		self.fig1, self.ax1 = plt.subplots(1, 1)
-		self.fig2, self.ax2 = plt.subplots(1, 1)
+		self.fig2, ax_arr = plt.subplots(2, 1)
+		self.ax2t = ax_arr[0]
+		self.ax2b = ax_arr[1]
 		
 		self.manual_init()
 		
@@ -391,6 +407,7 @@ class IVPlotWidget(QtWidgets.QWidget):
 		
 		self.ylims1 = [np.floor(umin1/rstep1)*rstep1, np.ceil(umax1/rstep1)*rstep1]
 		self.ylims2 = [np.floor(umin2/rstep2)*rstep2, np.ceil(umax2/rstep2)*rstep2]
+		self.xlims2b = self.ylims1
 	
 	def get_condition(self, c:str):
 		
@@ -412,7 +429,8 @@ class IVPlotWidget(QtWidgets.QWidget):
 		
 		# Plot results
 		self.ax1.cla()
-		self.ax2.cla()
+		self.ax2t.cla()
+		self.ax2b.cla()
 		
 		# Check correct number of points
 		mask_len = np.sum(mask)
@@ -423,7 +441,8 @@ class IVPlotWidget(QtWidgets.QWidget):
 		
 		
 		self.ax1.plot(requested_Idc_mA[mask], Idc_mA[mask], linestyle=':', marker='o', markersize=2, color=(0.6, 0, 0.7))
-		self.ax2.plot(requested_Idc_mA[mask], self.extra_z[mask], linestyle=':', marker='o', markersize=2, color=(0.45, 0.05, 0.1))
+		self.ax2t.plot(requested_Idc_mA[mask], self.extra_z[mask], linestyle=':', marker='o', markersize=4, color=(0.45, 0.5, 0.1))
+		self.ax2b.plot(Idc_mA[mask], self.extra_z[mask], linestyle=':', marker='o', markersize=4, color=(0, 0.5, 0.8))
 		
 		self.ax1.set_title(f"f = {f} GHz, p = {p} dBm")
 		self.ax1.set_xlabel("Requested DC Bias (mA)")
@@ -432,13 +451,24 @@ class IVPlotWidget(QtWidgets.QWidget):
 		if self.get_condition('fix_scale'):
 			self.ax1.set_ylim(self.ylims1)
 		
-		self.ax2.set_title(f"f = {f} GHz, p = {p} dBm")
-		self.ax2.set_xlabel("Requested DC Bias (mA)")
-		self.ax2.set_ylabel("Additional Impedance (Ohms)")
-		self.ax2.grid(True)
+		self.ax2t.set_title(f"f = {f} GHz, p = {p} dBm")
+		self.ax2t.set_xlabel("Requested DC Bias (mA)")
+		self.ax2t.set_ylabel("Additional Impedance (Ohms)")
+		self.ax2t.grid(True)
+		
+		self.ax2b.set_title(f"f = {f} GHz, p = {p} dBm")
+		self.ax2b.set_xlabel("Measured DC Bias (mA)")
+		self.ax2b.set_ylabel("Additional Impedance (Ohms)")
+		self.ax2b.grid(True)
 		
 		if self.get_condition('fix_scale'):
-			self.ax2.set_ylim(self.ylims2)
+			self.ax2t.set_ylim(self.ylims2)
+			self.ax2b.set_ylim(self.ylims2)
+			
+			self.ax2b.set_xlim(self.xlims2b)
+		
+		self.fig1.tight_layout()
+		self.fig2.tight_layout()
 		
 		self.fig1.canvas.draw_idle()
 		self.fig2.canvas.draw_idle()
@@ -533,6 +563,8 @@ class HarmGenPlotWidget(QtWidgets.QWidget):
 		if self.get_condition('fix_scale'):
 			self.ax1.set_ylim(self.ylims)
 		
+		self.fig1.tight_layout()
+		
 		self.fig1.canvas.draw_idle()
 
 class BiasDomainTabWidget(QtWidgets.QTabWidget):
@@ -577,14 +609,14 @@ class FrequencyDomainTabWidget(QtWidgets.QTabWidget):
 		self.gcond = global_conditions
 		self.main_window = main_window
 		
-		# #------------ Harmonics widget
+		#------------ CE widget
 		
-		# self.hgwidget = HarmGenPlotWidget(freq_rf_GHz, power_rf_dBm, requested_Idc_mA, global_conditions=self.gcond)
-		# self.main_window.gcond_subscribers.append(self.hgwidget)
+		self.cefdwidget = CE23FreqDomainPlotWidget(global_conditions=self.gcond)
+		self.main_window.gcond_subscribers.append(self.cefdwidget)
 		
-		# # Add to tabs object and handle list
-		# ntp = TabPlot(self.hgwidget.fig1, self.hgwidget.toolbar)
-		# self.addTab(self.hgwidget, "Harmonic Generation")
+		# Add to tabs object and handle list
+
+		self.addTab(self.cefdwidget, "Efficiency")
 
 class HGA1Window(QtWidgets.QMainWindow):
 
@@ -602,7 +634,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.unique_pwr_list = np.unique(powers)
 		
 		# Initialize global conditions
-		self.gcond = {'sel_freq_GHz': self.freq_list[len(self.freq_list)//2], 'sel_power_dBm': self.pwr_list[len(self.pwr_list)//2], 'sel_bias_mA': req_bias_list[len(req_bias_list)//2]}
+		self.gcond = {'sel_freq_GHz': self.freq_list[len(self.freq_list)//2], 'sel_power_dBm': self.pwr_list[len(self.pwr_list)//2], 'sel_bias_mA': req_bias_list[len(req_bias_list)//2], 'fix_scale':False, 'freqxaxis_isfund':False}
 		self.gcond_subscribers = []
 		
 		# Basic setup
@@ -653,9 +685,9 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.freq_slider_vallabel.setText(f"{new_freq} GHz")
 	
 	def _tab_changed(self, x):
-		
-		print(self.tab_widget.currentWidget())
-		print(type(self.tab_widget.currentWidget()))
+		pass
+		# print(self.tab_widget.currentWidget())
+		# print(type(self.tab_widget.currentWidget()))
 	
 	def update_pwr(self, x):
 		try:
@@ -779,6 +811,21 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.fix_scales_act.setChecked(True)
 		self.set_gcond('fix_scale', self.fix_scales_act.isChecked())
 		self.graph_menu.addAction(self.fix_scales_act)
+		
+			# Graph Menu: Freq-axis sub menu -------------
+		
+		self.freqxaxis_graph_menu = self.graph_menu.addMenu("Frequency X-Axis")
+		
+		self.freqxaxis_group = QActionGroup(self)
+		
+		self.freqxaxis_fund_act = QAction("Show Fundamental", self, checkable=True)
+		self.freqxaxis_harm_act = QAction("Show Harmonics", self, checkable=True)
+		self.freqxaxis_harm_act.setChecked(True)
+		self.set_gcond('freqxaxis_isfund', self.freqxaxis_fund_act.isChecked())
+		self.freqxaxis_graph_menu.addAction(self.freqxaxis_fund_act)
+		self.freqxaxis_graph_menu.addAction(self.freqxaxis_harm_act)
+		self.freqxaxis_group.addAction(self.freqxaxis_fund_act)
+		self.freqxaxis_group.addAction(self.freqxaxis_harm_act)
 		
 	def _process_file_menu(self, q):
 		
