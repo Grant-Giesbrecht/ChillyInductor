@@ -114,6 +114,118 @@ class TabPlot():
 		self.fig = fig
 		self.toolbar = toolbar
 
+class CE23FreqDomainPlotWidget(QtWidgets.QWidget):
+	
+	def __init__(self, global_conditions:dict={}):
+		super().__init__()
+		
+		# Conditions dictionaries
+		self.conditions = {'rounding_step1': 0.1, 'rounding_step2': 0.01}
+		self.global_conditions = global_conditions
+		
+		self.manual_init()
+		
+		# Create figure
+		self.fig1, self.ax1 = plt.subplots(1, 1)
+		self.fig2, self.ax2 = plt.subplots(1, 1)
+		
+		# Estimate system Z
+		expected_Z = MFLI_V_offset_V[1]/(requested_Idc_mA[1]/1e3) #TODO: Do something more general than index 1
+		system_Z = MFLI_V_offset_V/(Idc_mA/1e3)
+		self.extra_z = system_Z - expected_Z
+		
+		
+		self.plot_data()
+		
+		# Create widgets
+		self.fig1c = FigureCanvas(self.fig1)
+		self.toolbar1 = NavigationToolbar2QT(self.fig1c, self)
+		self.fig2c = FigureCanvas(self.fig2)
+		self.toolbar2 = NavigationToolbar2QT(self.fig2c, self)
+		
+		# Add widgets to parent-widget and set layout
+		self.grid = QtWidgets.QGridLayout()
+		self.grid.addWidget(self.toolbar1, 0, 0)
+		self.grid.addWidget(self.fig1c, 1, 0)
+		self.grid.addWidget(self.toolbar2, 0, 1)
+		self.grid.addWidget(self.fig2c, 1, 1)
+		self.setLayout(self.grid)
+	
+	def manual_init(self):
+		
+		# Calculate total power and CE
+		self.total_power = rf1W + rf2W + rf3W
+		self.ce2 = rf2W/self.total_power*100
+		self.ce3 = rf3W/self.total_power*100
+		
+		# Get autoscale choices
+		umax1 = np.max(self.ce2)
+		umin1 = np.min(self.ce2)
+		umax2 = np.max(self.ce3)
+		umin2 = np.min(self.ce3)
+		
+		rstep1 = self.get_condition('rounding_step1')
+		rstep2 = self.get_condition('rounding_step2')
+		if rstep1 is None:
+			rstep1 = 10
+		if rstep2 is None:
+			rstep2 = 10
+		
+		self.ylims1 = [np.floor(umin1/rstep1)*rstep1, np.ceil(umax1/rstep1)*rstep1]
+		self.ylims2 = [np.floor(umin2/rstep2)*rstep2, np.ceil(umax2/rstep2)*rstep2]
+	
+	def get_condition(self, c:str):
+		
+		if c in self.conditions:
+			return self.conditions[c]
+		elif c in self.global_conditions:
+			return self.global_conditions[c]
+		else:
+			return None
+	
+	def plot_data(self):
+		f = self.get_condition('sel_freq_GHz')
+		p = self.get_condition('sel_power_dBm')
+		
+		# Filter relevant data
+		mask_freq = (freq_rf_GHz == f)
+		mask_pwr = (power_rf_dBm == p)
+		mask = (mask_freq & mask_pwr)
+		
+		# Plot results
+		self.ax1.cla()
+		self.ax2.cla()
+		
+		# Check correct number of points
+		mask_len = np.sum(mask)
+		if len(req_bias_list) != mask_len:
+			log.warning(f"Cannot display data: Mismatched number of points (freq = {f} GHz, pwr = {p} dBm, mask: {mask_len}, bias: {len(self.req_bias_list)})")
+			self.fig1.canvas.draw_idle()
+			return
+		
+		
+		self.ax1.plot(requested_Idc_mA[mask], self.ce2[mask], linestyle=':', marker='o', markersize=2, color=(0.6, 0, 0.7))
+		self.ax2.plot(requested_Idc_mA[mask], self.ce3[mask], linestyle=':', marker='o', markersize=2, color=(0.45, 0.05, 0.1))
+		
+		self.ax1.set_title(f"f-fund = {f} GHz, f-harm2 = {rd(2*f)} GHz, p = {p} dBm")
+		self.ax1.set_xlabel("Requested DC Bias (mA)")
+		self.ax1.set_ylabel("2nd Harm. Conversion Efficiency (%)")
+		self.ax1.grid(True)
+		
+		if self.get_condition('fix_scale'):
+			self.ax1.set_ylim(self.ylims1)
+		
+		self.ax2.set_title(f"f-fund = {f} GHz, f-harm3 = {rd(3*f)} GHz, p = {p} dBm")
+		self.ax2.set_xlabel("Requested DC Bias (mA)")
+		self.ax2.set_ylabel("3rd Harm. Conversion Efficiency (%)")
+		self.ax2.grid(True)
+		
+		if self.get_condition('fix_scale'):
+			self.ax2.set_ylim(self.ylims2)
+		
+		self.fig1.canvas.draw_idle()
+		self.fig2.canvas.draw_idle()
+
 class CE23BiasDomainPlotWidget(QtWidgets.QWidget):
 	
 	def __init__(self, global_conditions:dict={}):
@@ -456,7 +568,24 @@ class BiasDomainTabWidget(QtWidgets.QTabWidget):
 		
 		# Add to tabs object and handle list
 		self.addTab(self.ivwidget, "Bias Current")
+
+class FrequencyDomainTabWidget(QtWidgets.QTabWidget):
+	
+	def __init__(self, global_conditions:dict, main_window):
+		super().__init__()
 		
+		self.gcond = global_conditions
+		self.main_window = main_window
+		
+		# #------------ Harmonics widget
+		
+		# self.hgwidget = HarmGenPlotWidget(freq_rf_GHz, power_rf_dBm, requested_Idc_mA, global_conditions=self.gcond)
+		# self.main_window.gcond_subscribers.append(self.hgwidget)
+		
+		# # Add to tabs object and handle list
+		# ntp = TabPlot(self.hgwidget.fig1, self.hgwidget.toolbar)
+		# self.addTab(self.hgwidget, "Harmonic Generation")
+
 class HGA1Window(QtWidgets.QMainWindow):
 
 	def __init__(self, log, freqs, powers, *args, **kwargs):
@@ -473,7 +602,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.unique_pwr_list = np.unique(powers)
 		
 		# Initialize global conditions
-		self.gcond = {'sel_freq_GHz': self.freq_list[len(self.freq_list)//2], 'sel_power_dBm': self.pwr_list[len(self.pwr_list)//2]}
+		self.gcond = {'sel_freq_GHz': self.freq_list[len(self.freq_list)//2], 'sel_power_dBm': self.pwr_list[len(self.pwr_list)//2], 'sel_bias_mA': req_bias_list[len(req_bias_list)//2]}
 		self.gcond_subscribers = []
 		
 		# Basic setup
@@ -612,45 +741,19 @@ class HGA1Window(QtWidgets.QMainWindow):
 		ng.addWidget(self.bias_slider_vallabel, 2, 2)
 		
 		self.slider_box.setLayout(ng)
+		
+		# Trigger all slider callbacks
+		self.update_bias(self.bias_slider.value())
+		self.update_freq(self.freq_slider.value())
+		self.update_pwr(self.pwr_slider.value())
 	
 	def make_tabs(self):
 		
 		self.bias_domain_widget = BiasDomainTabWidget(self.gcond, self)
 		self.tab_widget.addTab(self.bias_domain_widget, "Bias Domain")
 		
-		# #------------ Harmonics widget
-		
-		# self.hgwidget = HarmGenPlotWidget(freq_rf_GHz, power_rf_dBm, requested_Idc_mA, global_conditions=self.gcond)
-		# self.gcond_subscribers.append(self.hgwidget)
-		
-		# # Add to tabs object and handle list
-		# ntp = TabPlot(self.hgwidget.fig1, self.hgwidget.toolbar)
-		# self.tab_handles.append(ntp)
-		# self.tab_widget.addTab(self.hgwidget, "Harmonic Generation")
-		
-		# #------------ CE widget
-		
-		# self.cebdwidget = CE23BiasDomainPlotWidget(global_conditions=self.gcond)
-		# self.gcond_subscribers.append(self.cebdwidget)
-		
-		# # Add to tabs object and handle list
-		# ntp1 = TabPlot(self.cebdwidget.fig1, self.cebdwidget.toolbar1)
-		# ntp2 = TabPlot(self.cebdwidget.fig2, self.cebdwidget.toolbar2) #TODO I don't need these
-		# self.tab_handles.append(ntp1)
-		# self.tab_handles.append(ntp2)
-		# self.tab_widget.addTab(self.cebdwidget, "Efficiency")
-		
-		# #------------ Harmonics widget
-		
-		# self.ivwidget = IVPlotWidget(global_conditions=self.gcond)
-		# self.gcond_subscribers.append(self.ivwidget)
-		
-		# # Add to tabs object and handle list
-		# ntp1 = TabPlot(self.ivwidget.fig1, self.ivwidget.toolbar1)
-		# ntp2 = TabPlot(self.ivwidget.fig2, self.ivwidget.toolbar2) #TODO I don't need these
-		# self.tab_handles.append(ntp1)
-		# self.tab_handles.append(ntp2)
-		# self.tab_widget.addTab(self.ivwidget, "Bias Current")
+		self.freq_domain_widget = FrequencyDomainTabWidget(self.gcond, self)
+		self.tab_widget.addTab(self.freq_domain_widget, "Frequency Domain")
 	
 	def add_menu(self):
 		''' Adds menus to the window'''
