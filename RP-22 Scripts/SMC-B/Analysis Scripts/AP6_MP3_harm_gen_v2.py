@@ -21,6 +21,7 @@ import sys
 import numpy as np
 import pickle
 from matplotlib.widgets import Slider, Button
+from abc import abstractmethod, ABC
 # import qdarktheme
 
 # TODO: Important
@@ -115,30 +116,48 @@ def get_graph_lims(data:list, step=None):
 	umin = np.min(data)
 	umax = np.max(data)
 	
-	# # Pick approx best step
-	# if step is None:
-	# 	base_step = 5
-	# 	delta = umax-umin
-	# 	ratio = delta/base_step
-	# 	order_of_mag = 10**(np.floor(np.log10(ratio)))
-		
-	# 	step = order_of_mag*base_step
-	
 	return [np.floor(umin/step)*step, np.ceil(umax/step)*step]
 
-class MplCanvas(FigureCanvasQTAgg):
+# class MplCanvas(FigureCanvasQTAgg):
+	
+# 	def __init__(self, parent=None, width=5, height=4, dpi=100):
+# 		fig = Figure(figsize=(width, height), dpi=dpi)
+# 		self.axes = fig.add_subplot(111)
+# 		super(MplCanvas, self).__init__(fig)
+		
+class TabPlotWidget(QtWidgets.QWidget):
+	
+	def __init__(self):
+		super().__init__()
+		self._is_active = False # Indicates if the current tab is displayed
+		self.plot_is_current = False # Does the plot need to be re-rendered?
+	
+	def is_active(self):
+		return self._is_active
+	
+	def set_active(self, b:bool):
+		self._is_active = b
+		self.plot_data()
+	
+	def plot_data(self):
+		''' If the plot needs to be updated (active and out of date) re-renders the graph and displays it. '''
+		
+		if self.is_active() and (not self.plot_is_current):
+			self.render_plot()
+	
+	def update_plot(self):
+		''' Marks the plot to be updated eventually. '''
+		
+		# Indicate need to replot
+		self.plot_is_current = False
+		
+		self.plot_data()
+		
+	@abstractmethod
+	def render_plot(self):
+		pass
 
-	def __init__(self, parent=None, width=5, height=4, dpi=100):
-		fig = Figure(figsize=(width, height), dpi=dpi)
-		self.axes = fig.add_subplot(111)
-		super(MplCanvas, self).__init__(fig)
-
-class TabPlot():
-	def __init__(self, fig, toolbar):
-		self.fig = fig
-		self.toolbar = toolbar
-
-class HarmGenFreqDomainPlotWidget(QtWidgets.QWidget):
+class HarmGenFreqDomainPlotWidget(TabPlotWidget):
 	
 	def __init__(self, global_conditions:dict={}):
 		super().__init__()
@@ -158,7 +177,7 @@ class HarmGenFreqDomainPlotWidget(QtWidgets.QWidget):
 		self.extra_z = system_Z - expected_Z
 		
 		
-		self.plot_data()
+		self.render_plot()
 		
 		# Create widgets
 		self.fig1c = FigureCanvas(self.fig1)
@@ -183,7 +202,7 @@ class HarmGenFreqDomainPlotWidget(QtWidgets.QWidget):
 		else:
 			return None
 	
-	def plot_data(self):
+	def render_plot(self):
 		b = self.get_condition('sel_bias_mA')
 		p = self.get_condition('sel_power_dBm')
 		use_fund = self.get_condition('freqxaxis_isfund')
@@ -226,7 +245,7 @@ class HarmGenFreqDomainPlotWidget(QtWidgets.QWidget):
 		
 		self.fig1.canvas.draw_idle()
 
-class CE23FreqDomainPlotWidget(QtWidgets.QWidget):
+class CE23FreqDomainPlotWidget(TabPlotWidget):
 	
 	def __init__(self, global_conditions:dict={}):
 		super().__init__()
@@ -247,7 +266,7 @@ class CE23FreqDomainPlotWidget(QtWidgets.QWidget):
 		self.extra_z = system_Z - expected_Z
 		
 		
-		self.plot_data()
+		self.render_plot()
 		
 		# Create widgets
 		self.fig1c = FigureCanvas(self.fig1)
@@ -295,7 +314,7 @@ class CE23FreqDomainPlotWidget(QtWidgets.QWidget):
 		else:
 			return None
 	
-	def plot_data(self):
+	def render_plot(self):
 		b = self.get_condition('sel_bias_mA')
 		p = self.get_condition('sel_power_dBm')
 		use_fund = self.get_condition('freqxaxis_isfund')
@@ -345,7 +364,7 @@ class CE23FreqDomainPlotWidget(QtWidgets.QWidget):
 		self.fig1.canvas.draw_idle()
 		self.fig2.canvas.draw_idle()
 
-class CE23BiasDomainPlotWidget(QtWidgets.QWidget):
+class CE23BiasDomainPlotWidget(TabPlotWidget):
 	
 	def __init__(self, global_conditions:dict={}):
 		super().__init__()
@@ -366,7 +385,7 @@ class CE23BiasDomainPlotWidget(QtWidgets.QWidget):
 		self.extra_z = system_Z - expected_Z
 		
 		
-		self.plot_data()
+		self.render_plot()
 		
 		# Create widgets
 		self.fig1c = FigureCanvas(self.fig1)
@@ -414,7 +433,7 @@ class CE23BiasDomainPlotWidget(QtWidgets.QWidget):
 		else:
 			return None
 	
-	def plot_data(self):
+	def render_plot(self):
 		f = self.get_condition('sel_freq_GHz')
 		p = self.get_condition('sel_power_dBm')
 		
@@ -460,7 +479,7 @@ class CE23BiasDomainPlotWidget(QtWidgets.QWidget):
 		self.fig1.canvas.draw_idle()
 		self.fig2.canvas.draw_idle()
 
-class IVPlotWidget(QtWidgets.QWidget):
+class IVPlotWidget(TabPlotWidget):
 	
 	def __init__(self, global_conditions:dict={}):
 		super().__init__()
@@ -479,7 +498,7 @@ class IVPlotWidget(QtWidgets.QWidget):
 		
 		self.manual_init()
 		
-		self.plot_data()
+		self.render_plot()
 		
 		# Create widgets
 		self.fig1c = FigureCanvas(self.fig1)
@@ -529,7 +548,7 @@ class IVPlotWidget(QtWidgets.QWidget):
 		else:
 			return None
 	
-	def plot_data(self):
+	def render_plot(self):
 		f = self.get_condition('sel_freq_GHz')
 		p = self.get_condition('sel_power_dBm')
 		
@@ -596,7 +615,7 @@ class IVPlotWidget(QtWidgets.QWidget):
 		self.fig1.canvas.draw_idle()
 		self.fig2.canvas.draw_idle()
 
-class HarmGenBiasDomainPlotWidget(QtWidgets.QWidget):
+class HarmGenBiasDomainPlotWidget(TabPlotWidget):
 	
 	def __init__(self, f_GHz:list, p_dBm:list, ridc:list, global_conditions:dict={}):
 		super().__init__()
@@ -621,7 +640,7 @@ class HarmGenBiasDomainPlotWidget(QtWidgets.QWidget):
 		self.fig1, self.ax1 = plt.subplots(1, 1, figsize=(12, 7))
 		self.fig1.subplots_adjust(left=0.065, bottom=0.065, top=0.95, right=0.8)
 		
-		self.plot_data()
+		self.render_plot()
 		
 		# Create widgets
 		self.fig1c = FigureCanvas(self.fig1)
@@ -654,7 +673,7 @@ class HarmGenBiasDomainPlotWidget(QtWidgets.QWidget):
 		else:
 			return None
 	
-	def plot_data(self):
+	def render_plot(self):
 		f = self.get_condition('sel_freq_GHz')
 		p = self.get_condition('sel_power_dBm')
 		
@@ -697,55 +716,82 @@ class BiasDomainTabWidget(QtWidgets.QTabWidget):
 		
 		self.gcond = global_conditions
 		self.main_window = main_window
+		self.object_list = []
+		self._is_active = False
 		
 		#------------ Harmonics widget
 		
-		self.hgwidget = HarmGenBiasDomainPlotWidget(freq_rf_GHz, power_rf_dBm, requested_Idc_mA, global_conditions=self.gcond)
-		self.main_window.gcond_subscribers.append(self.hgwidget)
-		
-		# Add to tabs object and handle list
-		ntp = TabPlot(self.hgwidget.fig1, self.hgwidget.toolbar)
-		self.addTab(self.hgwidget, "Harmonic Generation")
+		self.object_list.append(HarmGenBiasDomainPlotWidget(freq_rf_GHz, power_rf_dBm, requested_Idc_mA, global_conditions=self.gcond))
+		self.main_window.gcond_subscribers.append(self.object_list[-1])
+		self.addTab(self.object_list[-1], "Harmonic Generation")
 		
 		#------------ CE widget
 		
-		self.cebdwidget = CE23BiasDomainPlotWidget(global_conditions=self.gcond)
-		self.main_window.gcond_subscribers.append(self.cebdwidget)
-		
-		# Add to tabs object and handle list
-
-		self.addTab(self.cebdwidget, "Efficiency")
+		self.object_list.append(CE23BiasDomainPlotWidget(global_conditions=self.gcond))
+		self.main_window.gcond_subscribers.append(self.object_list[-1])
+		self.addTab(self.object_list[-1], "Efficiency")
 		
 		#------------ Harmonics widget
 		
-		self.ivwidget = IVPlotWidget(global_conditions=self.gcond)
-		self.main_window.gcond_subscribers.append(self.ivwidget)
+		self.object_list.append(IVPlotWidget(global_conditions=self.gcond))
+		self.main_window.gcond_subscribers.append(self.object_list[-1])
+		self.addTab(self.object_list[-1], "Bias Current")
 		
-		# Add to tabs object and handle list
-		self.addTab(self.ivwidget, "Bias Current")
+		self.currentChanged.connect(self.update_active_tab)
+		
+	def set_active(self, b:bool):
+		self._is_active = b
+		self.update_active_tab()
+	
+	def update_active_tab(self):
+		
+		# Set all objects to inactive
+		for obj in self.object_list:
+			obj.set_active(False)
+		
+		# Set only the active widget to active
+		if self._is_active:
+			self.object_list[self.currentIndex()].set_active(True)
 
 class FrequencyDomainTabWidget(QtWidgets.QTabWidget):
 	
 	def __init__(self, global_conditions:dict, main_window):
 		super().__init__()
 		
+		self._is_active = False
+		
 		self.gcond = global_conditions
 		self.main_window = main_window
-		
-		
+		self.object_list = []
 		
 		#------------ Harmonics widget
 		
-		self.hgwidget = HarmGenFreqDomainPlotWidget(global_conditions=self.gcond)
-		self.main_window.gcond_subscribers.append(self.hgwidget)
-		self.addTab(self.hgwidget, "Harmonic Generation")
+		self.object_list.append(HarmGenFreqDomainPlotWidget(global_conditions=self.gcond))
+		self.main_window.gcond_subscribers.append(self.object_list[-1])
+		self.addTab(self.object_list[-1], "Harmonic Generation")
 		
 		#------------ CE widget
 		
-		self.cefdwidget = CE23FreqDomainPlotWidget(global_conditions=self.gcond)
-		self.main_window.gcond_subscribers.append(self.cefdwidget)
-		self.addTab(self.cefdwidget, "Efficiency")
-
+		self.object_list.append(CE23FreqDomainPlotWidget(global_conditions=self.gcond))
+		self.main_window.gcond_subscribers.append(self.object_list[-1])
+		self.addTab(self.object_list[-1], "Efficiency")
+		
+		self.currentChanged.connect(self.update_active_tab)
+	
+	def set_active(self, b:bool):
+		self._is_active = b
+		self.update_active_tab()
+	
+	def update_active_tab(self):
+		
+		# Set all objects to inactive
+		for obj in self.object_list:
+			obj.set_active(False)
+		
+		# Set only the active widget to active
+		if self._is_active:
+			self.object_list[self.currentIndex()].set_active(True)
+	
 class HGA1Window(QtWidgets.QMainWindow):
 
 	def __init__(self, log, freqs, powers, *args, **kwargs):
@@ -771,8 +817,9 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.add_menu()
 		
 		# Create tab widget
+		self.tab_widget_widgets = []
 		self.tab_widget = QtWidgets.QTabWidget()
-		self.tab_widget.currentChanged.connect(self._tab_changed)
+		self.tab_widget.currentChanged.connect(self.update_active_tab)
 		self.make_tabs() # Make tabs
 		
 		# Make sliders
@@ -800,7 +847,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 	def plot_all(self):
 		
 		for sub in self.gcond_subscribers:
-			sub.plot_data()
+			sub.update_plot()
 	
 	def update_freq(self, x):
 		try:
@@ -812,10 +859,13 @@ class HGA1Window(QtWidgets.QMainWindow):
 		
 		self.freq_slider_vallabel.setText(f"{new_freq} GHz")
 	
-	def _tab_changed(self, x):
-		pass
-		# print(self.tab_widget.currentWidget())
-		# print(type(self.tab_widget.currentWidget()))
+	def update_active_tab(self):
+		
+		# Set all objects to inactive
+		for obj in self.tab_widget_widgets:
+			obj.set_active(False)
+		
+		self.tab_widget_widgets[self.tab_widget.currentIndex()].set_active(True)
 	
 	def update_pwr(self, x):
 		try:
@@ -909,11 +959,11 @@ class HGA1Window(QtWidgets.QMainWindow):
 	
 	def make_tabs(self):
 		
-		self.bias_domain_widget = BiasDomainTabWidget(self.gcond, self)
-		self.tab_widget.addTab(self.bias_domain_widget, "Bias Domain")
+		self.tab_widget_widgets.append(BiasDomainTabWidget(self.gcond, self))
+		self.tab_widget.addTab(self.tab_widget_widgets[-1], "Bias Domain")
 		
-		self.freq_domain_widget = FrequencyDomainTabWidget(self.gcond, self)
-		self.tab_widget.addTab(self.freq_domain_widget, "Frequency Domain")
+		self.tab_widget_widgets.append(FrequencyDomainTabWidget(self.gcond, self))
+		self.tab_widget.addTab(self.tab_widget_widgets[-1], "Frequency Domain")
 	
 	def add_menu(self):
 		''' Adds menus to the window'''
