@@ -8,6 +8,7 @@ from pylogfile.base import *
 from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtGui import QAction, QActionGroup
 from PyQt6.QtCore import Qt
+from PyQt6.QtWidgets import QWidget, QTabWidget, QLabel, QSlider
 
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg, NavigationToolbar2QT
 from matplotlib.figure import Figure
@@ -125,7 +126,7 @@ def get_graph_lims(data:list, step=None):
 # 		self.axes = fig.add_subplot(111)
 # 		super(MplCanvas, self).__init__(fig)
 		
-class TabPlotWidget(QtWidgets.QWidget):
+class TabPlotWidget(QWidget):
 	
 	def __init__(self):
 		super().__init__()
@@ -709,7 +710,7 @@ class HarmGenBiasDomainPlotWidget(TabPlotWidget):
 		
 		self.fig1.canvas.draw_idle()
 
-class BiasDomainTabWidget(QtWidgets.QTabWidget):
+class BiasDomainTabWidget(QTabWidget):
 	
 	def __init__(self, global_conditions:dict, main_window):
 		super().__init__()
@@ -753,7 +754,7 @@ class BiasDomainTabWidget(QtWidgets.QTabWidget):
 		if self._is_active:
 			self.object_list[self.currentIndex()].set_active(True)
 
-class FrequencyDomainTabWidget(QtWidgets.QTabWidget):
+class FrequencyDomainTabWidget(QTabWidget):
 	
 	def __init__(self, global_conditions:dict, main_window):
 		super().__init__()
@@ -826,14 +827,22 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.slider_box = QtWidgets.QWidget()
 		self.populate_slider_box()
 		
+		# Active file label
+		self.active_file_label = QLabel()
+		self.active_file_label.setText(f"Active file: {analysis_file}")
+		self.active_file_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
+		
 		# Place each widget
 		self.grid.addWidget(self.tab_widget, 0, 0)
 		self.grid.addWidget(self.slider_box, 0, 1)
+		self.grid.addWidget(self.active_file_label, 1, 0, 1, 2)
 		
 		# Set the central widget
 		central_widget = QtWidgets.QWidget()
 		central_widget.setLayout(self.grid)
 		self.setCentralWidget(central_widget)
+		
+		
 		
 		self.show()
 	
