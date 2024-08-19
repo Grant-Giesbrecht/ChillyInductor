@@ -1,4 +1,6 @@
 ''' The purpose of this script is to measure the harmonic generation capacity of the C2024Q1 chips.
+
+Allows a temperature-wait condition to be set s.t. the sweep doesn't begin until the cryostat is properly cooled-down. 
 '''
 
 from heimdallr.all import *
@@ -19,6 +21,9 @@ LOG_DIRECTORY = "logs"
 # Set autosave period in seconds
 TIME_AUTOSAVE_S = 600
 
+# Time to wait in between temp-wait temperature checks
+TEMPWAIT_PERIOD_S = 10
+
 # Time after going normal to let the chip recover
 RECOVERY_TIME_S = 1
 
@@ -31,6 +36,7 @@ THRESHOLD_NORMAL_V = 0.25
 parser = argparse.ArgumentParser()
 parser.add_argument('-d', '--detail', help="Show detailed log messages.", action='store_true')
 parser.add_argument('--loglevel', help="Set the logging display level.", choices=['LOWDEBUG', 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], type=str.upper)
+parser.add_argument('--tempwait', help="Set the logging display level.", type=float)
 args = parser.parse_args()
 
 # Initialize log
@@ -40,6 +46,10 @@ if args.loglevel is not None:
 else:
 	log.set_terminal_level(DEBUG)
 log.str_format.show_detail = args.detail
+
+# Check for tempwait argument
+if args.tempwait is not None:
+	log.info(f"Will wait to begin sweep until temperature >{args.tempwait} K< has been reached.")
 
 ##======================================================
 # Get configuration
@@ -158,8 +168,6 @@ except Exception as e:
 # Define dataset dictionary
 dataset = {"calibration":{"current_sense_res_ohms": cs_res, "time_of_meas": str(cs_time)}, "dataset":{"freq_rf_GHz":[], "power_rf_dBm":[], "times":[], "waveform_f_Hz":[], "waveform_s_dBm":[], "waveform_rbw_Hz":[], "MFLI_V_offset_V":[], "requested_Idc_mA":[], "raw_meas_Vdc_V":[], "Idc_mA":[], "detect_normal":[], "temperature_K":[]}, 'info': {'source_script': __file__, 'operator_notes':operator_notes, 'configuration': json.dumps(conf_data), 'source_script_full':self_contents}}
 
-##======================================================
-# Begin logging data
 
 # Prepare DMM to measure voltage
 dmm.set_measurement(DigitalMultimeterCtg1.MEAS_VOLT_DC, DigitalMultimeterCtg1.RANGE_AUTO)
@@ -167,6 +175,27 @@ dmm.set_measurement(DigitalMultimeterCtg1.MEAS_VOLT_DC, DigitalMultimeterCtg1.RA
 # Wait for user to connect through
 print(markdown(f"Ready to perform primary sweep. >Reconnect current sense resistor<."))
 a = input("Press enter when ready:")
+
+##======================================================
+# Wait for starting temperature (if requested)
+
+if args.tempwait is not None:
+	
+	while True:
+		
+		# Measure temperature
+		t_meas = tempctrl.get_temp()
+		
+		# Check break condition
+		if t_meas < args.tempwait:
+			log.debug(f"Exiting temperature-wait phase. Measured temperature (>{t_meas} K<) is below starting threshold (>:a{args.tempwait} K<).")
+			break
+		
+		log.debug(f"Temperature (>{t_meas} K<) is above starting threshold (>:a{args.tempwait} K<).")
+		time.sleep(TEMPWAIT_PERIOD_S)
+##======================================================
+# Begin logging data
+
 
 time_last_save = time.time()
 

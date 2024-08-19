@@ -3,13 +3,13 @@
 		"type": "range",
 		"unit": "Hz",
 		"start": 0.5e9,
-		"end": 1.3e9,
-		"step": 0.025e9
+		"end": 0.8e9,
+		"step": 0.01e9
 	},
 	"power_RF":{
 		"type": "list",
 		"unit": "dBm",
-		"values": [-40, -35, -30, -29, -28, -27, -26, -25]
+		"values": [-29, -28, -27, -26, -25]
 	},
 	"dc_current_mA":{
 		"type":"range",
@@ -23,7 +23,7 @@
 			"mode": "dynamic",
 			"span_Hz": 2e3,
 			"RBW_Hz": 50,
-			"mixing_products_order": 2, 
+			"mixing_products_order": 2,
 			"lo_harmonics": 3,
 			"rf_harmonics": 3
 		},
