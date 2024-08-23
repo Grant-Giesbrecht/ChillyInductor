@@ -12,6 +12,44 @@ import pandas as pd
 from colorama import Fore, Style
 from dataclasses import dataclass
 from mpl_toolkits.mplot3d import axes3d
+from pylogfile.base import *
+from ganymede import *
+
+def visualize_dataset_conditions(file:str):
+	
+	#------------------------------------------------------------
+	# Import Data
+
+	datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 1 4mm'])
+	# datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 2 43mm'])
+	# datapath = '/Volumes/M5 PERSONAL/data_transfer'
+	if datapath is None:
+		print(f"{Fore.RED}Failed to find data location{Style.RESET_ALL}")
+		return
+	else:
+		print(f"{Fore.GREEN}Located data directory at: {Fore.LIGHTBLACK_EX}{datapath}{Style.RESET_ALL}")
+
+	# filename = "RP22B_MP3_t1_31July2024_R4C4T1_r1_autosave.hdf"
+	# filename = "RP22B_MP3_t1_1Aug2024_R4C4T1_r1.hdf"
+	filename = "RP22B_MP3_t2_8Aug2024_R4C4T1_r1.hdf"
+	# filename = "RP22B_MP3a_t3_19Aug2024_R4C4T2_r1.hdf"
+	# filename ="RP22B_MP3a_t2_20Aug2024_R4C4T2_r1_autosave.hdf"
+
+	analysis_file = os.path.join(datapath, filename)
+
+	log = LogPile()
+
+	##--------------------------------------------
+	# Read HDF5 File
+
+	print("Loading file contents into memory")
+
+	data = hdf_to_dict(analysis_file)
+	
+	try:
+		conf_struct = data['info']['configuration']
+	except:
+		return
 
 def rd(x:str, places:int=2):
 	return f"{round(x*(10**places))/(10**places)}"

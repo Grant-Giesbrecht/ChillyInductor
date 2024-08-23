@@ -181,7 +181,7 @@ plot_selcted_data()
 
 # # Save pickled-figs
 # pickle.dump(fig1, open(os.path.join("..", "Figures", f"AS3-fig1-{filename}.pklfig"), 'wb'))
-# pickle.dump(fig2, open(os.path.join("..", "Figures", f"AS3-fig2-{filename}.pklfig"), 'wb'))
+# pickle.dump(fig2, open(os.path.join("..", "Figures", f"AS3-fig2-{filename}"), 'wb'))
 
 # # Save pickled-figs
 # pickle.dump(fig1, open(os.path.join("..", "Figures", "RP22B-AS1-MS1 24Jul2024-r1 fig1.pklfig"), 'wb'))
