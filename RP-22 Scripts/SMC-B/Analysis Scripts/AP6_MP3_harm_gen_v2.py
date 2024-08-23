@@ -49,6 +49,13 @@ from abc import abstractmethod, ABC
 #------------------------------------------------------------
 # Import Data
 
+sp_datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 1 4mm', "VNA Traces"])
+if sp_datapath is None:
+	print(f"{Fore.RED}Failed to find s-parameter data location{Style.RESET_ALL}")
+	sys.exit()
+else:
+	print(f"{Fore.GREEN}Located s-parameter data directory at: {Fore.LIGHTBLACK_EX}{sp_datapath}{Style.RESET_ALL}")
+
 datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 1 4mm'])
 # datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 2 43mm'])
 # datapath = '/Volumes/M5 PERSONAL/data_transfer'
@@ -64,12 +71,33 @@ filename = "RP22B_MP3_t2_8Aug2024_R4C4T1_r1.hdf"
 # filename = "RP22B_MP3a_t3_19Aug2024_R4C4T2_r1.hdf"
 # filename ="RP22B_MP3a_t2_20Aug2024_R4C4T2_r1_autosave.hdf"
 
+sp_filename = "Sparam_31July2024_-30dBm_R4C4T1.csv"
+
+
+sp_analysis_file = os.path.join(sp_datapath, sp_filename)#"Sparam_31July2024_-30dBm_R4C4T1.csv")
+
 analysis_file = os.path.join(datapath, filename)
 
 log = LogPile()
 
 ##--------------------------------------------
+# Read S-Parameters
+
+try:
+	sparam_data = read_rohde_schwarz_csv(sp_analysis_file)
+except Exception as e:
+	print(f"Failed to read S-parameter CSV file. {e}")
+	sys.exit()
+
+S11 = sparam_data.S11_real + complex(0, 1)*sparam_data.S11_imag
+S21 = sparam_data.S21_real + complex(0, 1)*sparam_data.S21_imag
+S11_dB = lin_to_dB(np.abs(S11))
+S21_dB = lin_to_dB(np.abs(S21))
+S_freq_GHz = sparam_data.freq_Hz/1e9
+
+##--------------------------------------------
 # Read HDF5 File
+
 
 print("Loading file contents into memory")
 # log.info("Loading file contents into memory")
@@ -619,26 +647,16 @@ class IVPlotWidget(TabPlotWidget):
 		self.fig1.canvas.draw_idle()
 		self.fig2.canvas.draw_idle()
 
-class NonlinearityBiasDomainPlotWidget(TabPlotWidget):
+class SParamSPDPlotWidget(TabPlotWidget):
 	
-	def __init__(self, f_GHz:list, p_dBm:list, ridc:list, global_conditions:dict={}):
+	def __init__(self, global_conditions:dict={}):
 		super().__init__()
 		
 		# Conditions dictionaries
 		self.conditions = {'rounding_step':10}
 		self.global_conditions = global_conditions
 		
-		# Save primary data
-		self.freq_rf_GHz = f_GHz
-		self.power_rf_dBm = p_dBm
-		self.requested_Idc_mA = ridc
-		
 		self.manual_init()
-		
-		# Save lists of freq/power options
-		self.freq_list = np.unique(self.freq_rf_GHz)
-		self.pwr_list = np.unique(self.power_rf_dBm)
-		self.req_bias_list = np.unique(self.requested_Idc_mA)
 		
 		# Create figure
 		self.fig1, self.ax1 = plt.subplots(1, 1, figsize=(12, 7))
@@ -657,16 +675,16 @@ class NonlinearityBiasDomainPlotWidget(TabPlotWidget):
 		self.setLayout(self.grid)
 	
 	def manual_init(self):
+		pass
+		# # Get autoscale choices
+		# umax = np.max([np.max(rf1), np.max(rf2), np.max(rf3)])
+		# umin = np.min([np.min(rf1), np.min(rf2), np.min(rf3)])
 		
-		# Get autoscale choices
-		umax = np.max([np.max(rf1), np.max(rf2), np.max(rf3)])
-		umin = np.min([np.min(rf1), np.min(rf2), np.min(rf3)])
+		# rstep = self.get_condition('rounding_step')
+		# if rstep is None:
+		# 	rstep = 10
 		
-		rstep = self.get_condition('rounding_step')
-		if rstep is None:
-			rstep = 10
-		
-		self.ylims = [np.floor(umin/rstep)*rstep, np.ceil(umax/rstep)*rstep]
+		# self.ylims = [np.floor(umin/rstep)*rstep, np.ceil(umax/rstep)*rstep]
 	
 	def get_condition(self, c:str):
 		
@@ -678,36 +696,35 @@ class NonlinearityBiasDomainPlotWidget(TabPlotWidget):
 			return None
 	
 	def render_plot(self):
-		f = self.get_condition('sel_freq_GHz')
-		p = self.get_condition('sel_power_dBm')
+		# f = self.get_condition('sel_freq_GHz')
+		# p = self.get_condition('sel_power_dBm')
 		
-		# Filter relevant data
-		mask_freq = (freq_rf_GHz == f)
-		mask_pwr = (power_rf_dBm == p)
-		mask = (mask_freq & mask_pwr)
+		# # Filter relevant data
+		# mask_freq = (freq_rf_GHz == f)
+		# mask_pwr = (power_rf_dBm == p)
+		# mask = (mask_freq & mask_pwr)
 		
 		# Plot results
 		self.ax1.cla()
 		
 		# Check correct number of points
-		mask_len = np.sum(mask)
-		if len(self.req_bias_list) != mask_len:
-			log.warning(f"Cannot display data: Mismatched number of points (freq = {f} GHz, pwr = {p} dBm, mask: {mask_len}, bias: {len(self.req_bias_list)})")
-			self.fig1.canvas.draw_idle()
-			return
+		# mask_len = np.sum(mask)
+		# if len(self.req_bias_list) != mask_len:
+		# 	log.warning(f"Cannot display data: Mismatched number of points (freq = {f} GHz, pwr = {p} dBm, mask: {mask_len}, bias: {len(self.req_bias_list)})")
+		# 	self.fig1.canvas.draw_idle()
+		# 	return
 		
 		
-		self.ax1.plot(Idc_mA[mask], rf1[mask], linestyle=':', marker='o', markersize=1.5, color=(0, 0.7, 0))
-		self.ax1.plot(Idc_mA[mask], rf2[mask], linestyle=':', marker='o', markersize=1.5, color=(0, 0, 0.7))
-		self.ax1.plot(Idc_mA[mask], rf3[mask], linestyle=':', marker='o', markersize=1.5, color=(0.7, 0, 0))
-		self.ax1.set_title(f"f = {f} GHz, p = {p} dBm")
-		self.ax1.set_xlabel("DC Bias (mA)")
+		self.ax1.plot(S_freq_GHz, S11_dB, linestyle=':', marker='o', markersize=1, color=(0.7, 0, 0))
+		self.ax1.plot(S_freq_GHz, S21_dB, linestyle=':', marker='o', markersize=1, color=(0, 0.7, 0))
+		# self.ax1.set_title(f"f = {f} GHz, p = {p} dBm")
+		self.ax1.set_xlabel("Frequency (GHz)")
 		self.ax1.set_ylabel("Power (dBm)")
-		self.ax1.legend(["Fundamental", "2nd Harm.", "3rd Harm."])
+		self.ax1.legend(["S11", "S21"])
 		self.ax1.grid(True)
 		
-		if self.get_condition('fix_scale'):
-			self.ax1.set_ylim(self.ylims)
+		# if self.get_condition('fix_scale'):
+		# 	self.ax1.set_ylim(self.ylims)
 		
 		self.fig1.tight_layout()
 		
@@ -891,6 +908,46 @@ class FrequencyDomainTabWidget(QTabWidget):
 		if self._is_active:
 			self.object_list[self.currentIndex()].set_active(True)
 	
+class SPDTabWidget(QTabWidget):
+	''' S-Parameter Domain Tab Widget'''
+	
+	def __init__(self, global_conditions:dict, main_window):
+		super().__init__()
+		
+		self._is_active = False
+		
+		self.gcond = global_conditions
+		self.main_window = main_window
+		self.object_list = []
+		
+		#------------ Harmonics widget
+		
+		self.object_list.append(SParamSPDPlotWidget(global_conditions=self.gcond))
+		self.main_window.gcond_subscribers.append(self.object_list[-1])
+		self.addTab(self.object_list[-1], "S-Parameters")
+		
+		# #------------ CE widget
+		
+		# self.object_list.append(CE23FreqDomainPlotWidget(global_conditions=self.gcond))
+		# self.main_window.gcond_subscribers.append(self.object_list[-1])
+		# self.addTab(self.object_list[-1], "Efficiency")
+		
+		# self.currentChanged.connect(self.update_active_tab)
+	
+	def set_active(self, b:bool):
+		self._is_active = b
+		self.update_active_tab()
+	
+	def update_active_tab(self):
+		
+		# Set all objects to inactive
+		for obj in self.object_list:
+			obj.set_active(False)
+		
+		# Set only the active widget to active
+		if self._is_active:
+			self.object_list[self.currentIndex()].set_active(True)
+	
 class HGA1Window(QtWidgets.QMainWindow):
 
 	def __init__(self, log, freqs, powers, app, *args, **kwargs):
@@ -912,7 +969,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.gcond_subscribers = []
 		
 		# Basic setup
-		self.setWindowTitle("HGA1 Window")
+		self.setWindowTitle("PyQt Cryo Analyzer")
 		self.grid = QtWidgets.QGridLayout() # Create the primary layout
 		self.add_menu()
 		
@@ -926,15 +983,21 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.slider_box = QtWidgets.QWidget()
 		self.populate_slider_box()
 		
-		# Active file label
+		# Active main sweep file label
 		self.active_file_label = QLabel()
-		self.active_file_label.setText(f"Active file: {analysis_file}")
+		self.active_file_label.setText(f"Active Main Sweep File: {analysis_file}")
 		self.active_file_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
+		
+		# Active s-param file label
+		self.active_spfile_label = QLabel()
+		self.active_spfile_label.setText(f"Active S-Parameter File: {sp_analysis_file}")
+		self.active_spfile_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
 		
 		# Place each widget
 		self.grid.addWidget(self.tab_widget, 0, 0)
 		self.grid.addWidget(self.slider_box, 0, 1)
 		self.grid.addWidget(self.active_file_label, 1, 0, 1, 2)
+		self.grid.addWidget(self.active_spfile_label, 2, 0, 1, 2)
 		
 		# Set the central widget
 		central_widget = QtWidgets.QWidget()
@@ -1073,10 +1136,13 @@ class HGA1Window(QtWidgets.QMainWindow):
 	def make_tabs(self):
 		
 		self.tab_widget_widgets.append(BiasDomainTabWidget(self.gcond, self))
-		self.tab_widget.addTab(self.tab_widget_widgets[-1], "Bias Domain")
+		self.tab_widget.addTab(self.tab_widget_widgets[-1], "Main Sweep - Bias Domain")
 		
 		self.tab_widget_widgets.append(FrequencyDomainTabWidget(self.gcond, self))
-		self.tab_widget.addTab(self.tab_widget_widgets[-1], "Frequency Domain")
+		self.tab_widget.addTab(self.tab_widget_widgets[-1], "Main Sweep - Frequency Domain")
+		
+		self.tab_widget_widgets.append(SPDTabWidget(self.gcond, self))
+		self.tab_widget.addTab(self.tab_widget_widgets[-1], "S-Parameters")
 	
 	def add_menu(self):
 		''' Adds menus to the window'''
