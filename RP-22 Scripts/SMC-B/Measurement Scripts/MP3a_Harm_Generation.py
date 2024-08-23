@@ -250,7 +250,7 @@ for f_rf in freq_rf:
 				log.info(f"Setting system impedance to {current_set_res} Ohms.")
 			
 			# Set offset voltage
-			Voffset = cs_res * idc/1e3
+			Voffset = current_set_res * idc/1e3
 			mfli.set_offset(Voffset)
 			mfli.set_output_enable(True)
 			
