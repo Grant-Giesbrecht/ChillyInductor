@@ -117,7 +117,7 @@ for src_idx, conf in enumerate(conf_list):
 		axs[data_idx].grid(True)
 		axs[data_idx].scatter(vals, [len(conf_list)-src_idx]*len(vals), [marker_sizes[src_idx]]*len(vals), marker=markers[src_idx], color=colors[src_idx], label=labels[src_idx])
 		axs[data_idx].set_xlabel(f"{k} [{unit_str}]")
-	
+		
 		# Set parameters on last loops
 		if src_idx == len(conf_list) -1:
 			# axs[data_idx].legend()

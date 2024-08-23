@@ -49,9 +49,9 @@ from abc import abstractmethod, ABC
 #------------------------------------------------------------
 # Import Data
 
-# datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 1 4mm'])
+datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 1 4mm'])
 # datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 2 43mm'])
-datapath = '/Volumes/M5 PERSONAL/data_transfer'
+# datapath = '/Volumes/M5 PERSONAL/data_transfer'
 if datapath is None:
 	print(f"{Fore.RED}Failed to find data location{Style.RESET_ALL}")
 	sys.exit()
@@ -60,9 +60,9 @@ else:
 
 # filename = "RP22B_MP3_t1_31July2024_R4C4T1_r1_autosave.hdf"
 # filename = "RP22B_MP3_t1_1Aug2024_R4C4T1_r1.hdf"
-# filename = "RP22B_MP3_t2_8Aug2024_R4C4T1_r1.hdf"
-filename = "RP22B_MP3a_t3_19Aug2024_R4C4T2_r1.hdf"
-filename ="RP22B_MP3a_t2_20Aug2024_R4C4T2_r1_autosave.hdf"
+filename = "RP22B_MP3_t2_8Aug2024_R4C4T1_r1.hdf"
+# filename = "RP22B_MP3a_t3_19Aug2024_R4C4T2_r1.hdf"
+# filename ="RP22B_MP3a_t2_20Aug2024_R4C4T2_r1_autosave.hdf"
 
 analysis_file = os.path.join(datapath, filename)
 
@@ -619,6 +619,101 @@ class IVPlotWidget(TabPlotWidget):
 		self.fig1.canvas.draw_idle()
 		self.fig2.canvas.draw_idle()
 
+class NonlinearityBiasDomainPlotWidget(TabPlotWidget):
+	
+	def __init__(self, f_GHz:list, p_dBm:list, ridc:list, global_conditions:dict={}):
+		super().__init__()
+		
+		# Conditions dictionaries
+		self.conditions = {'rounding_step':10}
+		self.global_conditions = global_conditions
+		
+		# Save primary data
+		self.freq_rf_GHz = f_GHz
+		self.power_rf_dBm = p_dBm
+		self.requested_Idc_mA = ridc
+		
+		self.manual_init()
+		
+		# Save lists of freq/power options
+		self.freq_list = np.unique(self.freq_rf_GHz)
+		self.pwr_list = np.unique(self.power_rf_dBm)
+		self.req_bias_list = np.unique(self.requested_Idc_mA)
+		
+		# Create figure
+		self.fig1, self.ax1 = plt.subplots(1, 1, figsize=(12, 7))
+		self.fig1.subplots_adjust(left=0.065, bottom=0.065, top=0.95, right=0.8)
+		
+		self.render_plot()
+		
+		# Create widgets
+		self.fig1c = FigureCanvas(self.fig1)
+		self.toolbar = NavigationToolbar2QT(self.fig1c, self)
+		
+		# Add widgets to parent-widget and set layout
+		self.grid = QtWidgets.QGridLayout()
+		self.grid.addWidget(self.toolbar, 0, 0)
+		self.grid.addWidget(self.fig1c, 1, 0)
+		self.setLayout(self.grid)
+	
+	def manual_init(self):
+		
+		# Get autoscale choices
+		umax = np.max([np.max(rf1), np.max(rf2), np.max(rf3)])
+		umin = np.min([np.min(rf1), np.min(rf2), np.min(rf3)])
+		
+		rstep = self.get_condition('rounding_step')
+		if rstep is None:
+			rstep = 10
+		
+		self.ylims = [np.floor(umin/rstep)*rstep, np.ceil(umax/rstep)*rstep]
+	
+	def get_condition(self, c:str):
+		
+		if c in self.conditions:
+			return self.conditions[c]
+		elif c in self.global_conditions:
+			return self.global_conditions[c]
+		else:
+			return None
+	
+	def render_plot(self):
+		f = self.get_condition('sel_freq_GHz')
+		p = self.get_condition('sel_power_dBm')
+		
+		# Filter relevant data
+		mask_freq = (freq_rf_GHz == f)
+		mask_pwr = (power_rf_dBm == p)
+		mask = (mask_freq & mask_pwr)
+		
+		# Plot results
+		self.ax1.cla()
+		
+		# Check correct number of points
+		mask_len = np.sum(mask)
+		if len(self.req_bias_list) != mask_len:
+			log.warning(f"Cannot display data: Mismatched number of points (freq = {f} GHz, pwr = {p} dBm, mask: {mask_len}, bias: {len(self.req_bias_list)})")
+			self.fig1.canvas.draw_idle()
+			return
+		
+		
+		self.ax1.plot(Idc_mA[mask], rf1[mask], linestyle=':', marker='o', markersize=1.5, color=(0, 0.7, 0))
+		self.ax1.plot(Idc_mA[mask], rf2[mask], linestyle=':', marker='o', markersize=1.5, color=(0, 0, 0.7))
+		self.ax1.plot(Idc_mA[mask], rf3[mask], linestyle=':', marker='o', markersize=1.5, color=(0.7, 0, 0))
+		self.ax1.set_title(f"f = {f} GHz, p = {p} dBm")
+		self.ax1.set_xlabel("DC Bias (mA)")
+		self.ax1.set_ylabel("Power (dBm)")
+		self.ax1.legend(["Fundamental", "2nd Harm.", "3rd Harm."])
+		self.ax1.grid(True)
+		
+		if self.get_condition('fix_scale'):
+			self.ax1.set_ylim(self.ylims)
+		
+		self.fig1.tight_layout()
+		
+		self.fig1.canvas.draw_idle()
+
+
 class HarmGenBiasDomainPlotWidget(TabPlotWidget):
 	
 	def __init__(self, f_GHz:list, p_dBm:list, ridc:list, global_conditions:dict={}):
@@ -798,11 +893,12 @@ class FrequencyDomainTabWidget(QTabWidget):
 	
 class HGA1Window(QtWidgets.QMainWindow):
 
-	def __init__(self, log, freqs, powers, *args, **kwargs):
+	def __init__(self, log, freqs, powers, app, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 		
 		# Save local variables
 		self.log = log
+		self.app = app
 		
 		# Master Data
 		self.freq_list = freqs
@@ -848,6 +944,11 @@ class HGA1Window(QtWidgets.QMainWindow):
 		
 		
 		self.show()
+	
+	def close(self):
+		''' This will be called before the window closes. Save any stuff etc here.'''
+		
+		pass
 	
 	def set_gcond(self, key, value):
 		
@@ -991,6 +1092,10 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.save_graph_act.setShortcut("Ctrl+Shift+G")
 		self.file_menu.addAction(self.save_graph_act)
 		
+		self.close_window_act = QAction("Close Window", self)
+		self.close_window_act.setShortcut("Ctrl+W")
+		self.file_menu.addAction(self.close_window_act)
+		
 		# Graph Menu --------------------------------------
 		
 		self.graph_menu = self.bar.addMenu("Graph")
@@ -1011,6 +1116,8 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.freqxaxis_fund_act = QAction("Show Fundamental", self, checkable=True)
 		self.freqxaxis_harm_act = QAction("Show Harmonics", self, checkable=True)
 		self.freqxaxis_harm_act.setChecked(True)
+		self.freqxaxis_harm_act.setShortcut("Shift+X")
+		self.freqxaxis_fund_act.setShortcut("Ctrl+Shift+X")
 		self.set_gcond('freqxaxis_isfund', self.freqxaxis_fund_act.isChecked())
 		self.freqxaxis_graph_menu.addAction(self.freqxaxis_fund_act)
 		self.freqxaxis_graph_menu.addAction(self.freqxaxis_harm_act)
@@ -1021,6 +1128,9 @@ class HGA1Window(QtWidgets.QMainWindow):
 		
 		if q.text() == "Save Graph":
 			self.log.warning("TODO: Implement save graph")
+		if q.text() == "Close Window":
+			self.close()
+			sys.exit(0)
 	
 	def _process_graph_menu(self, q):
 		
@@ -1033,5 +1143,5 @@ class HGA1Window(QtWidgets.QMainWindow):
 			
 app = QtWidgets.QApplication(sys.argv)
 
-w = HGA1Window(log, freq_rf_GHz, power_rf_dBm)
+w = HGA1Window(log, freq_rf_GHz, power_rf_dBm, app)
 app.exec()
