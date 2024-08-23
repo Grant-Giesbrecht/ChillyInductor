@@ -71,7 +71,7 @@ filename = "RP22B_MP3_t2_8Aug2024_R4C4T1_r1.hdf"
 # filename = "RP22B_MP3a_t3_19Aug2024_R4C4T2_r1.hdf"
 # filename ="RP22B_MP3a_t2_20Aug2024_R4C4T2_r1_autosave.hdf"
 
-sp_filename = "Sparam_31July2024_-30dBm_R4C4T1.csv"
+sp_filename = "Sparam_31July2024_-30dBm_R4C4T1_Wide.csv"
 
 
 sp_analysis_file = os.path.join(sp_datapath, sp_filename)#"Sparam_31July2024_-30dBm_R4C4T1.csv")
@@ -717,10 +717,16 @@ class SParamSPDPlotWidget(TabPlotWidget):
 		
 		self.ax1.plot(S_freq_GHz, S11_dB, linestyle=':', marker='o', markersize=1, color=(0.7, 0, 0))
 		self.ax1.plot(S_freq_GHz, S21_dB, linestyle=':', marker='o', markersize=1, color=(0, 0.7, 0))
+		
+		if self.get_condition('sparam_show_sum'):
+			self.ax1.plot(S_freq_GHz, lin_to_dB(np.abs(S11+S21)), linestyle=':', marker='.', markersize=1, color=(0.7, 0.7, 0))
+			self.ax1.legend(["S11", "S21", "S11+S21"])
+		else:
+			self.ax1.legend(["S11", "S21"])	
 		# self.ax1.set_title(f"f = {f} GHz, p = {p} dBm")
 		self.ax1.set_xlabel("Frequency (GHz)")
 		self.ax1.set_ylabel("Power (dBm)")
-		self.ax1.legend(["S11", "S21"])
+		
 		self.ax1.grid(True)
 		
 		# if self.get_condition('fix_scale'):
@@ -1004,8 +1010,6 @@ class HGA1Window(QtWidgets.QMainWindow):
 		central_widget.setLayout(self.grid)
 		self.setCentralWidget(central_widget)
 		
-		
-		
 		self.show()
 	
 	def close(self):
@@ -1190,6 +1194,17 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.freqxaxis_group.addAction(self.freqxaxis_fund_act)
 		self.freqxaxis_group.addAction(self.freqxaxis_harm_act)
 		
+		# S-Parameter Menu --------------------------------------
+		
+		self.sparam_menu = self.bar.addMenu("S-Params")
+		self.sparam_menu.triggered[QAction].connect(self._process_sparam_menu)
+		
+		self.sparam_showsum_act = QAction("Show Sum", self, checkable=True)
+		self.sparam_showsum_act.setShortcut("Shift+S")
+		self.sparam_showsum_act.setChecked(False)
+		self.set_gcond('sparam_show_sum', self.sparam_showsum_act.isChecked())
+		self.sparam_menu.addAction(self.sparam_showsum_act)
+		
 	def _process_file_menu(self, q):
 		
 		if q.text() == "Save Graph":
@@ -1206,6 +1221,13 @@ class HGA1Window(QtWidgets.QMainWindow):
 		elif q.text() == "Show Fundamental" or q.text() == "Show Harmonics":
 			self.set_gcond('freqxaxis_isfund', self.freqxaxis_fund_act.isChecked())
 			self.plot_all()
+	
+	def _process_sparam_menu(self, q):
+		
+		if q.text() == "Show Sum":
+			self.set_gcond('sparam_show_sum', self.sparam_showsum_act.isChecked())
+			self.plot_all()
+		
 			
 app = QtWidgets.QApplication(sys.argv)
 
