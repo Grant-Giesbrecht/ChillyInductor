@@ -40,6 +40,7 @@ from abc import abstractmethod, ABC
 # 7. Data panel at bottom showing file stats:
 #		- collection date, operator notes, file size, num points, open log in lumberjack button
 # 8. Better way to load any data file
+# 9. Make filename label copyable
 
 # TODO: Graphs to add
 # 1. Applied voltage, measured current, target current, estimated additional impedance.
@@ -249,21 +250,21 @@ class HarmGenFreqDomainPlotWidget(TabPlotWidget):
 		
 		# Check correct number of points
 		mask_len = np.sum(mask)
-		if len(unique_freqs) != mask_len:
-			log.warning(f"Cannot display data: Mismatched number of points (bias = {b} mA, pwr = {p} dBm, mask: {mask_len}, freq: {len(unique_freqs)})")
-			self.fig1.canvas.draw_idle()
-			return
+		# if len(unique_freqs) != mask_len:
+		# 	log.warning(f"Cannot display data: Mismatched number of points (bias = {b} mA, pwr = {p} dBm, mask: {mask_len}, freq: {len(unique_freqs)})")
+		# 	self.fig1.canvas.draw_idle()
+		# 	return
 		
 		if use_fund:
-			self.ax1.plot(freq_rf_GHz[mask], rf1[mask], linestyle=':', marker='o', markersize=1.5, color=(0, 0.7, 0))
-			self.ax1.plot(freq_rf_GHz[mask], rf2[mask], linestyle=':', marker='o', markersize=1.5, color=(0, 0, 0.7))
-			self.ax1.plot(freq_rf_GHz[mask], rf3[mask], linestyle=':', marker='o', markersize=1.5, color=(0.7, 0, 0))
+			self.ax1.plot(freq_rf_GHz[mask], rf1[mask], linestyle=':', marker='o', markersize=4, color=(0, 0.7, 0))
+			self.ax1.plot(freq_rf_GHz[mask], rf2[mask], linestyle=':', marker='o', markersize=4, color=(0, 0, 0.7))
+			self.ax1.plot(freq_rf_GHz[mask], rf3[mask], linestyle=':', marker='o', markersize=4, color=(0.7, 0, 0))
 			self.ax1.set_xlabel("Fundamental Frequency (GHz)")
 		else:
-			self.ax1.plot(freq_rf_GHz[mask], rf1[mask], linestyle=':', marker='o', markersize=1.5, color=(0, 0.7, 0))
-			self.ax1.plot(freq_rf_GHz[mask]*2, rf2[mask], linestyle=':', marker='o', markersize=1.5, color=(0, 0, 0.7))
-			self.ax1.plot(freq_rf_GHz[mask]*3, rf3[mask], linestyle=':', marker='o', markersize=1.5, color=(0.7, 0, 0))
-			self.ax1.set_xlabel("Fundamental/Harmonic Tone Frequency (GHz)")
+			self.ax1.plot(freq_rf_GHz[mask], rf1[mask], linestyle=':', marker='o', markersize=4, color=(0, 0.7, 0))
+			self.ax1.plot(freq_rf_GHz[mask]*2, rf2[mask], linestyle=':', marker='o', markersize=4, color=(0, 0, 0.7))
+			self.ax1.plot(freq_rf_GHz[mask]*3, rf3[mask], linestyle=':', marker='o', markersize=4, color=(0.7, 0, 0))
+			self.ax1.set_xlabel("Tone Frequency (GHz)")
 			
 		self.ax1.set_title(f"Bias = {b} mA, p = {p} dBm")
 		self.ax1.set_ylabel("Power (dBm)")
@@ -362,19 +363,19 @@ class CE23FreqDomainPlotWidget(TabPlotWidget):
 		
 		# Check correct number of points
 		mask_len = np.sum(mask)
-		if len(unique_freqs) != mask_len:
-			log.warning(f"Cannot display data: Mismatched number of points (bias = {b} mA, pwr = {p} dBm, mask: {mask_len}, freq: {len(unique_freqs)})")
-			self.fig1.canvas.draw_idle()
-			return
+		# if len(unique_freqs) != mask_len:
+		# 	log.warning(f"Cannot display data: Mismatched number of points (bias = {b} mA, pwr = {p} dBm, mask: {mask_len}, freq: {len(unique_freqs)})")
+		# 	self.fig1.canvas.draw_idle()
+		# 	return
 		
 		if use_fund:
-			self.ax1.plot(freq_rf_GHz[mask], self.ce2[mask], linestyle=':', marker='o', markersize=2, color=(0.6, 0, 0.7))
-			self.ax2.plot(freq_rf_GHz[mask], self.ce3[mask], linestyle=':', marker='o', markersize=2, color=(0.45, 0.05, 0.1))
+			self.ax1.plot(freq_rf_GHz[mask], self.ce2[mask], linestyle=':', marker='o', markersize=4, color=(0.6, 0, 0.7))
+			self.ax2.plot(freq_rf_GHz[mask], self.ce3[mask], linestyle=':', marker='o', markersize=4, color=(0.45, 0.05, 0.1))
 			self.ax1.set_xlabel("Fundamental Frequency (GHz)")
 			self.ax2.set_xlabel("Fundamental Frequency (GHz)")
 		else:
-			self.ax1.plot(freq_rf_GHz[mask]*2, self.ce2[mask], linestyle=':', marker='o', markersize=2, color=(0.6, 0, 0.7))
-			self.ax2.plot(freq_rf_GHz[mask]*3, self.ce3[mask], linestyle=':', marker='o', markersize=2, color=(0.45, 0.05, 0.1))
+			self.ax1.plot(freq_rf_GHz[mask]*2, self.ce2[mask], linestyle=':', marker='o', markersize=4, color=(0.6, 0, 0.7))
+			self.ax2.plot(freq_rf_GHz[mask]*3, self.ce3[mask], linestyle=':', marker='o', markersize=4, color=(0.45, 0.05, 0.1))
 			self.ax1.set_xlabel("2nd Harmonic Frequency (GHz)")
 			self.ax2.set_xlabel("3rd Harmonic Frequency (GHz)")
 			
@@ -480,14 +481,14 @@ class CE23BiasDomainPlotWidget(TabPlotWidget):
 		
 		# Check correct number of points
 		mask_len = np.sum(mask)
-		if len(req_bias_list) != mask_len:
-			log.warning(f"Cannot display data: Mismatched number of points (freq = {f} GHz, pwr = {p} dBm, mask: {mask_len}, bias: {len(req_bias_list)})")
-			self.fig1.canvas.draw_idle()
-			return
+		# if len(req_bias_list) != mask_len:
+		# 	log.warning(f"Cannot display data: Mismatched number of points (freq = {f} GHz, pwr = {p} dBm, mask: {mask_len}, bias: {len(req_bias_list)})")
+		# 	self.fig1.canvas.draw_idle()
+		# 	return
 		
 		
-		self.ax1.plot(requested_Idc_mA[mask], self.ce2[mask], linestyle=':', marker='o', markersize=2, color=(0.6, 0, 0.7))
-		self.ax2.plot(requested_Idc_mA[mask], self.ce3[mask], linestyle=':', marker='o', markersize=2, color=(0.45, 0.05, 0.1))
+		self.ax1.plot(requested_Idc_mA[mask], self.ce2[mask], linestyle=':', marker='o', markersize=4, color=(0.6, 0, 0.7))
+		self.ax2.plot(requested_Idc_mA[mask], self.ce3[mask], linestyle=':', marker='o', markersize=4, color=(0.45, 0.05, 0.1))
 		
 		self.ax1.set_title(f"f-fund = {f} GHz, f-harm2 = {rd(2*f)} GHz, p = {p} dBm")
 		self.ax1.set_xlabel("Requested DC Bias (mA)")
@@ -597,12 +598,16 @@ class IVPlotWidget(TabPlotWidget):
 		
 		# Check correct number of points
 		mask_len = np.sum(mask)
-		if len(req_bias_list) != mask_len:
-			log.warning(f"Cannot display data: Mismatched number of points (freq = {f} GHz, pwr = {p} dBm, mask: {mask_len}, bias: {len(req_bias_list)})")
-			self.fig1.canvas.draw_idle()
-			return
+		# if len(req_bias_list) != mask_len:
+		# 	log.warning(f"Cannot display data: Mismatched number of points (freq = {f} GHz, pwr = {p} dBm, mask: {mask_len}, bias: {len(req_bias_list)})")
+		# 	self.fig1.canvas.draw_idle()
+		# 	return
 		
 		self.ax1t.plot(requested_Idc_mA[mask], Idc_mA[mask], linestyle=':', marker='o', markersize=4, color=(0.6, 0, 0.7))
+		
+		minval = np.min([0, np.min(requested_Idc_mA[mask]), np.min(Idc_mA[mask]) ])
+		maxval = np.max([0, np.max(requested_Idc_mA[mask]), np.max(Idc_mA[mask]) ])
+		self.ax1t.plot([minval, maxval], [minval, maxval], linestyle='-', color=(0.8, 0, 0), linewidth=0.5)
 		self.ax1b.plot(MFLI_V_offset_V[mask], Idc_mA[mask], linestyle=':', marker='s', markersize=4, color=(0.2, 0, 0.8))
 		
 		self.ax2t.plot(requested_Idc_mA[mask], self.extra_z[mask], linestyle=':', marker='o', markersize=4, color=(0.45, 0.5, 0.1))
@@ -809,15 +814,15 @@ class HarmGenBiasDomainPlotWidget(TabPlotWidget):
 		
 		# Check correct number of points
 		mask_len = np.sum(mask)
-		if len(self.req_bias_list) != mask_len:
-			log.warning(f"Cannot display data: Mismatched number of points (freq = {f} GHz, pwr = {p} dBm, mask: {mask_len}, bias: {len(self.req_bias_list)})")
-			self.fig1.canvas.draw_idle()
-			return
+		# if len(self.req_bias_list) != mask_len:
+		# 	log.warning(f"Cannot display data: Mismatched number of points (freq = {f} GHz, pwr = {p} dBm, mask: {mask_len}, bias: {len(self.req_bias_list)})")
+		# 	self.fig1.canvas.draw_idle()
+		# 	return
 		
 		
-		self.ax1.plot(Idc_mA[mask], rf1[mask], linestyle=':', marker='o', markersize=1.5, color=(0, 0.7, 0))
-		self.ax1.plot(Idc_mA[mask], rf2[mask], linestyle=':', marker='o', markersize=1.5, color=(0, 0, 0.7))
-		self.ax1.plot(Idc_mA[mask], rf3[mask], linestyle=':', marker='o', markersize=1.5, color=(0.7, 0, 0))
+		self.ax1.plot(Idc_mA[mask], rf1[mask], linestyle=':', marker='o', markersize=4, color=(0, 0.7, 0))
+		self.ax1.plot(Idc_mA[mask], rf2[mask], linestyle=':', marker='o', markersize=4, color=(0, 0, 0.7))
+		self.ax1.plot(Idc_mA[mask], rf3[mask], linestyle=':', marker='o', markersize=4, color=(0.7, 0, 0))
 		self.ax1.set_title(f"f = {f} GHz, p = {p} dBm")
 		self.ax1.set_xlabel("DC Bias (mA)")
 		self.ax1.set_ylabel("Power (dBm)")
