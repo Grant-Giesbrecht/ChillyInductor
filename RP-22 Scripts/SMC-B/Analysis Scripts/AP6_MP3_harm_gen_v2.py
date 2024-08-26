@@ -56,8 +56,8 @@ if sp_datapath is None:
 else:
 	print(f"{Fore.GREEN}Located s-parameter data directory at: {Fore.LIGHTBLACK_EX}{sp_datapath}{Style.RESET_ALL}")
 
-datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 1 4mm'])
-# datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 2 43mm'])
+# datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 1 4mm'])
+datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 2 43mm'])
 # datapath = '/Volumes/M5 PERSONAL/data_transfer'
 if datapath is None:
 	print(f"{Fore.RED}Failed to find data location{Style.RESET_ALL}")
@@ -67,9 +67,9 @@ else:
 
 # filename = "RP22B_MP3_t1_31July2024_R4C4T1_r1_autosave.hdf"
 # filename = "RP22B_MP3_t1_1Aug2024_R4C4T1_r1.hdf"
-filename = "RP22B_MP3_t2_8Aug2024_R4C4T1_r1.hdf"
+# filename = "RP22B_MP3_t2_8Aug2024_R4C4T1_r1.hdf"
 # filename = "RP22B_MP3a_t3_19Aug2024_R4C4T2_r1.hdf"
-# filename ="RP22B_MP3a_t2_20Aug2024_R4C4T2_r1_autosave.hdf"
+filename = "RP22B_MP3a_t2_20Aug2024_R4C4T2_r1.hdf"
 
 sp_filename = "Sparam_31July2024_-30dBm_R4C4T1_Wide.csv"
 
@@ -481,7 +481,7 @@ class CE23BiasDomainPlotWidget(TabPlotWidget):
 		# Check correct number of points
 		mask_len = np.sum(mask)
 		if len(req_bias_list) != mask_len:
-			log.warning(f"Cannot display data: Mismatched number of points (freq = {f} GHz, pwr = {p} dBm, mask: {mask_len}, bias: {len(self.req_bias_list)})")
+			log.warning(f"Cannot display data: Mismatched number of points (freq = {f} GHz, pwr = {p} dBm, mask: {mask_len}, bias: {len(req_bias_list)})")
 			self.fig1.canvas.draw_idle()
 			return
 		
@@ -598,7 +598,7 @@ class IVPlotWidget(TabPlotWidget):
 		# Check correct number of points
 		mask_len = np.sum(mask)
 		if len(req_bias_list) != mask_len:
-			log.warning(f"Cannot display data: Mismatched number of points (freq = {f} GHz, pwr = {p} dBm, mask: {mask_len}, bias: {len(self.req_bias_list)})")
+			log.warning(f"Cannot display data: Mismatched number of points (freq = {f} GHz, pwr = {p} dBm, mask: {mask_len}, bias: {len(req_bias_list)})")
 			self.fig1.canvas.draw_idle()
 			return
 		
