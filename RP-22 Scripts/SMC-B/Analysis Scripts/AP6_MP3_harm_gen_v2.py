@@ -6,9 +6,9 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from pylogfile.base import *
 
 from PyQt6 import QtCore, QtGui, QtWidgets
-from PyQt6.QtGui import QAction, QActionGroup
+from PyQt6.QtGui import QAction, QActionGroup, QDoubleValidator
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QWidget, QTabWidget, QLabel, QSlider
+from PyQt6.QtWidgets import QWidget, QTabWidget, QLabel, QGridLayout, QLineEdit, QCheckBox, QSpacerItem, QSizePolicy
 
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg, NavigationToolbar2QT
 from matplotlib.figure import Figure
@@ -34,13 +34,16 @@ from abc import abstractmethod, ABC
 # 1. Init graph properly (says void and stuff)
 # 2. Add labels to values on freq and power sliders
 # 3. Add save log, save graph, zoom controls, etc.
-# 4. Frequency-domain plots!
 # 5. Datatips
 # 6. Buttons to zoom to max efficiency
 # 7. Data panel at bottom showing file stats:
 #		- collection date, operator notes, file size, num points, open log in lumberjack button
+
 # 8. Better way to load any data file
+
 # 9. Make filename label copyable
+# 10. Fix axes applies to X too
+# 11. Fix axes only fits X-percentile.
 
 # TODO: Graphs to add
 # 1. Applied voltage, measured current, target current, estimated additional impedance.
@@ -151,13 +154,28 @@ def get_graph_lims(data:list, step=None):
 	
 	return [np.floor(umin/step)*step, np.ceil(umax/step)*step]
 
-# class MplCanvas(FigureCanvasQTAgg):
+class OutlierControlWidget(QWidget):
 	
-# 	def __init__(self, parent=None, width=5, height=4, dpi=100):
-# 		fig = Figure(figsize=(width, height), dpi=dpi)
-# 		self.axes = fig.add_subplot(111)
-# 		super(MplCanvas, self).__init__(fig)
+	def __init__(self):
+		super().__init__()
 		
+		self.enable_cb = QCheckBox("Remove Outliers")
+		
+		self.zscore_label = QLabel("Z-Score < ")
+		self.zscore_edit = QLineEdit()
+		self.zscore_edit.setValidator(QDoubleValidator())
+		
+		self.bottom_spacer = QSpacerItem(10, 10, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+		
+		self.grid = QGridLayout()
+		self.grid.addWidget(self.enable_cb, 0, 0, 1, 2, alignment=QtCore.Qt.AlignmentFlag.AlignTop)
+		self.grid.addWidget(self.zscore_label, 1, 0, alignment=QtCore.Qt.AlignmentFlag.AlignTop)
+		self.grid.addWidget(self.zscore_edit, 1, 1, alignment=QtCore.Qt.AlignmentFlag.AlignTop)
+		self.grid.addItem(self.bottom_spacer, 2, 0)
+		self.setLayout(self.grid)
+	
+	
+
 class TabPlotWidget(QWidget):
 	
 	def __init__(self):
@@ -985,6 +1003,9 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.grid = QtWidgets.QGridLayout() # Create the primary layout
 		self.add_menu()
 		
+		# Make a controls widget
+		self.control_widget = OutlierControlWidget()
+		
 		# Create tab widget
 		self.tab_widget_widgets = []
 		self.tab_widget = QtWidgets.QTabWidget()
@@ -1006,10 +1027,11 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.active_spfile_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
 		
 		# Place each widget
-		self.grid.addWidget(self.tab_widget, 0, 0)
-		self.grid.addWidget(self.slider_box, 0, 1)
-		self.grid.addWidget(self.active_file_label, 1, 0, 1, 2)
-		self.grid.addWidget(self.active_spfile_label, 2, 0, 1, 2)
+		self.grid.addWidget(self.control_widget, 0, 0)
+		self.grid.addWidget(self.tab_widget, 0, 1)
+		self.grid.addWidget(self.slider_box, 0, 2)
+		self.grid.addWidget(self.active_file_label, 1, 1, 1, 2)
+		self.grid.addWidget(self.active_spfile_label, 2, 1, 1, 2)
 		
 		# Set the central widget
 		central_widget = QtWidgets.QWidget()
