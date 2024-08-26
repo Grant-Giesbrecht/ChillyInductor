@@ -23,7 +23,7 @@ import numpy as np
 import pickle
 from matplotlib.widgets import Slider, Button
 from abc import abstractmethod, ABC
-# import qdarktheme
+import argparse
 
 # TODO: Important
 #
@@ -49,6 +49,11 @@ from abc import abstractmethod, ABC
 # 1. Applied voltage, measured current, target current, estimated additional impedance.
 # 2. Temperature vs time
 #
+
+parser = argparse.ArgumentParser()
+# parser.add_argument('-h', '--help')
+parser.add_argument('-s', '--subtle', help="Run without naming.", action='store_true')
+args = parser.parse_args()
 
 #------------------------------------------------------------
 # Import Data
@@ -144,6 +149,11 @@ unique_bias = req_bias_list
 unique_pwr = np.unique(power_rf_dBm)
 unique_freqs = np.unique(freq_rf_GHz)
 
+class MasterData:
+	''' Class to represent all the data analyzed by the application'''
+	
+	def __init__(self):
+		pass
 
 ##--------------------------------------------
 # Create GUI
@@ -154,6 +164,28 @@ def get_graph_lims(data:list, step=None):
 	umax = np.max(data)
 	
 	return [np.floor(umin/step)*step, np.ceil(umax/step)*step]
+
+class OutlierControlWidget(QWidget):
+	
+	def __init__(self):
+		super().__init__()
+		
+		self.enable_cb = QCheckBox("Remove Outliers")
+		
+		self.zscore_label = QLabel("Z-Score < ")
+		self.zscore_edit = QLineEdit()
+		self.zscore_edit.setValidator(QDoubleValidator())
+		
+		self.bottom_spacer = QSpacerItem(10, 10, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+		
+		self.grid = QGridLayout()
+		self.grid.addWidget(self.enable_cb, 0, 0, 1, 2, alignment=QtCore.Qt.AlignmentFlag.AlignTop)
+		self.grid.addWidget(self.zscore_label, 1, 0, alignment=QtCore.Qt.AlignmentFlag.AlignTop)
+		self.grid.addWidget(self.zscore_edit, 1, 1, alignment=QtCore.Qt.AlignmentFlag.AlignTop)
+		self.grid.addItem(self.bottom_spacer, 2, 0)
+		self.setLayout(self.grid)
+	
+	
 
 class TabPlotWidget(QWidget):
 	
@@ -979,9 +1011,12 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.gcond_subscribers = []
 		
 		# Basic setup
-		self.setWindowTitle("PyQt Cryo Analyzer")
+		self.setWindowTitle("Wyvern Cryogenic Data Analyzer")
 		self.grid = QtWidgets.QGridLayout() # Create the primary layout
 		self.add_menu()
+		
+		# Make a controls widget
+		self.control_widget = OutlierControlWidget()
 		
 		# Create tab widget
 		self.tab_widget_widgets = []
@@ -1004,10 +1039,11 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.active_spfile_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
 		
 		# Place each widget
-		self.grid.addWidget(self.tab_widget, 0, 0)
-		self.grid.addWidget(self.slider_box, 0, 1)
-		self.grid.addWidget(self.active_file_label, 1, 0, 1, 2)
-		self.grid.addWidget(self.active_spfile_label, 2, 0, 1, 2)
+		self.grid.addWidget(self.control_widget, 0, 0)
+		self.grid.addWidget(self.tab_widget, 0, 1)
+		self.grid.addWidget(self.slider_box, 0, 2)
+		self.grid.addWidget(self.active_file_label, 1, 1, 1, 2)
+		self.grid.addWidget(self.active_spfile_label, 2, 1, 1, 2)
 		
 		# Set the central widget
 		central_widget = QtWidgets.QWidget()
