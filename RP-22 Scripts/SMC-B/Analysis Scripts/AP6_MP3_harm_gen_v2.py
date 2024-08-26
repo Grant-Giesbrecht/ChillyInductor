@@ -601,19 +601,20 @@ class IVPlotWidget(TabPlotWidget):
 		# if len(req_bias_list) != mask_len:
 		# 	log.warning(f"Cannot display data: Mismatched number of points (freq = {f} GHz, pwr = {p} dBm, mask: {mask_len}, bias: {len(req_bias_list)})")
 		# 	self.fig1.canvas.draw_idle()
-		# 	return
+		# 	returnz
 		
-		self.ax1t.plot(requested_Idc_mA[mask], Idc_mA[mask], linestyle=':', marker='o', markersize=4, color=(0.6, 0, 0.7))
+		self.ax1t.plot(requested_Idc_mA[mask], Idc_mA[mask], linestyle=':', marker='o', markersize=4, color=(0.6, 0, 0.7), label="Measured")
 		
 		minval = np.min([0, np.min(requested_Idc_mA[mask]), np.min(Idc_mA[mask]) ])
 		maxval = np.max([0, np.max(requested_Idc_mA[mask]), np.max(Idc_mA[mask]) ])
-		self.ax1t.plot([minval, maxval], [minval, maxval], linestyle='-', color=(0.8, 0, 0), linewidth=0.5)
+		self.ax1t.plot([minval, maxval], [minval, maxval], linestyle='-', color=(0.8, 0, 0), linewidth=0.5, label="1:1 ratio")
 		self.ax1b.plot(MFLI_V_offset_V[mask], Idc_mA[mask], linestyle=':', marker='s', markersize=4, color=(0.2, 0, 0.8))
 		
 		self.ax2t.plot(requested_Idc_mA[mask], self.extra_z[mask], linestyle=':', marker='o', markersize=4, color=(0.45, 0.5, 0.1))
 		self.ax2b.plot(Idc_mA[mask], self.extra_z[mask], linestyle=':', marker='o', markersize=4, color=(0, 0.5, 0.8))
 		
 		self.ax1t.set_title(f"f = {f} GHz, p = {p} dBm")
+		self.ax1t.legend()
 		self.ax1t.set_xlabel("Requested DC Bias (mA)")
 		self.ax1t.set_ylabel("Measured DC Bias (mA)")
 		self.ax1t.grid(True)
