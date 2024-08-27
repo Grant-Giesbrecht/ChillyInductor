@@ -205,7 +205,7 @@ class MasterData:
 		
 		self.current_sweep_file = analysis_file
 		
-mdata = MasterData()
+
 
 ##--------------------------------------------
 # Create GUI
@@ -304,10 +304,17 @@ class ZScorePlotWindow(QMainWindow):
 
 class TabPlotWidget(QWidget):
 	
-	def __init__(self):
+	def __init__(self, global_conditions:dict, log:LogPile, mdata:MasterData):
 		super().__init__()
+		
+		self.log = log
+		self.mdata = mdata
+		self.gcond = global_conditions
+		self.conditions = {}
+		
 		self._is_active = False # Indicates if the current tab is displayed
 		self.plot_is_current = False # Does the plot need to be re-rendered?
+		
 		self.zscore_data = []
 		self.zscore_labels = []
 		self.zscore_x_data = []
@@ -338,6 +345,15 @@ class TabPlotWidget(QWidget):
 	def calc_mask(self):
 		return None
 	
+	def get_condition(self, c:str):
+		
+		if c in self.conditions:
+			return self.conditions[c]
+		elif c in self.gcond:
+			return self.gcond[c]
+		else:
+			return None
+	
 	def plot_zscore_if_active(self):
 		''' Generates a Z-Score breakout window if window is active and if z-score window is possible. Requires:
 		* calc_mask must be overridden
@@ -349,6 +365,7 @@ class TabPlotWidget(QWidget):
 		
 		# Return if no z-score data provided
 		if len(self.zscore_data) == 0 or len(self.zscore_labels) == 0:
+			self.log.info("Active plot is not showing Z-score because data was not provided.")
 			return
 		
 		# Return if no mask
@@ -387,12 +404,11 @@ class TabPlotWidget(QWidget):
 
 class HarmGenFreqDomainPlotWidget(TabPlotWidget):
 	
-	def __init__(self, global_conditions:dict={}):
-		super().__init__()
+	def __init__(self, global_conditions:dict, log:LogPile, mdata:MasterData):
+		super().__init__(global_conditions, log, mdata)
 		
 		# Conditions dictionaries
 		self.conditions = {'rounding_step1': 0.1, 'rounding_step2': 0.01}
-		self.global_conditions = global_conditions
 		
 		self.manual_init()
 		
@@ -400,8 +416,8 @@ class HarmGenFreqDomainPlotWidget(TabPlotWidget):
 		self.fig1, self.ax1 = plt.subplots(1, 1)
 		
 		# Estimate system Z
-		expected_Z = mdata.MFLI_V_offset_V[1]/(mdata.requested_Idc_mA[1]/1e3) #TODO: Do something more general than index 1
-		system_Z = mdata.MFLI_V_offset_V/(mdata.Idc_mA/1e3)
+		expected_Z = self.mdata.MFLI_V_offset_V[1]/(self.mdata.requested_Idc_mA[1]/1e3) #TODO: Do something more general than index 1
+		system_Z = self.mdata.MFLI_V_offset_V/(mdata.Idc_mA/1e3)
 		self.extra_z = system_Z - expected_Z
 		
 		self.render_plot()
@@ -418,46 +434,50 @@ class HarmGenFreqDomainPlotWidget(TabPlotWidget):
 	
 	def manual_init(self):
 		
-		self.ylims1 = get_graph_lims(np.concatenate((mdata.rf1, mdata.rf2, mdata.rf3)), step=10)
-	
-	def get_condition(self, c:str):
+		self.ylims1 = get_graph_lims(np.concatenate((self.mdata.rf1, self.mdata.rf2, self.mdata.rf3)), step=10)
 		
-		if c in self.conditions:
-			return self.conditions[c]
-		elif c in self.global_conditions:
-			return self.global_conditions[c]
-		else:
-			return None
+		self.zs1 = calc_zscore(self.mdata.rf1)
+		self.zs2 = calc_zscore(self.mdata.rf2)
+		self.zs3 = calc_zscore(self.mdata.rf3)
+		
+		self.init_zscore_data([self.zs1, self.zs2, self.zs3], ['Fundamental', '2nd Harmonic', '3rd Harmonic'], [self.mdata.freq_rf_GHz, self.mdata.freq_rf_GHz, self.mdata.freq_rf_GHz], "Frequency (GHz)")
 	
-	def render_plot(self):
+	def calc_mask(self):
 		b = self.get_condition('sel_bias_mA')
 		p = self.get_condition('sel_power_dBm')
-		use_fund = self.get_condition('freqxaxis_isfund')
 		
 		# Filter relevant data
-		mask_bias = (mdata.requested_Idc_mA == b)
-		mask_pwr = (mdata.power_rf_dBm == p)
-		mask = (mask_bias & mask_pwr)
+		mask_bias = (self.mdata.requested_Idc_mA == b)
+		mask_pwr = (self.mdata.power_rf_dBm == p)
+		return (mask_bias & mask_pwr)
+	
+	def render_plot(self):
+		use_fund = self.get_condition('freqxaxis_isfund')
+		b = self.get_condition('sel_bias_mA')
+		p = self.get_condition('sel_power_dBm')
+		
+		# Filter relevant data
+		mask = self.calc_mask()
 		
 		# Plot results
 		self.ax1.cla()
 		
 		# Check correct number of points
 		mask_len = np.sum(mask)
-		# if len(mdata.unique_freqs) != mask_len:
-		# 	log.warning(f"Cannot display data: Mismatched number of points (bias = {b} mA, pwr = {p} dBm, mask: {mask_len}, freq: {len(mdata.unique_freqs)})")
+		# if len(self.mdata.unique_freqs) != mask_len:
+		# 	log.warning(f"Cannot display data: Mismatched number of points (bias = {b} mA, pwr = {p} dBm, mask: {mask_len}, freq: {len(self.mdata.unique_freqs)})")
 		# 	self.fig1.canvas.draw_idle()
 		# 	return
 		
 		if use_fund:
-			self.ax1.plot(mdata.freq_rf_GHz[mask], mdata.rf1[mask], linestyle=':', marker='o', markersize=4, color=(0, 0.7, 0))
-			self.ax1.plot(mdata.freq_rf_GHz[mask], mdata.rf2[mask], linestyle=':', marker='o', markersize=4, color=(0, 0, 0.7))
-			self.ax1.plot(mdata.freq_rf_GHz[mask], mdata.rf3[mask], linestyle=':', marker='o', markersize=4, color=(0.7, 0, 0))
+			self.ax1.plot(self.mdata.freq_rf_GHz[mask], self.mdata.rf1[mask], linestyle=':', marker='o', markersize=4, color=(0, 0.7, 0))
+			self.ax1.plot(self.mdata.freq_rf_GHz[mask], self.mdata.rf2[mask], linestyle=':', marker='o', markersize=4, color=(0, 0, 0.7))
+			self.ax1.plot(self.mdata.freq_rf_GHz[mask], self.mdata.rf3[mask], linestyle=':', marker='o', markersize=4, color=(0.7, 0, 0))
 			self.ax1.set_xlabel("Fundamental Frequency (GHz)")
 		else:
-			self.ax1.plot(mdata.freq_rf_GHz[mask], mdata.rf1[mask], linestyle=':', marker='o', markersize=4, color=(0, 0.7, 0))
-			self.ax1.plot(mdata.freq_rf_GHz[mask]*2, mdata.rf2[mask], linestyle=':', marker='o', markersize=4, color=(0, 0, 0.7))
-			self.ax1.plot(mdata.freq_rf_GHz[mask]*3, mdata.rf3[mask], linestyle=':', marker='o', markersize=4, color=(0.7, 0, 0))
+			self.ax1.plot(self.mdata.freq_rf_GHz[mask], self.mdata.rf1[mask], linestyle=':', marker='o', markersize=4, color=(0, 0.7, 0))
+			self.ax1.plot(self.mdata.freq_rf_GHz[mask]*2, self.mdata.rf2[mask], linestyle=':', marker='o', markersize=4, color=(0, 0, 0.7))
+			self.ax1.plot(self.mdata.freq_rf_GHz[mask]*3, self.mdata.rf3[mask], linestyle=':', marker='o', markersize=4, color=(0.7, 0, 0))
 			self.ax1.set_xlabel("Tone Frequency (GHz)")
 			
 		self.ax1.set_title(f"Bias = {b} mA, p = {p} dBm")
@@ -474,12 +494,11 @@ class HarmGenFreqDomainPlotWidget(TabPlotWidget):
 
 class CE23FreqDomainPlotWidget(TabPlotWidget):
 	
-	def __init__(self, global_conditions:dict={}):
-		super().__init__()
+	def __init__(self, global_conditions:dict, log:LogPile, mdata:MasterData):
+		super().__init__(global_conditions, log, mdata)
 		
 		# Conditions dictionaries
 		self.conditions = {'rounding_step1': 0.1, 'rounding_step2': 0.01}
-		self.global_conditions = global_conditions
 		
 		self.manual_init()
 		
@@ -488,8 +507,8 @@ class CE23FreqDomainPlotWidget(TabPlotWidget):
 		self.fig2, self.ax2 = plt.subplots(1, 1)
 		
 		# Estimate system Z
-		expected_Z = mdata.MFLI_V_offset_V[1]/(mdata.requested_Idc_mA[1]/1e3) #TODO: Do something more general than index 1
-		system_Z = mdata.MFLI_V_offset_V/(mdata.Idc_mA/1e3)
+		expected_Z = self.mdata.MFLI_V_offset_V[1]/(self.mdata.requested_Idc_mA[1]/1e3) #TODO: Do something more general than index 1
+		system_Z = self.mdata.MFLI_V_offset_V/(self.mdata.Idc_mA/1e3)
 		self.extra_z = system_Z - expected_Z
 		
 		
@@ -512,9 +531,9 @@ class CE23FreqDomainPlotWidget(TabPlotWidget):
 	def manual_init(self):
 		
 		# Calculate total power and CE
-		self.total_power = mdata.rf1W + mdata.rf2W + mdata.rf3W
-		self.ce2 = mdata.rf2W/self.total_power*100
-		self.ce3 = mdata.rf3W/self.total_power*100
+		self.total_power = self.mdata.rf1W + self.mdata.rf2W + self.mdata.rf3W
+		self.ce2 = self.mdata.rf2W/self.total_power*100
+		self.ce3 = self.mdata.rf3W/self.total_power*100
 		
 		# Get autoscale choices
 		umax1 = np.max(self.ce2)
@@ -531,24 +550,15 @@ class CE23FreqDomainPlotWidget(TabPlotWidget):
 		
 		self.ylims1 = [np.floor(umin1/rstep1)*rstep1, np.ceil(umax1/rstep1)*rstep1]
 		self.ylims2 = [np.floor(umin2/rstep2)*rstep2, np.ceil(umax2/rstep2)*rstep2]
-	
-	def get_condition(self, c:str):
 		
-		if c in self.conditions:
-			return self.conditions[c]
-		elif c in self.global_conditions:
-			return self.global_conditions[c]
-		else:
-			return None
-	
 	def render_plot(self):
 		b = self.get_condition('sel_bias_mA')
 		p = self.get_condition('sel_power_dBm')
 		use_fund = self.get_condition('freqxaxis_isfund')
 		
 		# Filter relevant data
-		mask_bias = (mdata.requested_Idc_mA == b)
-		mask_pwr = (mdata.power_rf_dBm == p)
+		mask_bias = (self.mdata.requested_Idc_mA == b)
+		mask_pwr = (self.mdata.power_rf_dBm == p)
 		mask = (mask_bias & mask_pwr)
 		
 		# Plot results
@@ -557,19 +567,19 @@ class CE23FreqDomainPlotWidget(TabPlotWidget):
 		
 		# Check correct number of points
 		mask_len = np.sum(mask)
-		# if len(mdata.unique_freqs) != mask_len:
-		# 	log.warning(f"Cannot display data: Mismatched number of points (bias = {b} mA, pwr = {p} dBm, mask: {mask_len}, freq: {len(mdata.unique_freqs)})")
+		# if len(self.mdata.unique_freqs) != mask_len:
+		# 	log.warning(f"Cannot display data: Mismatched number of points (bias = {b} mA, pwr = {p} dBm, mask: {mask_len}, freq: {len(self.mdata.unique_freqs)})")
 		# 	self.fig1.canvas.draw_idle()
 		# 	return
 		
 		if use_fund:
-			self.ax1.plot(mdata.freq_rf_GHz[mask], self.ce2[mask], linestyle=':', marker='o', markersize=4, color=(0.6, 0, 0.7))
-			self.ax2.plot(mdata.freq_rf_GHz[mask], self.ce3[mask], linestyle=':', marker='o', markersize=4, color=(0.45, 0.05, 0.1))
+			self.ax1.plot(self.mdata.freq_rf_GHz[mask], self.ce2[mask], linestyle=':', marker='o', markersize=4, color=(0.6, 0, 0.7))
+			self.ax2.plot(self.mdata.freq_rf_GHz[mask], self.ce3[mask], linestyle=':', marker='o', markersize=4, color=(0.45, 0.05, 0.1))
 			self.ax1.set_xlabel("Fundamental Frequency (GHz)")
 			self.ax2.set_xlabel("Fundamental Frequency (GHz)")
 		else:
-			self.ax1.plot(mdata.freq_rf_GHz[mask]*2, self.ce2[mask], linestyle=':', marker='o', markersize=4, color=(0.6, 0, 0.7))
-			self.ax2.plot(mdata.freq_rf_GHz[mask]*3, self.ce3[mask], linestyle=':', marker='o', markersize=4, color=(0.45, 0.05, 0.1))
+			self.ax1.plot(self.mdata.freq_rf_GHz[mask]*2, self.ce2[mask], linestyle=':', marker='o', markersize=4, color=(0.6, 0, 0.7))
+			self.ax2.plot(self.mdata.freq_rf_GHz[mask]*3, self.ce3[mask], linestyle=':', marker='o', markersize=4, color=(0.45, 0.05, 0.1))
 			self.ax1.set_xlabel("2nd Harmonic Frequency (GHz)")
 			self.ax2.set_xlabel("3rd Harmonic Frequency (GHz)")
 			
@@ -593,12 +603,11 @@ class CE23FreqDomainPlotWidget(TabPlotWidget):
 
 class CE23BiasDomainPlotWidget(TabPlotWidget):
 	
-	def __init__(self, global_conditions:dict={}):
-		super().__init__()
+	def __init__(self, global_conditions:dict, log:LogPile, mdata:MasterData):
+		super().__init__(global_conditions, log, mdata)
 		
 		# Conditions dictionaries
 		self.conditions = {'rounding_step1': 0.1, 'rounding_step2': 0.01}
-		self.global_conditions = global_conditions
 		
 		self.manual_init()
 		
@@ -607,8 +616,8 @@ class CE23BiasDomainPlotWidget(TabPlotWidget):
 		self.fig2, self.ax2 = plt.subplots(1, 1)
 		
 		# Estimate system Z
-		expected_Z = mdata.MFLI_V_offset_V[1]/(mdata.requested_Idc_mA[1]/1e3) #TODO: Do something more general than index 1
-		system_Z = mdata.MFLI_V_offset_V/(mdata.Idc_mA/1e3)
+		expected_Z = self.mdata.MFLI_V_offset_V[1]/(self.mdata.requested_Idc_mA[1]/1e3) #TODO: Do something more general than index 1
+		system_Z = self.mdata.MFLI_V_offset_V/(self.mdata.Idc_mA/1e3)
 		self.extra_z = system_Z - expected_Z
 		
 		
@@ -631,13 +640,13 @@ class CE23BiasDomainPlotWidget(TabPlotWidget):
 	def manual_init(self):
 		
 		# Calculate total power and CE
-		self.total_power = mdata.rf1W + mdata.rf2W + mdata.rf3W
-		self.ce2 = mdata.rf2W/self.total_power*100
-		self.ce3 = mdata.rf3W/self.total_power*100
+		self.total_power = self.mdata.rf1W + self.mdata.rf2W + self.mdata.rf3W
+		self.ce2 = self.mdata.rf2W/self.total_power*100
+		self.ce3 = self.mdata.rf3W/self.total_power*100
 		
 		self.zs2 = calc_zscore(self.ce2)
 		self.zs3 = calc_zscore(self.ce3)
-		self.init_zscore_data([self.zs2, self.zs3], ["2f0 Conversion Efficiency", "3f0 Conversion Efficiency"], [mdata.requested_Idc_mA, mdata.requested_Idc_mA], "Bias Current (mA)")
+		self.init_zscore_data([self.zs2, self.zs3], ["2f0 Conversion Efficiency", "3f0 Conversion Efficiency"], [self.mdata.requested_Idc_mA, self.mdata.requested_Idc_mA], "Bias Current (mA)")
 		
 		# Get autoscale choices
 		umax1 = np.max(self.ce2)
@@ -655,25 +664,17 @@ class CE23BiasDomainPlotWidget(TabPlotWidget):
 		self.ylims1 = [np.floor(umin1/rstep1)*rstep1, np.ceil(umax1/rstep1)*rstep1]
 		self.ylims2 = [np.floor(umin2/rstep2)*rstep2, np.ceil(umax2/rstep2)*rstep2]
 	
-	def get_condition(self, c:str):
-		
-		if c in self.conditions:
-			return self.conditions[c]
-		elif c in self.global_conditions:
-			return self.global_conditions[c]
-		else:
-			return None
-	
 	def calc_mask(self):
 		f = self.get_condition('sel_freq_GHz')
 		p = self.get_condition('sel_power_dBm')
 		
 		# Filter relevant data
-		mask_freq = (mdata.freq_rf_GHz == f)
-		mask_pwr = (mdata.power_rf_dBm == p)
+		mask_freq = (self.mdata.freq_rf_GHz == f)
+		mask_pwr = (self.mdata.power_rf_dBm == p)
 		return (mask_freq & mask_pwr)
 	
 	def render_plot(self):
+		
 		f = self.get_condition('sel_freq_GHz')
 		p = self.get_condition('sel_power_dBm')
 		
@@ -686,14 +687,14 @@ class CE23BiasDomainPlotWidget(TabPlotWidget):
 		
 		# Check correct number of points
 		mask_len = np.sum(mask)
-		# if len(mdata.unique_bias) != mask_len:
-		# 	log.warning(f"Cannot display data: Mismatched number of points (freq = {f} GHz, pwr = {p} dBm, mask: {mask_len}, bias: {len(mdata.unique_bias)})")
+		# if len(self.mdata.unique_bias) != mask_len:
+		# 	log.warning(f"Cannot display data: Mismatched number of points (freq = {f} GHz, pwr = {p} dBm, mask: {mask_len}, bias: {len(self.mdata.unique_bias)})")
 		# 	self.fig1.canvas.draw_idle()
 		# 	return
 		
 		
-		self.ax1.plot(mdata.requested_Idc_mA[mask], self.ce2[mask], linestyle=':', marker='o', markersize=4, color=(0.6, 0, 0.7))
-		self.ax2.plot(mdata.requested_Idc_mA[mask], self.ce3[mask], linestyle=':', marker='o', markersize=4, color=(0.45, 0.05, 0.1))
+		self.ax1.plot(self.mdata.requested_Idc_mA[mask], self.ce2[mask], linestyle=':', marker='o', markersize=4, color=(0.6, 0, 0.7))
+		self.ax2.plot(self.mdata.requested_Idc_mA[mask], self.ce3[mask], linestyle=':', marker='o', markersize=4, color=(0.45, 0.05, 0.1))
 		
 		self.ax1.set_title(f"f-fund = {f} GHz, f-harm2 = {rd(2*f)} GHz, p = {p} dBm")
 		self.ax1.set_xlabel("Requested DC Bias (mA)")
@@ -719,12 +720,11 @@ class CE23BiasDomainPlotWidget(TabPlotWidget):
 
 class IVPlotWidget(TabPlotWidget):
 	
-	def __init__(self, global_conditions:dict={}):
-		super().__init__()
+	def __init__(self, global_conditions:dict, log:LogPile, mdata:MasterData):
+		super().__init__(global_conditions, log, mdata)
 		
 		# Conditions dictionaries
 		self.conditions = self.conditions = {'rounding_step1': 0.1, 'rounding_step2': 0.01, 'rounding_step_x1b':0.05}
-		self.global_conditions = global_conditions
 		
 		# Create figure
 		self.fig1, ax_arr1 = plt.subplots(2, 1)
@@ -755,13 +755,13 @@ class IVPlotWidget(TabPlotWidget):
 	def manual_init(self):
 		
 		# Estimate system Z
-		expected_Z = mdata.MFLI_V_offset_V[1]/(mdata.requested_Idc_mA[1]/1e3) #TODO: Do something more general than index 1
-		system_Z = mdata.MFLI_V_offset_V/(mdata.Idc_mA/1e3)
+		expected_Z = self.mdata.MFLI_V_offset_V[1]/(self.mdata.requested_Idc_mA[1]/1e3) #TODO: Do something more general than index 1
+		system_Z = self.mdata.MFLI_V_offset_V/(self.mdata.Idc_mA/1e3)
 		self.extra_z = system_Z - expected_Z
 		
 		# Get autoscale choices
-		umax1 = np.max(mdata.Idc_mA)
-		umin1 = np.min(mdata.Idc_mA)
+		umax1 = np.max(self.mdata.Idc_mA)
+		umin1 = np.min(self.mdata.Idc_mA)
 		umax2 = np.max(self.extra_z)
 		umin2 = np.min(self.extra_z)
 		
@@ -775,24 +775,15 @@ class IVPlotWidget(TabPlotWidget):
 		self.ylims1 = [np.floor(umin1/rstep1)*rstep1, np.ceil(umax1/rstep1)*rstep1]
 		self.ylims2 = [np.floor(umin2/rstep2)*rstep2, np.ceil(umax2/rstep2)*rstep2]
 		self.xlims2b = self.ylims1
-		self.xlims1b = get_graph_lims(mdata.MFLI_V_offset_V, self.get_condition('rounding_step_x1b'))
-	
-	def get_condition(self, c:str):
-		
-		if c in self.conditions:
-			return self.conditions[c]
-		elif c in self.global_conditions:
-			return self.global_conditions[c]
-		else:
-			return None
+		self.xlims1b = get_graph_lims(self.mdata.MFLI_V_offset_V, self.get_condition('rounding_step_x1b'))
 	
 	def render_plot(self):
 		f = self.get_condition('sel_freq_GHz')
 		p = self.get_condition('sel_power_dBm')
 		
 		# Filter relevant data
-		mask_freq = (mdata.freq_rf_GHz == f)
-		mask_pwr = (mdata.power_rf_dBm == p)
+		mask_freq = (self.mdata.freq_rf_GHz == f)
+		mask_pwr = (self.mdata.power_rf_dBm == p)
 		mask = (mask_freq & mask_pwr)
 		
 		# Plot results
@@ -803,20 +794,20 @@ class IVPlotWidget(TabPlotWidget):
 		
 		# Check correct number of points
 		mask_len = np.sum(mask)
-		# if len(mdata.unique_bias) != mask_len:
-		# 	log.warning(f"Cannot display data: Mismatched number of points (freq = {f} GHz, pwr = {p} dBm, mask: {mask_len}, bias: {len(mdata.unique_bias)})")
+		# if len(self.mdata.unique_bias) != mask_len:
+		# 	log.warning(f"Cannot display data: Mismatched number of points (freq = {f} GHz, pwr = {p} dBm, mask: {mask_len}, bias: {len(self.mdata.unique_bias)})")
 		# 	self.fig1.canvas.draw_idle()
 		# 	returnz
 		
-		self.ax1t.plot(mdata.requested_Idc_mA[mask], mdata.Idc_mA[mask], linestyle=':', marker='o', markersize=4, color=(0.6, 0, 0.7), label="Measured")
+		self.ax1t.plot(self.mdata.requested_Idc_mA[mask], self.mdata.Idc_mA[mask], linestyle=':', marker='o', markersize=4, color=(0.6, 0, 0.7), label="Measured")
 		
-		minval = np.min([0, np.min(mdata.requested_Idc_mA[mask]), np.min(mdata.Idc_mA[mask]) ])
-		maxval = np.max([0, np.max(mdata.requested_Idc_mA[mask]), np.max(mdata.Idc_mA[mask]) ])
+		minval = np.min([0, np.min(self.mdata.requested_Idc_mA[mask]), np.min(self.mdata.Idc_mA[mask]) ])
+		maxval = np.max([0, np.max(self.mdata.requested_Idc_mA[mask]), np.max(self.mdata.Idc_mA[mask]) ])
 		self.ax1t.plot([minval, maxval], [minval, maxval], linestyle='-', color=(0.8, 0, 0), linewidth=0.5, label="1:1 ratio")
-		self.ax1b.plot(mdata.MFLI_V_offset_V[mask], mdata.Idc_mA[mask], linestyle=':', marker='s', markersize=4, color=(0.2, 0, 0.8))
+		self.ax1b.plot(self.mdata.MFLI_V_offset_V[mask], self.mdata.Idc_mA[mask], linestyle=':', marker='s', markersize=4, color=(0.2, 0, 0.8))
 		
-		self.ax2t.plot(mdata.requested_Idc_mA[mask], self.extra_z[mask], linestyle=':', marker='o', markersize=4, color=(0.45, 0.5, 0.1))
-		self.ax2b.plot(mdata.Idc_mA[mask], self.extra_z[mask], linestyle=':', marker='o', markersize=4, color=(0, 0.5, 0.8))
+		self.ax2t.plot(self.mdata.requested_Idc_mA[mask], self.extra_z[mask], linestyle=':', marker='o', markersize=4, color=(0.45, 0.5, 0.1))
+		self.ax2b.plot(self.mdata.Idc_mA[mask], self.extra_z[mask], linestyle=':', marker='o', markersize=4, color=(0, 0.5, 0.8))
 		
 		self.ax1t.set_title(f"f = {f} GHz, p = {p} dBm")
 		self.ax1t.legend()
@@ -860,12 +851,11 @@ class IVPlotWidget(TabPlotWidget):
 
 class SParamSPDPlotWidget(TabPlotWidget):
 	
-	def __init__(self, global_conditions:dict={}):
-		super().__init__()
+	def __init__(self, global_conditions:dict, log:LogPile, mdata:MasterData):
+		super().__init__(global_conditions, log, mdata)
 		
 		# Conditions dictionaries
 		self.conditions = {'rounding_step':10}
-		self.global_conditions = global_conditions
 		
 		self.manual_init()
 		
@@ -888,8 +878,8 @@ class SParamSPDPlotWidget(TabPlotWidget):
 	def manual_init(self):
 		pass
 		# # Get autoscale choices
-		# umax = np.max([np.max(mdata.rf1), np.max(mdata.rf2), np.max(mdata.rf3)])
-		# umin = np.min([np.min(mdata.rf1), np.min(mdata.rf2), np.min(mdata.rf3)])
+		# umax = np.max([np.max(self.mdata.rf1), np.max(self.mdata.rf2), np.max(self.mdata.rf3)])
+		# umin = np.min([np.min(self.mdata.rf1), np.min(self.mdata.rf2), np.min(self.mdata.rf3)])
 		
 		# rstep = self.get_condition('rounding_step')
 		# if rstep is None:
@@ -897,22 +887,13 @@ class SParamSPDPlotWidget(TabPlotWidget):
 		
 		# self.ylims = [np.floor(umin/rstep)*rstep, np.ceil(umax/rstep)*rstep]
 	
-	def get_condition(self, c:str):
-		
-		if c in self.conditions:
-			return self.conditions[c]
-		elif c in self.global_conditions:
-			return self.global_conditions[c]
-		else:
-			return None
-	
 	def render_plot(self):
 		# f = self.get_condition('sel_freq_GHz')
 		# p = self.get_condition('sel_power_dBm')
 		
 		# # Filter relevant data
-		# mask_freq = (mdata.freq_rf_GHz == f)
-		# mask_pwr = (mdata.power_rf_dBm == p)
+		# mask_freq = (self.mdata.freq_rf_GHz == f)
+		# mask_pwr = (self.mdata.power_rf_dBm == p)
 		# mask = (mask_freq & mask_pwr)
 		
 		# Plot results
@@ -920,17 +901,17 @@ class SParamSPDPlotWidget(TabPlotWidget):
 		
 		# Check correct number of points
 		# mask_len = np.sum(mask)
-		# if len(self.mdata.unique_bias) != mask_len:
-		# 	log.warning(f"Cannot display data: Mismatched number of points (freq = {f} GHz, pwr = {p} dBm, mask: {mask_len}, bias: {len(self.mdata.unique_bias)})")
+		# if len(self.self.mdata.unique_bias) != mask_len:
+		# 	log.warning(f"Cannot display data: Mismatched number of points (freq = {f} GHz, pwr = {p} dBm, mask: {mask_len}, bias: {len(self.self.mdata.unique_bias)})")
 		# 	self.fig1.canvas.draw_idle()
 		# 	return
 		
 		
-		self.ax1.plot(mdata.S_freq_GHz, mdata.S11_dB, linestyle=':', marker='o', markersize=1, color=(0.7, 0, 0))
-		self.ax1.plot(mdata.S_freq_GHz, mdata.S21_dB, linestyle=':', marker='o', markersize=1, color=(0, 0.7, 0))
+		self.ax1.plot(self.mdata.S_freq_GHz, self.mdata.S11_dB, linestyle=':', marker='o', markersize=1, color=(0.7, 0, 0))
+		self.ax1.plot(self.mdata.S_freq_GHz, self.mdata.S21_dB, linestyle=':', marker='o', markersize=1, color=(0, 0.7, 0))
 		
 		if self.get_condition('sparam_show_sum'):
-			self.ax1.plot(mdata.S_freq_GHz, lin_to_dB(np.abs(mdata.S11+mdata.S21)), linestyle=':', marker='.', markersize=1, color=(0.7, 0.7, 0))
+			self.ax1.plot(self.mdata.S_freq_GHz, lin_to_dB(np.abs(self.mdata.S11+self.mdata.S21)), linestyle=':', marker='.', markersize=1, color=(0.7, 0.7, 0))
 			self.ax1.legend(["S11", "S21", "S11+S21"])
 		else:
 			self.ax1.legend(["S11", "S21"])	
@@ -950,12 +931,11 @@ class SParamSPDPlotWidget(TabPlotWidget):
 
 class HarmGenBiasDomainPlotWidget(TabPlotWidget):
 	
-	def __init__(self, global_conditions:dict={}):
-		super().__init__()
+	def __init__(self, global_conditions:dict, log:LogPile, mdata:MasterData):
+		super().__init__(global_conditions, log, mdata)
 		
 		# Conditions dictionaries
 		self.conditions = {'rounding_step':10}
-		self.global_conditions = global_conditions
 		
 		self.manual_init()
 		
@@ -978,8 +958,8 @@ class HarmGenBiasDomainPlotWidget(TabPlotWidget):
 	def manual_init(self):
 		
 		# Get autoscale choices
-		umax = np.max([np.max(mdata.rf1), np.max(mdata.rf2), np.max(mdata.rf3)])
-		umin = np.min([np.min(mdata.rf1), np.min(mdata.rf2), np.min(mdata.rf3)])
+		umax = np.max([np.max(self.mdata.rf1), np.max(self.mdata.rf2), np.max(self.mdata.rf3)])
+		umin = np.min([np.min(self.mdata.rf1), np.min(self.mdata.rf2), np.min(self.mdata.rf3)])
 		
 		rstep = self.get_condition('rounding_step')
 		if rstep is None:
@@ -987,22 +967,13 @@ class HarmGenBiasDomainPlotWidget(TabPlotWidget):
 		
 		self.ylims = [np.floor(umin/rstep)*rstep, np.ceil(umax/rstep)*rstep]
 	
-	def get_condition(self, c:str):
-		
-		if c in self.conditions:
-			return self.conditions[c]
-		elif c in self.global_conditions:
-			return self.global_conditions[c]
-		else:
-			return None
-	
 	def render_plot(self):
 		f = self.get_condition('sel_freq_GHz')
 		p = self.get_condition('sel_power_dBm')
 		
 		# Filter relevant data
-		mask_freq = (mdata.freq_rf_GHz == f)
-		mask_pwr = (mdata.power_rf_dBm == p)
+		mask_freq = (self.mdata.freq_rf_GHz == f)
+		mask_pwr = (self.mdata.power_rf_dBm == p)
 		mask = (mask_freq & mask_pwr)
 		
 		# Plot results
@@ -1010,15 +981,15 @@ class HarmGenBiasDomainPlotWidget(TabPlotWidget):
 		
 		# Check correct number of points
 		mask_len = np.sum(mask)
-		# if len(self.mdata.unique_bias) != mask_len:
-		# 	log.warning(f"Cannot display data: Mismatched number of points (freq = {f} GHz, pwr = {p} dBm, mask: {mask_len}, bias: {len(self.mdata.unique_bias)})")
+		# if len(self.self.mdata.unique_bias) != mask_len:
+		# 	log.warning(f"Cannot display data: Mismatched number of points (freq = {f} GHz, pwr = {p} dBm, mask: {mask_len}, bias: {len(self.self.mdata.unique_bias)})")
 		# 	self.fig1.canvas.draw_idle()
 		# 	return
 		
 		
-		self.ax1.plot(mdata.Idc_mA[mask], mdata.rf1[mask], linestyle=':', marker='o', markersize=4, color=(0, 0.7, 0))
-		self.ax1.plot(mdata.Idc_mA[mask], mdata.rf2[mask], linestyle=':', marker='o', markersize=4, color=(0, 0, 0.7))
-		self.ax1.plot(mdata.Idc_mA[mask], mdata.rf3[mask], linestyle=':', marker='o', markersize=4, color=(0.7, 0, 0))
+		self.ax1.plot(self.mdata.Idc_mA[mask], self.mdata.rf1[mask], linestyle=':', marker='o', markersize=4, color=(0, 0.7, 0))
+		self.ax1.plot(self.mdata.Idc_mA[mask], self.mdata.rf2[mask], linestyle=':', marker='o', markersize=4, color=(0, 0, 0.7))
+		self.ax1.plot(self.mdata.Idc_mA[mask], self.mdata.rf3[mask], linestyle=':', marker='o', markersize=4, color=(0.7, 0, 0))
 		self.ax1.set_title(f"f = {f} GHz, p = {p} dBm")
 		self.ax1.set_xlabel("DC Bias (mA)")
 		self.ax1.set_ylabel("Power (dBm)")
@@ -1037,26 +1008,25 @@ class BiasDomainTabWidget(QTabWidget):
 	def __init__(self, global_conditions:dict, main_window):
 		super().__init__()
 		
-		self.gcond = global_conditions
 		self.main_window = main_window
 		self.object_list = []
 		self._is_active = False
 		
 		#------------ Harmonics widget
 		
-		self.object_list.append(HarmGenBiasDomainPlotWidget(global_conditions=self.gcond))
+		self.object_list.append(HarmGenBiasDomainPlotWidget(global_conditions, self.main_window.log, self.main_window.mdata))
 		self.main_window.gcond_subscribers.append(self.object_list[-1])
 		self.addTab(self.object_list[-1], "Harmonic Generation")
 		
 		#------------ CE widget
 		
-		self.object_list.append(CE23BiasDomainPlotWidget(global_conditions=self.gcond))
+		self.object_list.append(CE23BiasDomainPlotWidget(global_conditions, self.main_window.log, self.main_window.mdata))
 		self.main_window.gcond_subscribers.append(self.object_list[-1])
 		self.addTab(self.object_list[-1], "Efficiency")
 		
 		#------------ Harmonics widget
 		
-		self.object_list.append(IVPlotWidget(global_conditions=self.gcond))
+		self.object_list.append(IVPlotWidget(global_conditions, self.main_window.log, self.main_window.mdata))
 		self.main_window.gcond_subscribers.append(self.object_list[-1])
 		self.addTab(self.object_list[-1], "Bias Current")
 		
@@ -1089,13 +1059,13 @@ class FrequencyDomainTabWidget(QTabWidget):
 		
 		#------------ Harmonics widget
 		
-		self.object_list.append(HarmGenFreqDomainPlotWidget(global_conditions=self.gcond))
+		self.object_list.append(HarmGenFreqDomainPlotWidget(self.gcond, self.main_window.log, self.main_window.mdata))
 		self.main_window.gcond_subscribers.append(self.object_list[-1])
 		self.addTab(self.object_list[-1], "Harmonic Generation")
 		
 		#------------ CE widget
 		
-		self.object_list.append(CE23FreqDomainPlotWidget(global_conditions=self.gcond))
+		self.object_list.append(CE23FreqDomainPlotWidget(self.gcond, self.main_window.log, self.main_window.mdata))
 		self.main_window.gcond_subscribers.append(self.object_list[-1])
 		self.addTab(self.object_list[-1], "Efficiency")
 		
@@ -1129,7 +1099,7 @@ class SPDTabWidget(QTabWidget):
 		
 		#------------ Harmonics widget
 		
-		self.object_list.append(SParamSPDPlotWidget(global_conditions=self.gcond))
+		self.object_list.append(SParamSPDPlotWidget(self.gcond, self.main_window.log, self.main_window.mdata))
 		self.main_window.gcond_subscribers.append(self.object_list[-1])
 		self.addTab(self.object_list[-1], "S-Parameters")
 		
@@ -1157,15 +1127,16 @@ class SPDTabWidget(QTabWidget):
 	
 class HGA1Window(QtWidgets.QMainWindow):
 
-	def __init__(self, log, app, *args, **kwargs):
+	def __init__(self, log, mdata, app, *args, **kwargs):
 		super().__init__(*args, **kwargs)
 		
 		# Save local variables
 		self.log = log
 		self.app = app
+		self.mdata = mdata
 		
 		# Initialize global conditions
-		self.gcond = {'sel_freq_GHz': mdata.unique_freqs[len(mdata.unique_freqs)//2], 'sel_power_dBm': mdata.unique_pwr[len(mdata.unique_pwr)//2], 'sel_bias_mA': mdata.unique_bias[len(mdata.unique_bias)//2], 'fix_scale':False, 'freqxaxis_isfund':False, "remove_outliers":True, "remove_outliers_ce2_zscore":10}
+		self.gcond = {'sel_freq_GHz': self.mdata.unique_freqs[len(self.mdata.unique_freqs)//2], 'sel_power_dBm': self.mdata.unique_pwr[len(self.mdata.unique_pwr)//2], 'sel_bias_mA': self.mdata.unique_bias[len(self.mdata.unique_bias)//2], 'fix_scale':False, 'freqxaxis_isfund':False, "remove_outliers":True, "remove_outliers_ce2_zscore":10}
 		
 		self.gcond_subscribers = []
 		
@@ -1192,12 +1163,12 @@ class HGA1Window(QtWidgets.QMainWindow):
 		
 		# Active main sweep file label
 		self.active_file_label = QLabel()
-		self.active_file_label.setText(f"Active Main Sweep File: {mdata.current_sweep_file}")
+		self.active_file_label.setText(f"Active Main Sweep File: {self.mdata.current_sweep_file}")
 		self.active_file_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
 		
 		# Active s-param file label
 		self.active_spfile_label = QLabel()
-		self.active_spfile_label.setText(f"Active S-Parameter File: {mdata.current_sparam_file}")
+		self.active_spfile_label.setText(f"Active S-Parameter File: {self.mdata.current_sparam_file}")
 		self.active_spfile_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
 		
 		# Place each widget
@@ -1224,7 +1195,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.gcond[key] = value
 		
 		for sub in self.gcond_subscribers:
-			sub.global_conditions[key] = value
+			sub.gcond[key] = value
 	
 	def plot_all(self):
 		
@@ -1238,7 +1209,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 	
 	def update_freq(self, x):
 		try:
-			new_freq = mdata.unique_freqs[x]
+			new_freq = self.mdata.unique_freqs[x]
 			self.set_gcond('sel_freq_GHz', new_freq)
 			self.plot_all()
 		except Exception as e:
@@ -1257,7 +1228,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 	
 	def update_pwr(self, x):
 		try:
-			new_pwr = mdata.unique_pwr[x]
+			new_pwr = self.mdata.unique_pwr[x]
 			self.set_gcond('sel_power_dBm', new_pwr)
 			self.plot_all()
 		except Exception as e:
@@ -1267,7 +1238,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 		
 	def update_bias(self, x):
 		try:
-			new_b = mdata.unique_bias[x]
+			new_b = self.mdata.unique_bias[x]
 			self.set_gcond('sel_bias_mA', new_b)
 			self.plot_all()
 		except Exception as e:
@@ -1291,7 +1262,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.freq_slider.valueChanged.connect(self.update_freq)
 		self.freq_slider.setSingleStep(1)
 		self.freq_slider.setMinimum(0)
-		self.freq_slider.setMaximum(len(np.unique(mdata.unique_freqs))-1)
+		self.freq_slider.setMaximum(len(np.unique(self.mdata.unique_freqs))-1)
 		self.freq_slider.setTickInterval(1)
 		self.freq_slider.setTickPosition(QtWidgets.QSlider.TickPosition.TicksLeft)
 		self.freq_slider.setSliderPosition(0)
@@ -1306,7 +1277,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.pwr_slider.valueChanged.connect(self.update_pwr)
 		self.pwr_slider.setSingleStep(1)
 		self.pwr_slider.setMinimum(0)
-		self.pwr_slider.setMaximum(len(np.unique(mdata.unique_pwr))-1)
+		self.pwr_slider.setMaximum(len(np.unique(self.mdata.unique_pwr))-1)
 		self.pwr_slider.setTickInterval(1)
 		self.pwr_slider.setTickPosition(QtWidgets.QSlider.TickPosition.TicksLeft)
 		self.pwr_slider.setSliderPosition(0)
@@ -1321,7 +1292,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.bias_slider.valueChanged.connect(self.update_bias)
 		self.bias_slider.setSingleStep(1)
 		self.bias_slider.setMinimum(0)
-		self.bias_slider.setMaximum(len(mdata.unique_bias)-1)
+		self.bias_slider.setMaximum(len(self.mdata.unique_bias)-1)
 		self.bias_slider.setTickInterval(1)
 		self.bias_slider.setTickPosition(QtWidgets.QSlider.TickPosition.TicksLeft)
 		self.bias_slider.setSliderPosition(0)
@@ -1443,9 +1414,10 @@ class HGA1Window(QtWidgets.QMainWindow):
 		if q.text() == "Show Sum":
 			self.set_gcond('sparam_show_sum', self.sparam_showsum_act.isChecked())
 			self.plot_all()
-		
-			
+
+
+master_data = MasterData()			
 app = QtWidgets.QApplication(sys.argv)
 
-w = HGA1Window(log, app)
+w = HGA1Window(log, master_data, app)
 app.exec()
