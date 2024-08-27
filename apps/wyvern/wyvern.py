@@ -140,8 +140,8 @@ class MasterData:
 	def import_hdf(self):
 		''' Imports sweep data into the master data object'''
 		
-		datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 1 4mm'])
-		# datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 2 43mm'])
+		# datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 1 4mm'])
+		datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 2 43mm'])
 		# datapath = '/Volumes/M5 PERSONAL/data_transfer'
 		if datapath is None:
 			print(f"{Fore.RED}Failed to find data location{Style.RESET_ALL}")
@@ -151,9 +151,9 @@ class MasterData:
 
 		# filename = "RP22B_MP3_t1_31July2024_R4C4T1_r1_autosave.hdf"
 		# filename = "RP22B_MP3_t1_1Aug2024_R4C4T1_r1.hdf"
-		filename = "RP22B_MP3_t2_8Aug2024_R4C4T1_r1.hdf"
+		# filename = "RP22B_MP3_t2_8Aug2024_R4C4T1_r1.hdf"
 		# filename = "RP22B_MP3a_t3_19Aug2024_R4C4T2_r1.hdf"
-		# filename = "RP22B_MP3a_t2_20Aug2024_R4C4T2_r1.hdf"
+		filename = "RP22B_MP3a_t2_20Aug2024_R4C4T2_r1.hdf"
 		
 		analysis_file = os.path.join(datapath, filename)
 
@@ -231,6 +231,8 @@ def get_graph_lims(data:list, step=None):
 	
 	umin = np.min(data)
 	umax = np.max(data)
+	
+	print(f"min = {umin}, max = {umax}")
 	
 	return [np.floor(umin/step)*step, np.ceil(umax/step)*step]
 
@@ -451,15 +453,11 @@ class HarmGenFreqDomainPlotWidget(TabPlotWidget):
 		self.setLayout(self.grid)
 	
 	def manual_init(self):
+		self.init_zscore_data([self.mdata.zs_rf1, self.mdata.zs_rf2, self.mdata.zs_rf3], ['Fundamental', '2nd Harmonic', '3rd Harmonic'], [self.mdata.freq_rf_GHz, self.mdata.freq_rf_GHz, self.mdata.freq_rf_GHz], "Frequency (GHz)")
 		
 		self.ylims1 = get_graph_lims(np.concatenate((self.mdata.rf1, self.mdata.rf2, self.mdata.rf3)), step=10)
+		self.xlims1 = get_graph_lims(self.mdata.freq_rf_GHz, step=0.5)
 		
-		self.zs1 = calc_zscore(self.mdata.rf1)
-		self.zs2 = calc_zscore(self.mdata.rf2)
-		self.zs3 = calc_zscore(self.mdata.rf3)
-		
-		self.init_zscore_data([self.zs1, self.zs2, self.zs3], ['Fundamental', '2nd Harmonic', '3rd Harmonic'], [self.mdata.freq_rf_GHz, self.mdata.freq_rf_GHz, self.mdata.freq_rf_GHz], "Frequency (GHz)")
-	
 	def calc_mask(self):
 		b = self.get_condition('sel_bias_mA')
 		p = self.get_condition('sel_power_dBm')
@@ -505,7 +503,10 @@ class HarmGenFreqDomainPlotWidget(TabPlotWidget):
 		
 		if self.get_condition('fix_scale'):
 			self.ax1.set_ylim(self.ylims1)
-		
+			if use_fund:
+				self.ax1.set_xlim(self.xlims1)
+			else:
+				self.ax1.set_xlim((self.xlims1[0], self.xlims1[1]*3))
 		self.fig1.tight_layout()
 		
 		self.fig1.canvas.draw_idle()
@@ -550,21 +551,10 @@ class CE23FreqDomainPlotWidget(TabPlotWidget):
 		
 		self.init_zscore_data([self.mdata.zs_ce2, self.mdata.zs_ce3], ["2f0 Conversion Efficiency", "3f0 Conversion Efficiency"], [self.mdata.requested_Idc_mA, self.mdata.requested_Idc_mA], "Bias Current (mA)")
 		
-		# Get autoscale choices
-		umax1 = np.max(self.mdata.ce2)
-		umin1 = np.min(self.mdata.ce2)
-		umax2 = np.max(self.mdata.ce3)
-		umin2 = np.min(self.mdata.ce3)
+		self.ylims1 = get_graph_lims(self.mdata.ce2, 5)
+		self.ylims2 = get_graph_lims(self.mdata.ce3, 0.5)
 		
-		rstep1 = self.get_condition('rounding_step1')
-		rstep2 = self.get_condition('rounding_step2')
-		if rstep1 is None:
-			rstep1 = 10
-		if rstep2 is None:
-			rstep2 = 10
-		
-		self.ylims1 = [np.floor(umin1/rstep1)*rstep1, np.ceil(umax1/rstep1)*rstep1]
-		self.ylims2 = [np.floor(umin2/rstep2)*rstep2, np.ceil(umax2/rstep2)*rstep2]
+		self.xlimsX = get_graph_lims(self.mdata.freq_rf_GHz, 0.5)
 	
 	def calc_mask(self):
 		b = self.get_condition('sel_bias_mA')
@@ -611,7 +601,14 @@ class CE23FreqDomainPlotWidget(TabPlotWidget):
 		if self.get_condition('fix_scale'):
 			self.ax1.set_ylim(self.ylims1)
 			self.ax2.set_ylim(self.ylims2)
-		
+			
+			if use_fund:
+				self.ax1.set_xlim(self.xlimsX)
+				self.ax2.set_xlim(self.xlimsX)
+			else:
+				self.ax1.set_xlim((self.xlimsX[0]*2, self.xlimsX[1]*2))
+				self.ax2.set_xlim((self.xlimsX[0]*3, self.xlimsX[1]*3))
+				
 		self.fig1.tight_layout()
 		self.fig2.tight_layout()
 		
@@ -658,21 +655,10 @@ class CE23BiasDomainPlotWidget(TabPlotWidget):
 		
 		self.init_zscore_data([self.mdata.zs_ce2, self.mdata.zs_ce3], ["2f0 Conversion Efficiency", "3f0 Conversion Efficiency"], [self.mdata.requested_Idc_mA, self.mdata.requested_Idc_mA], "Bias Current (mA)")
 		
-		# Get autoscale choices
-		umax1 = np.max(self.mdata.ce2)
-		umin1 = np.min(self.mdata.ce2)
-		umax2 = np.max(self.mdata.ce3)
-		umin2 = np.min(self.mdata.ce3)
+		self.ylims1 = get_graph_lims(self.mdata.ce2, 5)
+		self.ylims2 = get_graph_lims(self.mdata.ce3, 0.5)
 		
-		rstep1 = self.get_condition('rounding_step1')
-		rstep2 = self.get_condition('rounding_step2')
-		if rstep1 is None:
-			rstep1 = 10
-		if rstep2 is None:
-			rstep2 = 10
-		
-		self.ylims1 = [np.floor(umin1/rstep1)*rstep1, np.ceil(umax1/rstep1)*rstep1]
-		self.ylims2 = [np.floor(umin2/rstep2)*rstep2, np.ceil(umax2/rstep2)*rstep2]
+		self.xlimsX = get_graph_lims(self.mdata.requested_Idc_mA, 0.25)
 	
 	def calc_mask(self):
 		f = self.get_condition('sel_freq_GHz')
@@ -703,16 +689,17 @@ class CE23BiasDomainPlotWidget(TabPlotWidget):
 		self.ax1.set_ylabel("2nd Harm. Conversion Efficiency (%)")
 		self.ax1.grid(True)
 		
-		if self.get_condition('fix_scale'):
-			self.ax1.set_ylim(self.ylims1)
-		
 		self.ax2.set_title(f"f-fund = {f} GHz, f-harm3 = {rd(3*f)} GHz, p = {p} dBm")
 		self.ax2.set_xlabel("Requested DC Bias (mA)")
 		self.ax2.set_ylabel("3rd Harm. Conversion Efficiency (%)")
 		self.ax2.grid(True)
 		
 		if self.get_condition('fix_scale'):
+			self.ax1.set_ylim(self.ylims1)
+			self.ax1.set_xlim(self.xlimsX)
+			
 			self.ax2.set_ylim(self.ylims2)
+			self.ax2.set_xlim(self.xlimsX)
 		
 		self.fig1.tight_layout()
 		self.fig2.tight_layout()
@@ -766,23 +753,12 @@ class IVPlotWidget(TabPlotWidget):
 		
 		self.init_zscore_data( [self.zs_extra_z, self.zs_meas_Idc], ['Extra Impedance', 'Measured Idc'], [self.mdata.requested_Idc_mA, self.mdata.requested_Idc_mA], 'Requested DC Bias (mA)' )
 		
-		# Get autoscale choices
-		umax1 = np.max(self.mdata.Idc_mA)
-		umin1 = np.min(self.mdata.Idc_mA)
-		umax2 = np.max(self.extra_z)
-		umin2 = np.min(self.extra_z)
+		self.ylim1 = get_graph_lims(self.mdata.Idc_mA, 0.25)
+		self.ylim2 = get_graph_lims(self.extra_z, 50)
+		self.xlimT = get_graph_lims(self.mdata.requested_Idc_mA, 0.25)
+		self.xlim1b = get_graph_lims(self.mdata.MFLI_V_offset_V, 0.1)
+		self.xlim2b = self.ylim1
 		
-		rstep1 = self.get_condition('rounding_step1')
-		rstep2 = self.get_condition('rounding_step2')
-		if rstep1 is None:
-			rstep1 = 10
-		if rstep2 is None:
-			rstep2 = 10
-		
-		self.ylims1 = [np.floor(umin1/rstep1)*rstep1, np.ceil(umax1/rstep1)*rstep1]
-		self.ylims2 = [np.floor(umin2/rstep2)*rstep2, np.ceil(umax2/rstep2)*rstep2]
-		self.xlims2b = self.ylims1
-		self.xlims1b = get_graph_lims(self.mdata.MFLI_V_offset_V, self.get_condition('rounding_step_x1b'))
 	
 	def calc_mask(self):
 		f = self.get_condition('sel_freq_GHz')
@@ -813,10 +789,10 @@ class IVPlotWidget(TabPlotWidget):
 		# 	self.fig1.canvas.draw_idle()
 		# 	returnz
 		
-		self.ax1t.plot(self.mdata.requested_Idc_mA[mask], self.mdata.Idc_mA[mask], linestyle=':', marker='o', markersize=4, color=(0.6, 0, 0.7), label="Measured")
-		
 		minval = np.min([0, np.min(self.mdata.requested_Idc_mA[mask]), np.min(self.mdata.Idc_mA[mask]) ])
 		maxval = np.max([0, np.max(self.mdata.requested_Idc_mA[mask]), np.max(self.mdata.Idc_mA[mask]) ])
+		
+		self.ax1t.plot(self.mdata.requested_Idc_mA[mask], self.mdata.Idc_mA[mask], linestyle=':', marker='o', markersize=4, color=(0.6, 0, 0.7), label="Measured")
 		self.ax1t.plot([minval, maxval], [minval, maxval], linestyle='-', color=(0.8, 0, 0), linewidth=0.5, label="1:1 ratio")
 		self.ax1b.plot(self.mdata.MFLI_V_offset_V[mask], self.mdata.Idc_mA[mask], linestyle=':', marker='s', markersize=4, color=(0.2, 0, 0.8))
 		
@@ -847,15 +823,16 @@ class IVPlotWidget(TabPlotWidget):
 		self.ax2b.grid(True)
 		
 		if self.get_condition('fix_scale'):
-			self.ax1t.set_ylim(self.ylims1)
-			self.ax1b.set_ylim(self.ylims1)
+			self.ax1t.set_ylim(self.ylim1)
+			self.ax1b.set_ylim(self.ylim1)
 			
-			self.ax1b.set_xlim(self.xlims1b)
+			self.ax2t.set_ylim(self.ylim2)
+			self.ax2b.set_ylim(self.ylim2)
 			
-			self.ax2t.set_ylim(self.ylims2)
-			self.ax2b.set_ylim(self.ylims2)
-			
-			self.ax2b.set_xlim(self.xlims2b)
+			self.ax1t.set_xlim(self.xlimT)
+			self.ax2t.set_xlim(self.xlimT)
+			self.ax1b.set_xlim(self.xlim1b)
+			self.ax2b.set_xlim(self.xlim2b)
 		
 		self.fig1.tight_layout()
 		self.fig2.tight_layout()
@@ -980,18 +957,12 @@ class HarmGenBiasDomainPlotWidget(TabPlotWidget):
 	
 	def manual_init(self):
 		
-		# Get autoscale choices
-		umax = np.max([np.max(self.mdata.rf1), np.max(self.mdata.rf2), np.max(self.mdata.rf3)])
-		umin = np.min([np.min(self.mdata.rf1), np.min(self.mdata.rf2), np.min(self.mdata.rf3)])
-		
 		self.init_zscore_data([self.mdata.zs_rf1, self.mdata.zs_rf2, self.mdata.zs_rf3], ['Fundamental', '2nd Harmonic', '3rd Harmonic'], [self.mdata.Idc_mA, self.mdata.Idc_mA, self.mdata.Idc_mA], "Bias Current (mA)")
 		
-		rstep = self.get_condition('rounding_step')
-		if rstep is None:
-			rstep = 10
-		
-		self.ylims = [np.floor(umin/rstep)*rstep, np.ceil(umax/rstep)*rstep]
-	
+		print(self)
+		self.ylims1 = get_graph_lims(np.concatenate((self.mdata.rf1, self.mdata.rf2, self.mdata.rf3)), step=10)
+		self.xlims1 = get_graph_lims(self.mdata.Idc_mA, step=0.25)
+			
 	def render_plot(self):
 		f = self.get_condition('sel_freq_GHz')
 		p = self.get_condition('sel_power_dBm')
@@ -1012,7 +983,8 @@ class HarmGenBiasDomainPlotWidget(TabPlotWidget):
 		self.ax1.grid(True)
 		
 		if self.get_condition('fix_scale'):
-			self.ax1.set_ylim(self.ylims)
+			self.ax1.set_ylim(self.ylims1)
+			self.ax1.set_xlim(self.xlims1)
 		
 		self.fig1.tight_layout()
 		
