@@ -6,9 +6,9 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from pylogfile.base import *
 
 from PyQt6 import QtCore, QtGui, QtWidgets
-from PyQt6.QtGui import QAction, QActionGroup, QDoubleValidator
-from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QWidget, QTabWidget, QLabel, QGridLayout, QLineEdit, QCheckBox, QSpacerItem, QSizePolicy, QMainWindow
+from PyQt6.QtGui import QAction, QActionGroup, QDoubleValidator, QIcon, QFontDatabase, QFont
+from PyQt6.QtCore import Qt, QSize
+from PyQt6.QtWidgets import QWidget, QTabWidget, QLabel, QGridLayout, QLineEdit, QCheckBox, QSpacerItem, QSizePolicy, QMainWindow, QSlider, QPushButton
 
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg, NavigationToolbar2QT
 from matplotlib.figure import Figure
@@ -59,6 +59,17 @@ cli_args = parser.parse_args()
 # print(cli_args)
 # print(cli_args.subtle)
 
+def get_font(font_ttf_path):
+	
+	font_id = QFontDatabase.addApplicationFont(font_ttf_path)
+	if font_id == -1:
+		print(f"Failed to read font")
+		return None
+	
+	return QFontDatabase.applicationFontFamilies(font_id)[0]
+
+# chicago_ff = get_font("./assets/Chicago.ttf")
+# chicago_12 = QFont(chicago_ff, 12)
 
 
 class MasterData:
@@ -231,8 +242,6 @@ def get_graph_lims(data:list, step=None):
 	
 	umin = np.min(data)
 	umax = np.max(data)
-	
-	print(f"min = {umin}, max = {umax}")
 	
 	return [np.floor(umin/step)*step, np.ceil(umax/step)*step]
 
@@ -959,7 +968,6 @@ class HarmGenBiasDomainPlotWidget(TabPlotWidget):
 		
 		self.init_zscore_data([self.mdata.zs_rf1, self.mdata.zs_rf2, self.mdata.zs_rf3], ['Fundamental', '2nd Harmonic', '3rd Harmonic'], [self.mdata.Idc_mA, self.mdata.Idc_mA, self.mdata.Idc_mA], "Bias Current (mA)")
 		
-		print(self)
 		self.ylims1 = get_graph_lims(np.concatenate((self.mdata.rf1, self.mdata.rf2, self.mdata.rf3)), step=10)
 		self.xlims1 = get_graph_lims(self.mdata.Idc_mA, step=0.25)
 			
@@ -1245,7 +1253,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.freq_slider_vallabel = QtWidgets.QLabel()
 		self.freq_slider_vallabel.setText("VOID (GHz)")
 		
-		self.freq_slider = QtWidgets.QSlider(Qt.Orientation.Vertical)
+		self.freq_slider = QSlider(Qt.Orientation.Vertical)
 		self.freq_slider.valueChanged.connect(self.update_freq)
 		self.freq_slider.setSingleStep(1)
 		self.freq_slider.setMinimum(0)
@@ -1260,7 +1268,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.pwr_slider_vallabel = QtWidgets.QLabel()
 		self.pwr_slider_vallabel.setText("VOID (dBm)")
 		
-		self.pwr_slider = QtWidgets.QSlider(Qt.Orientation.Vertical)
+		self.pwr_slider = QSlider(Qt.Orientation.Vertical)
 		self.pwr_slider.valueChanged.connect(self.update_pwr)
 		self.pwr_slider.setSingleStep(1)
 		self.pwr_slider.setMinimum(0)
@@ -1275,7 +1283,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.bias_slider_vallabel = QtWidgets.QLabel()
 		self.bias_slider_vallabel.setText("VOID (mA)")
 		
-		self.bias_slider = QtWidgets.QSlider(Qt.Orientation.Vertical)
+		self.bias_slider = QSlider(Qt.Orientation.Vertical)
 		self.bias_slider.valueChanged.connect(self.update_bias)
 		self.bias_slider.setSingleStep(1)
 		self.bias_slider.setMinimum(0)
@@ -1283,6 +1291,14 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.bias_slider.setTickInterval(1)
 		self.bias_slider.setTickPosition(QtWidgets.QSlider.TickPosition.TicksLeft)
 		self.bias_slider.setSliderPosition(0)
+		
+		# bottomBtn = QPushButton(icon=QIcon("./assets/max_ce2.png"), parent=self)
+		# bottomBtn.setFixedSize(100, 40)
+		# bottomBtn.setIconSize(QSize(100, 40))
+		
+		bottomBtn = QPushButton("Max CE2", parent=self)
+		bottomBtn.setFixedSize(100, 40)
+		# bottomBtn.setIconSize(QSize(100, 40))
 		
 		ng.addWidget(self.freq_slider_hdrlabel, 0, 0)
 		ng.addWidget(self.freq_slider, 1, 0, alignment=Qt.AlignmentFlag.AlignHCenter)
@@ -1295,6 +1311,8 @@ class HGA1Window(QtWidgets.QMainWindow):
 		ng.addWidget(self.bias_slider_hdrlabel, 0, 2)
 		ng.addWidget(self.bias_slider, 1, 2, alignment=Qt.AlignmentFlag.AlignHCenter)
 		ng.addWidget(self.bias_slider_vallabel, 2, 2)
+		
+		ng.addWidget(bottomBtn, 3, 0, 1, 3)
 		
 		self.slider_box.setLayout(ng)
 		
@@ -1403,8 +1421,16 @@ class HGA1Window(QtWidgets.QMainWindow):
 			self.plot_all()
 
 
-master_data = MasterData()			
+
+master_data = MasterData()
 app = QtWidgets.QApplication(sys.argv)
+
+chicago_ff = get_font("./assets/Chicago.ttf")
+menlo_ff = get_font("./assets/Menlo-Regular.ttf")
+app.setStyleSheet(f"""
+QWidget {{
+	font-family: '{menlo_ff}';
+}}""")
 
 w = HGA1Window(log, master_data, app)
 app.exec()
