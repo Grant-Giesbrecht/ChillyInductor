@@ -42,6 +42,9 @@ log = LogPile()
 #		- collection date, operator notes, file size, num points, open log in lumberjack button
 
 # 8. Better way to load any data file
+# 9. Option for linear axes on HG graph, get better intuition for impact of drop in power of fund.
+# 10. Add calibration things - impact of S-parameters and new CE definitions based on power from SG or
+# 	with better S-parameter loss calibration.
 
 # 9. Make filename label copyable
 # 10. Fix axes applies to X too
