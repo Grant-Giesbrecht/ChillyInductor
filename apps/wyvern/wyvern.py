@@ -140,8 +140,8 @@ class MasterData:
 	def import_hdf(self):
 		''' Imports sweep data into the master data object'''
 		
-		# datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 1 4mm'])
-		datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 2 43mm'])
+		datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 1 4mm'])
+		# datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 2 43mm'])
 		# datapath = '/Volumes/M5 PERSONAL/data_transfer'
 		if datapath is None:
 			print(f"{Fore.RED}Failed to find data location{Style.RESET_ALL}")
@@ -151,9 +151,9 @@ class MasterData:
 
 		# filename = "RP22B_MP3_t1_31July2024_R4C4T1_r1_autosave.hdf"
 		# filename = "RP22B_MP3_t1_1Aug2024_R4C4T1_r1.hdf"
-		# filename = "RP22B_MP3_t2_8Aug2024_R4C4T1_r1.hdf"
+		filename = "RP22B_MP3_t2_8Aug2024_R4C4T1_r1.hdf"
 		# filename = "RP22B_MP3a_t3_19Aug2024_R4C4T2_r1.hdf"
-		filename = "RP22B_MP3a_t2_20Aug2024_R4C4T2_r1.hdf"
+		# filename = "RP22B_MP3a_t2_20Aug2024_R4C4T2_r1.hdf"
 		
 		analysis_file = os.path.join(datapath, filename)
 
@@ -761,6 +761,11 @@ class IVPlotWidget(TabPlotWidget):
 		system_Z = self.mdata.MFLI_V_offset_V/(self.mdata.Idc_mA/1e3)
 		self.extra_z = system_Z - expected_Z
 		
+		self.zs_extra_z = calc_zscore(self.extra_z)
+		self.zs_meas_Idc = calc_zscore(self.mdata.Idc_mA)
+		
+		self.init_zscore_data( [self.zs_extra_z, self.zs_meas_Idc], ['Extra Impedance', 'Measured Idc'], [self.mdata.requested_Idc_mA, self.mdata.requested_Idc_mA], 'Requested DC Bias (mA)' )
+		
 		# Get autoscale choices
 		umax1 = np.max(self.mdata.Idc_mA)
 		umin1 = np.min(self.mdata.Idc_mA)
@@ -779,14 +784,21 @@ class IVPlotWidget(TabPlotWidget):
 		self.xlims2b = self.ylims1
 		self.xlims1b = get_graph_lims(self.mdata.MFLI_V_offset_V, self.get_condition('rounding_step_x1b'))
 	
-	def render_plot(self):
+	def calc_mask(self):
 		f = self.get_condition('sel_freq_GHz')
 		p = self.get_condition('sel_power_dBm')
 		
 		# Filter relevant data
 		mask_freq = (self.mdata.freq_rf_GHz == f)
 		mask_pwr = (self.mdata.power_rf_dBm == p)
-		mask = (mask_freq & mask_pwr)
+		return (mask_freq & mask_pwr)
+	
+	def render_plot(self):
+		f = self.get_condition('sel_freq_GHz')
+		p = self.get_condition('sel_power_dBm')
+		
+		# Filter relevant data
+		mask = self.calc_mask()
 		
 		# Plot results
 		self.ax1t.cla()
