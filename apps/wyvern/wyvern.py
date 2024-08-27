@@ -45,6 +45,7 @@ log = LogPile()
 # 9. Option for linear axes on HG graph, get better intuition for impact of drop in power of fund.
 # 10. Add calibration things - impact of S-parameters and new CE definitions based on power from SG or
 # 	with better S-parameter loss calibration.
+# 11. Add tabs to look at raw spectrum analyzer data rather than the spectral components.
 
 # 9. Make filename label copyable
 # 10. Fix axes applies to X too
