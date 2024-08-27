@@ -8,7 +8,7 @@ from pylogfile.base import *
 from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtGui import QAction, QActionGroup, QDoubleValidator
 from PyQt6.QtCore import Qt
-from PyQt6.QtWidgets import QWidget, QTabWidget, QLabel, QGridLayout, QLineEdit, QCheckBox, QSpacerItem, QSizePolicy
+from PyQt6.QtWidgets import QWidget, QTabWidget, QLabel, QGridLayout, QLineEdit, QCheckBox, QSpacerItem, QSizePolicy, QMainWindow
 
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg, NavigationToolbar2QT
 from matplotlib.figure import Figure
@@ -217,6 +217,13 @@ def get_graph_lims(data:list, step=None):
 	
 	return [np.floor(umin/step)*step, np.ceil(umax/step)*step]
 
+def calc_zscore(data:list):
+	data = np.array(data)
+	mu = np.mean(data)
+	stdev = np.std(data)
+	return (data - mu)/stdev
+	
+
 class OutlierControlWidget(QWidget):
 	
 	def __init__(self):
@@ -238,6 +245,62 @@ class OutlierControlWidget(QWidget):
 		self.setLayout(self.grid)
 	
 	
+class ZScorePlotWindow(QMainWindow):
+	
+	def __init__(self, x_data, y_zscore, legend_labels, x_label):
+		super().__init__()
+		
+		self.x_data = x_data
+		self.y_zscore = y_zscore
+		self.legend_labels = legend_labels
+		self.x_label = x_label
+		
+		# Create figure
+		self.fig1, self.ax1 = plt.subplots(1, 1)
+		
+		# Create widgets
+		self.fig1cvs = FigureCanvas(self.fig1)
+		self.toolbar1 = NavigationToolbar2QT(self.fig1cvs, self)
+		
+		self.render_plot()
+		
+		# Add widgets to parent-widget and set layout
+		self.grid = QtWidgets.QGridLayout()
+		self.grid.addWidget(self.toolbar1, 0, 0)
+		self.grid.addWidget(self.fig1cvs, 1, 0)
+		
+		central_widget = QtWidgets.QWidget()
+		central_widget.setLayout(self.grid)
+		self.setCentralWidget(central_widget)
+	
+	def render_plot(self):
+		
+		self.ax1.cla()
+		
+		for (x, y, leglab) in zip(self.x_data, self.y_zscore, self.legend_labels):
+			self.ax1.plot(x, y, label=leglab, linestyle=':', marker='X')
+			
+		self.ax1.set_ylabel("Z-Score")
+		self.ax1.legend()
+		self.ax1.grid(True)
+		self.ax1.set_xlabel(self.x_label)
+		
+		# if type(self.y_zscore[0]) == list or type(self.y_zscore[0]) == np.ndarray: # 2D list
+			
+		# 	for (x, y, leglab) in zip(self.x_data, self.y_zscore, self.legend_labels):
+		# 		self.ax1.plot(x, y, label=leglab)
+			
+		# 	self.ax1.set_ylabel("Z-Score")
+		# 	self.ax1.legend()
+		# 	self.ax1.grid(True)
+		# 	self.ax1.set_xlabel(self.x_label)
+		# else:
+		# 	self.ax1.plot(self.x_data, self.y_zscore)
+		# 	self.ax1.set_xlabel(self.x_label)
+		# 	self.ax1.set_ylabel(self.legend_labels)
+		# 	self.ax1.grid(True)
+		
+		self.fig1.canvas.draw_idle()
 
 class TabPlotWidget(QWidget):
 	
@@ -245,6 +308,19 @@ class TabPlotWidget(QWidget):
 		super().__init__()
 		self._is_active = False # Indicates if the current tab is displayed
 		self.plot_is_current = False # Does the plot need to be re-rendered?
+		self.zscore_data = []
+		self.zscore_labels = []
+		self.zscore_x_data = []
+		self.zscore_x_label = ""
+		
+	def init_zscore_data(self, y_data:list, legend_labels:list, x_data:list=[], x_label:str="Datapoint Index"):
+		''' y_data, x_data are lists of lists. legend_label is a list of strings. Each list row corresponds to one trace.
+		 Only one x-label provided. '''
+		
+		self.zscore_data = y_data
+		self.zscore_labels = legend_labels
+		self.zscore_x_data = x_data
+		self.zscore_x_label = x_label
 	
 	def is_active(self):
 		return self._is_active
@@ -258,6 +334,44 @@ class TabPlotWidget(QWidget):
 		
 		if self.is_active() and (not self.plot_is_current):
 			self.render_plot()
+	
+	def calc_mask(self):
+		return None
+	
+	def plot_zscore_if_active(self):
+		''' Generates a Z-Score breakout window if window is active and if z-score window is possible. Requires:
+		* calc_mask must be overridden
+		* init_zscore_data must have been called.'''
+		
+		# Return if not active
+		if not self.is_active():
+			return
+		
+		# Return if no z-score data provided
+		if len(self.zscore_data) == 0 or len(self.zscore_labels) == 0:
+			return
+		
+		# Return if no mask
+		mask = self.calc_mask()
+		if mask is None:
+			return
+		
+		# Create masked y-data
+		y_data = []
+		for zsd in self.zscore_data:
+			y_data.append(zsd[mask])
+		
+		# Create default X values if not provided
+		x_data = []
+		if len(self.zscore_x_data) == 0:
+			for yd in y_data:
+				x_data.append(list(range(0, len(zsd))))
+		else:
+			for xd in self.zscore_x_data:
+				x_data.append(xd[mask])
+			
+		self.zscore_dialog = ZScorePlotWindow(x_data, y_data, self.zscore_labels, self.zscore_x_label)
+		self.zscore_dialog.show()
 	
 	def update_plot(self):
 		''' Marks the plot to be updated eventually. '''
@@ -289,7 +403,6 @@ class HarmGenFreqDomainPlotWidget(TabPlotWidget):
 		expected_Z = mdata.MFLI_V_offset_V[1]/(mdata.requested_Idc_mA[1]/1e3) #TODO: Do something more general than index 1
 		system_Z = mdata.MFLI_V_offset_V/(mdata.Idc_mA/1e3)
 		self.extra_z = system_Z - expected_Z
-		
 		
 		self.render_plot()
 		
@@ -522,6 +635,10 @@ class CE23BiasDomainPlotWidget(TabPlotWidget):
 		self.ce2 = mdata.rf2W/self.total_power*100
 		self.ce3 = mdata.rf3W/self.total_power*100
 		
+		self.zs2 = calc_zscore(self.ce2)
+		self.zs3 = calc_zscore(self.ce3)
+		self.init_zscore_data([self.zs2, self.zs3], ["2f0 Conversion Efficiency", "3f0 Conversion Efficiency"], [mdata.requested_Idc_mA, mdata.requested_Idc_mA], "Bias Current (mA)")
+		
 		# Get autoscale choices
 		umax1 = np.max(self.ce2)
 		umin1 = np.min(self.ce2)
@@ -547,14 +664,21 @@ class CE23BiasDomainPlotWidget(TabPlotWidget):
 		else:
 			return None
 	
-	def render_plot(self):
+	def calc_mask(self):
 		f = self.get_condition('sel_freq_GHz')
 		p = self.get_condition('sel_power_dBm')
 		
 		# Filter relevant data
 		mask_freq = (mdata.freq_rf_GHz == f)
 		mask_pwr = (mdata.power_rf_dBm == p)
-		mask = (mask_freq & mask_pwr)
+		return (mask_freq & mask_pwr)
+	
+	def render_plot(self):
+		f = self.get_condition('sel_freq_GHz')
+		p = self.get_condition('sel_power_dBm')
+		
+		# Filter relevant data
+		mask = self.calc_mask()
 		
 		# Plot results
 		self.ax1.cla()
@@ -1046,7 +1170,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.gcond_subscribers = []
 		
 		# Basic setup
-		if cli_args.subtle is not None:
+		if cli_args.subtle:
 			self.setWindowTitle("Cryogenic Data Analyzer")
 		else:
 			self.setWindowTitle("Wyvern Cryogenic Data Analyzer")
@@ -1106,6 +1230,11 @@ class HGA1Window(QtWidgets.QMainWindow):
 		
 		for sub in self.gcond_subscribers:
 			sub.update_plot()
+	
+	def plot_active_zscore(self):
+		
+		for sub in self.gcond_subscribers:
+			sub.plot_zscore_if_active()
 	
 	def update_freq(self, x):
 		try:
@@ -1273,6 +1402,12 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.freqxaxis_group.addAction(self.freqxaxis_fund_act)
 		self.freqxaxis_group.addAction(self.freqxaxis_harm_act)
 		
+			# END Graph Menu: Freq-axis sub menu -------------
+		
+		self.zscore_act = QAction("Show Active Z-Score", self)
+		self.zscore_act.setShortcut("Shift+Z")
+		self.graph_menu.addAction(self.zscore_act)
+		
 		# S-Parameter Menu --------------------------------------
 		
 		self.sparam_menu = self.bar.addMenu("S-Params")
@@ -1300,6 +1435,8 @@ class HGA1Window(QtWidgets.QMainWindow):
 		elif q.text() == "Show Fundamental" or q.text() == "Show Harmonics":
 			self.set_gcond('freqxaxis_isfund', self.freqxaxis_fund_act.isChecked())
 			self.plot_all()
+		elif q.text() == "Show Active Z-Score":
+			self.plot_active_zscore()
 	
 	def _process_sparam_menu(self, q):
 		
