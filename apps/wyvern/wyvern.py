@@ -8,7 +8,7 @@ from pylogfile.base import *
 from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtGui import QAction, QActionGroup, QDoubleValidator, QIcon, QFontDatabase, QFont
 from PyQt6.QtCore import Qt, QSize
-from PyQt6.QtWidgets import QWidget, QTabWidget, QLabel, QGridLayout, QLineEdit, QCheckBox, QSpacerItem, QSizePolicy, QMainWindow, QSlider, QPushButton
+from PyQt6.QtWidgets import QWidget, QTabWidget, QLabel, QGridLayout, QLineEdit, QCheckBox, QSpacerItem, QSizePolicy, QMainWindow, QSlider, QPushButton, QGroupBox
 
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg, NavigationToolbar2QT
 from matplotlib.figure import Figure
@@ -1296,9 +1296,22 @@ class HGA1Window(QtWidgets.QMainWindow):
 		# bottomBtn.setFixedSize(100, 40)
 		# bottomBtn.setIconSize(QSize(100, 40))
 		
-		bottomBtn = QPushButton("Max CE2", parent=self)
-		bottomBtn.setFixedSize(100, 40)
-		# bottomBtn.setIconSize(QSize(100, 40))
+		self.btn_groupbox = QGroupBox()
+		self.btn_groupbox.setFlat(True)
+		self.btn_groupbox.setStyleSheet("QGroupBox{border:0;}")
+		
+		self.maxce2_btn = QPushButton("Max CE2", parent=self)
+		self.maxce2_btn.setFixedSize(100, 40)
+		self.maxce2_btn.clicked.connect(self._set_max_ce2)
+		
+		self.maxce3_btn = QPushButton("Max CE3", parent=self)
+		self.maxce3_btn.setFixedSize(100, 40)
+		self.maxce3_btn.clicked.connect(self._set_max_ce3)
+		
+		self.btn_groupbox_grid = QGridLayout()
+		self.btn_groupbox_grid.addWidget(self.maxce2_btn, 0, 0)
+		self.btn_groupbox_grid.addWidget(self.maxce3_btn, 0, 1)
+		self.btn_groupbox.setLayout(self.btn_groupbox_grid)
 		
 		ng.addWidget(self.freq_slider_hdrlabel, 0, 0)
 		ng.addWidget(self.freq_slider, 1, 0, alignment=Qt.AlignmentFlag.AlignHCenter)
@@ -1312,7 +1325,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 		ng.addWidget(self.bias_slider, 1, 2, alignment=Qt.AlignmentFlag.AlignHCenter)
 		ng.addWidget(self.bias_slider_vallabel, 2, 2)
 		
-		ng.addWidget(bottomBtn, 3, 0, 1, 3)
+		ng.addWidget(self.btn_groupbox, 3, 0, 1, 3)
 		
 		self.slider_box.setLayout(ng)
 		
@@ -1320,6 +1333,48 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.update_bias(self.bias_slider.value())
 		self.update_freq(self.freq_slider.value())
 		self.update_pwr(self.pwr_slider.value())
+	
+	def _set_max_ce2(self):
+		
+		# Find index of max CE2 value
+		idx_max = np.argmax(self.mdata.ce2)
+		
+		# Select power, freq, and bias to match
+		bmax = self.mdata.requested_Idc_mA[idx_max]
+		pmax = self.mdata.power_rf_dBm[idx_max]
+		fmax = self.mdata.freq_rf_GHz[idx_max]
+		
+		# Find the index of each (on the unique slider scales)
+		bmax_idx = np.where(self.mdata.unique_bias == bmax)[0][0]
+		pmax_idx = np.where(self.mdata.unique_pwr == pmax)[0][0]
+		fmax_idx = np.where(self.mdata.unique_freqs == fmax)[0][0]
+
+		
+		# Set slider positions
+		self.freq_slider.setSliderPosition((fmax_idx))
+		self.pwr_slider.setSliderPosition((pmax_idx))
+		self.bias_slider.setSliderPosition((bmax_idx))
+	
+	def _set_max_ce3(self):
+		
+		# Find index of max CE2 value
+		idx_max = np.argmax(self.mdata.ce3)
+		
+		# Select power, freq, and bias to match
+		bmax = self.mdata.requested_Idc_mA[idx_max]
+		pmax = self.mdata.power_rf_dBm[idx_max]
+		fmax = self.mdata.freq_rf_GHz[idx_max]
+		
+		# Find the index of each (on the unique slider scales)
+		bmax_idx = np.where(self.mdata.unique_bias == bmax)[0][0]
+		pmax_idx = np.where(self.mdata.unique_pwr == pmax)[0][0]
+		fmax_idx = np.where(self.mdata.unique_freqs == fmax)[0][0]
+
+		
+		# Set slider positions
+		self.freq_slider.setSliderPosition((fmax_idx))
+		self.pwr_slider.setSliderPosition((pmax_idx))
+		self.bias_slider.setSliderPosition((bmax_idx))
 	
 	def make_tabs(self):
 		
