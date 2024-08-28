@@ -63,7 +63,10 @@ cli_args = parser.parse_args()
 
 def get_font(font_ttf_path):
 	
-	font_id = QFontDatabase.addApplicationFont(font_ttf_path)
+	abs_path = os.path.abspath(font_ttf_path)
+	print(abs_path)
+	
+	font_id = QFontDatabase.addApplicationFont(abs_path)
 	if font_id == -1:
 		print(f"Failed to read font")
 		return None
@@ -167,6 +170,7 @@ class MasterData:
 		# filename = "RP22B_MP3_t2_8Aug2024_R4C4T1_r1.hdf"
 		# filename = "RP22B_MP3a_t3_19Aug2024_R4C4T2_r1.hdf"
 		filename = "RP22B_MP3a_t2_20Aug2024_R4C4T2_r1.hdf"
+		# filename = "RP22B_MP3a_t4_26Aug2024_R4C4T2_r1.hdf"
 		
 		analysis_file = os.path.join(datapath, filename)
 
