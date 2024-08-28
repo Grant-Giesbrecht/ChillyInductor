@@ -26,6 +26,7 @@ from abc import abstractmethod, ABC
 import argparse
 
 log = LogPile()
+log.set_terminal_level("LOWDEBUG")
 
 # TODO: Important
 #
@@ -85,6 +86,8 @@ class MasterData:
 		self.import_hdf()
 		self.import_sparam()
 		
+		self.outlier_mask = []
+		
 	def clear_all(self):
 		
 		# Names of files loaded
@@ -131,11 +134,13 @@ class MasterData:
 		sp_datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 1 4mm', "VNA Traces"])
 		if sp_datapath is None:
 			print(f"{Fore.RED}Failed to find s-parameter data location{Style.RESET_ALL}")
-			sys.exit()
+			sp_datapath = "M:\\data_transfer\\R4C4T2_Uncal_SParam\\Prf -30 dBm"
+			# sys.exit()
 		else:
 			print(f"{Fore.GREEN}Located s-parameter data directory at: {Fore.LIGHTBLACK_EX}{sp_datapath}{Style.RESET_ALL}")
 		
-		sp_filename = "Sparam_31July2024_-30dBm_R4C4T1_Wide.csv"
+		# sp_filename = "Sparam_31July2024_-30dBm_R4C4T1_Wide.csv"
+		sp_filename = "26Aug2024_Ch1ToCryoR_Ch2ToCryoL.csv"
 		
 		sp_analysis_file = os.path.join(sp_datapath, sp_filename)#"Sparam_31July2024_-30dBm_R4C4T1.csv")
 		
@@ -161,7 +166,9 @@ class MasterData:
 		# datapath = '/Volumes/M5 PERSONAL/data_transfer'
 		if datapath is None:
 			print(f"{Fore.RED}Failed to find data location{Style.RESET_ALL}")
-			sys.exit()
+			datapath = "C:\\Users\\gmg3\\Documents\\GitHub\\ChillyInductor\\RP-22 Scripts\\SMC-B\\Measurement Scripts\\data"
+			print("WARNING WARNING REMOVE THIS")
+			# sys.exit()
 		else:
 			print(f"{Fore.GREEN}Located data directory at: {Fore.LIGHTBLACK_EX}{datapath}{Style.RESET_ALL}")
 
@@ -239,7 +246,18 @@ class MasterData:
 		self.zs_rf1 = calc_zscore(self.rf1)
 		self.zs_rf2 = calc_zscore(self.rf2)
 		self.zs_rf3 = calc_zscore(self.rf3)
-
+		
+		##------------------------------------------
+		# Outlier mask
+		
+		# Just make array of true
+		self.outlier_mask = (self.power_rf_dBm == self.power_rf_dBm)
+		
+	def rebuild_outlier_mask(self, ce2_zscore:float):
+		
+		self.outlier_mask = (self.zs_ce2 < ce2_zscore)
+		
+		print(f"Rebuilt outlier mask. Now has {self.outlier_mask.sum()} true values")
 
 ##--------------------------------------------
 # Create GUI
@@ -258,16 +276,27 @@ def calc_zscore(data:list):
 	return (data - mu)/stdev
 	
 
+GCOND_REMOVE_OUTLIERS = 'remove_outliers'
+GCOND_OUTLIER_ZSCE2 = 'remove_outliers_ce2_zscore'
+
 class OutlierControlWidget(QWidget):
 	
-	def __init__(self):
+	def __init__(self, global_conditions:dict, log:LogPile, mdata:MasterData, replot_handle):
 		super().__init__()
 		
-		self.enable_cb = QCheckBox("Remove Outliers")
+		self.gcond = global_conditions
+		self.log = log
+		self.mdata = mdata
+		self.replot_handle = replot_handle
 		
-		self.zscore_label = QLabel("Z-Score < ")
+		self.enable_cb = QCheckBox("Remove Outliers")
+		self.enable_cb.stateChanged.connect(self.reanalyze)
+		
+		self.zscore_label = QLabel("CE2 Z-Score < ")
 		self.zscore_edit = QLineEdit()
 		self.zscore_edit.setValidator(QDoubleValidator())
+		self.zscore_edit.setText("10")
+		self.zscore_edit.editingFinished.connect(self.reanalyze)
 		
 		self.bottom_spacer = QSpacerItem(10, 10, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
 		
@@ -277,8 +306,29 @@ class OutlierControlWidget(QWidget):
 		self.grid.addWidget(self.zscore_edit, 1, 1, alignment=QtCore.Qt.AlignmentFlag.AlignTop)
 		self.grid.addItem(self.bottom_spacer, 2, 0)
 		self.setLayout(self.grid)
-	
-	
+		
+		self.reanalyze()
+		
+	def reanalyze(self):
+		
+		self.log.debug(f"Reanalyzing OutlierControlWidget's control settings.")
+		
+		self.gcond[GCOND_REMOVE_OUTLIERS] = self.enable_cb.isChecked()
+		
+		ro = self.gcond[GCOND_REMOVE_OUTLIERS]
+		self.log.debug(f"Reanalyzing OutlierControlWidget's control settings.")
+		
+		try:
+			self.gcond[GCOND_OUTLIER_ZSCE2] = float(self.zscore_edit.text())
+		except Exception as e:
+			self.log.warning("Failed to interpret CE2 Z-score value. Defaulting to 10.", detail=f"{e}")
+			self.zscore_edit.setText("10")
+		
+		self.mdata.rebuild_outlier_mask(self.gcond[GCOND_OUTLIER_ZSCE2])
+		
+		# Replot all graph
+		self.replot_handle()
+		
 class ZScorePlotWindow(QMainWindow):
 	
 	def __init__(self, x_data, y_zscore, legend_labels, x_label):
@@ -480,7 +530,18 @@ class HarmGenFreqDomainPlotWidget(TabPlotWidget):
 		# Filter relevant data
 		mask_bias = (self.mdata.requested_Idc_mA == b)
 		mask_pwr = (self.mdata.power_rf_dBm == p)
-		return (mask_bias & mask_pwr)
+		loc_mask = (mask_bias & mask_pwr)
+		
+		if self.get_condition(GCOND_REMOVE_OUTLIERS):
+			print(loc_mask)
+			print(self.mdata.outlier_mask)
+			mask = np.array(loc_mask) & np.array(self.mdata.outlier_mask)
+			self.log.debug(f"Removing outliers. Mask had {loc_mask.sum()} vals, now {mask.sum()} vals.")
+		else:
+			self.log.debug(f"Ignoring outlier spec")
+			mask = loc_mask
+		
+		return mask
 	
 	def render_plot(self):
 		use_fund = self.get_condition('freqxaxis_isfund')
@@ -489,7 +550,7 @@ class HarmGenFreqDomainPlotWidget(TabPlotWidget):
 		
 		# Filter relevant data
 		mask = self.calc_mask()
-		
+			
 		# Plot results
 		self.ax1.cla()
 		
@@ -525,6 +586,8 @@ class HarmGenFreqDomainPlotWidget(TabPlotWidget):
 		self.fig1.tight_layout()
 		
 		self.fig1.canvas.draw_idle()
+		
+		self.plot_is_current = True
 
 class CE23FreqDomainPlotWidget(TabPlotWidget):
 	
@@ -629,6 +692,8 @@ class CE23FreqDomainPlotWidget(TabPlotWidget):
 		
 		self.fig1.canvas.draw_idle()
 		self.fig2.canvas.draw_idle()
+		
+		self.plot_is_current = True
 
 class CE23BiasDomainPlotWidget(TabPlotWidget):
 	
@@ -682,7 +747,18 @@ class CE23BiasDomainPlotWidget(TabPlotWidget):
 		# Filter relevant data
 		mask_freq = (self.mdata.freq_rf_GHz == f)
 		mask_pwr = (self.mdata.power_rf_dBm == p)
-		return (mask_freq & mask_pwr)
+		loc_mask = (mask_freq & mask_pwr)
+		
+		if self.get_condition(GCOND_REMOVE_OUTLIERS):
+			print(loc_mask)
+			print(self.mdata.outlier_mask)
+			mask = np.array(loc_mask) & np.array(self.mdata.outlier_mask)
+			self.log.debug(f"Removing outliers. Mask had {loc_mask.sum()} vals, now {mask.sum()} vals.")
+		else:
+			self.log.debug(f"Ignoring outlier spec")
+			mask = loc_mask
+		
+		return mask
 	
 	def render_plot(self):
 		
@@ -721,6 +797,8 @@ class CE23BiasDomainPlotWidget(TabPlotWidget):
 		
 		self.fig1.canvas.draw_idle()
 		self.fig2.canvas.draw_idle()
+		
+		self.plot_is_current = True
 
 class IVPlotWidget(TabPlotWidget):
 	
@@ -854,6 +932,8 @@ class IVPlotWidget(TabPlotWidget):
 		
 		self.fig1.canvas.draw_idle()
 		self.fig2.canvas.draw_idle()
+		
+		self.plot_is_current = True
 
 class SParamSPDPlotWidget(TabPlotWidget):
 	
@@ -933,6 +1013,8 @@ class SParamSPDPlotWidget(TabPlotWidget):
 		self.fig1.tight_layout()
 		
 		self.fig1.canvas.draw_idle()
+		
+		self.plot_is_current = True
 
 
 class HarmGenBiasDomainPlotWidget(TabPlotWidget):
@@ -1003,6 +1085,8 @@ class HarmGenBiasDomainPlotWidget(TabPlotWidget):
 		self.fig1.tight_layout()
 		
 		self.fig1.canvas.draw_idle()
+		
+		self.plot_is_current = True
 
 class BiasDomainTabWidget(QTabWidget):
 	
@@ -1150,7 +1234,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.add_menu()
 		
 		# Make a controls widget
-		self.control_widget = OutlierControlWidget()
+		self.control_widget = OutlierControlWidget(self.gcond, self.log, self.mdata, self.plot_all)
 		
 		# Create tab widget
 		self.tab_widget_widgets = []
