@@ -342,7 +342,7 @@ class OutlierControlWidget(QWidget):
 		self.zscore_extraz_label = QLabel("Z-Score < ")
 		self.zscore_extraz_edit = QLineEdit()
 		self.zscore_extraz_edit.setValidator(QDoubleValidator())
-		self.zscore_extraz_edit.setText("10")
+		self.zscore_extraz_edit.setText("2")
 		self.zscore_extraz_edit.editingFinished.connect(self.reanalyze)
 		
 		self.extraz_gboxgrid = QGridLayout()
@@ -389,9 +389,9 @@ class OutlierControlWidget(QWidget):
 			else:
 				self.gcond[GCOND_OUTLIER_ZSEXTRAZ] = None
 		except Exception as e:
-			self.log.warning("Failed to interpret CE2 Z-score value. Defaulting to 10.", detail=f"{e}")
-			self.zscore_edit.setText("10")
-			self.gcond[GCOND_OUTLIER_ZSEXTRAZ] = 10
+			self.log.warning("Failed to interpret CE2 Z-score value. Defaulting to 2.", detail=f"{e}")
+			self.zscore_edit.setText("2")
+			self.gcond[GCOND_OUTLIER_ZSEXTRAZ] = 2
 		
 		self.mdata.rebuild_outlier_mask(self.gcond[GCOND_OUTLIER_ZSCE2], self.gcond[GCOND_OUTLIER_ZSEXTRAZ])
 		
