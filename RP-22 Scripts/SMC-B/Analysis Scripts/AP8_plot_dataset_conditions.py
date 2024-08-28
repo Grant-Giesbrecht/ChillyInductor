@@ -14,34 +14,56 @@ import numpy as np
 
 log = LogPile()
 
+# file_list = []
+# colors = []
+# markers = []
+# labels = []
+# marker_sizes = []
+
+# datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 1 4mm'])
+# if datapath is None:
+# 	print(f"{Fore.RED}Failed to find data location{Style.RESET_ALL}")
+# 	sys.exit()
+# else:
+# 	print(f"{Fore.GREEN}Located data directory at: {Fore.LIGHTBLACK_EX}{datapath}{Style.RESET_ALL}")
+# filename = "RP22B_MP3_t2_8Aug2024_R4C4T1_r1.hdf"
+# file_list.append(os.path.join(datapath, filename))
+# markers.append('s')
+# colors.append((0, 0, 0.7))
+# labels.append(filename)
+# marker_sizes.append(25)
+
+# filename = "RP22B_MP3_t1_1Aug2024_R4C4T1_r1.hdf"
+# file_list.append(os.path.join(datapath, filename))
+# markers.append('s')
+# colors.append((0, 0.5, 0))
+# labels.append(filename)
+# marker_sizes.append(25)
+
+# # filename = "RP22B_MP3_t1_31July2024_R4C4T1_r1_autosave.hdf"
+# # file_list.append(os.path.join(datapath, filename))
+
+# datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 2 43mm'])
+# if datapath is None:
+# 	print(f"{Fore.RED}Failed to find data location{Style.RESET_ALL}")
+# 	sys.exit()
+# else:
+# 	print(f"{Fore.GREEN}Located data directory at: {Fore.LIGHTBLACK_EX}{datapath}{Style.RESET_ALL}")
+# filename = "RP22B_MP3a_t3_19Aug2024_R4C4T2_r1.hdf"
+# file_list.append(os.path.join(datapath, filename))
+# markers.append('s')
+# colors.append((0.7, 0, 0))
+# labels.append(filename)
+# marker_sizes.append(25)
+
+
+#------ Set 2
+
 file_list = []
 colors = []
 markers = []
 labels = []
 marker_sizes = []
-
-datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 1 4mm'])
-if datapath is None:
-	print(f"{Fore.RED}Failed to find data location{Style.RESET_ALL}")
-	sys.exit()
-else:
-	print(f"{Fore.GREEN}Located data directory at: {Fore.LIGHTBLACK_EX}{datapath}{Style.RESET_ALL}")
-filename = "RP22B_MP3_t2_8Aug2024_R4C4T1_r1.hdf"
-file_list.append(os.path.join(datapath, filename))
-markers.append('s')
-colors.append((0, 0, 0.7))
-labels.append(filename)
-marker_sizes.append(25)
-
-filename = "RP22B_MP3_t1_1Aug2024_R4C4T1_r1.hdf"
-file_list.append(os.path.join(datapath, filename))
-markers.append('s')
-colors.append((0, 0.5, 0))
-labels.append(filename)
-marker_sizes.append(25)
-
-# filename = "RP22B_MP3_t1_31July2024_R4C4T1_r1_autosave.hdf"
-# file_list.append(os.path.join(datapath, filename))
 
 datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 2 43mm'])
 if datapath is None:
@@ -49,7 +71,22 @@ if datapath is None:
 	sys.exit()
 else:
 	print(f"{Fore.GREEN}Located data directory at: {Fore.LIGHTBLACK_EX}{datapath}{Style.RESET_ALL}")
+
 filename = "RP22B_MP3a_t3_19Aug2024_R4C4T2_r1.hdf"
+file_list.append(os.path.join(datapath, filename))
+markers.append('s')
+colors.append((0, 0, 0.7))
+labels.append(filename)
+marker_sizes.append(25)
+
+filename = "RP22B_MP3a_t2_20Aug2024_R4C4T2_r1.hdf"
+file_list.append(os.path.join(datapath, filename))
+markers.append('s')
+colors.append((0, 0.5, 0))
+labels.append(filename)
+marker_sizes.append(25)
+
+filename = "RP22B_MP3a_t4_26Aug2024_R4C4T2_r1.hdf"
 file_list.append(os.path.join(datapath, filename))
 markers.append('s')
 colors.append((0.7, 0, 0))
@@ -122,7 +159,7 @@ for src_idx, conf in enumerate(conf_list):
 		if src_idx == len(conf_list) -1:
 			# axs[data_idx].legend()
 			axs[data_idx].set_yticks(list(range(1, len(conf_list)+1)))
-			axs[data_idx].set_yticklabels(labels)
+			axs[data_idx].set_yticklabels(reversed(labels))
 		
 		data_idx += 1
 
