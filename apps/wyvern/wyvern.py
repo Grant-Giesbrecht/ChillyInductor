@@ -37,7 +37,6 @@ log = LogPile()
 # 2. Add labels to values on freq and power sliders
 # 3. Add save log, save graph, zoom controls, etc.
 # 5. Datatips
-# 6. Buttons to zoom to max efficiency
 # 7. Data panel at bottom showing file stats:
 #		- collection date, operator notes, file size, num points, open log in lumberjack button
 
@@ -48,8 +47,7 @@ log = LogPile()
 # 11. Add tabs to look at raw spectrum analyzer data rather than the spectral components.
 
 # 9. Make filename label copyable
-# 10. Fix axes applies to X too
-# 11. Fix axes only fits X-percentile.
+# 12. Make graph of total power - looks like the SG power isn't super well calibrated and jumps at frequency transitions!
 
 # TODO: Graphs to add
 # 1. Applied voltage, measured current, target current, estimated additional impedance.
