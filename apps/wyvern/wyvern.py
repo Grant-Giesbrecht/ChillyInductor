@@ -238,6 +238,17 @@ class MasterData:
 		self.current_sweep_file = analysis_file
 		
 		##------------------------------------------
+		# Calculate extra impedance
+		
+		# Estimate system Z
+		expected_Z = self.MFLI_V_offset_V[1]/(self.requested_Idc_mA[1]/1e3) #TODO: Do something more general than index 1
+		system_Z = self.MFLI_V_offset_V/(self.Idc_mA/1e3)
+		self.extra_z = system_Z - expected_Z
+		
+		self.zs_extra_z = calc_zscore(self.extra_z)
+		self.zs_meas_Idc = calc_zscore(self.Idc_mA)
+		
+		##------------------------------------------
 		# Generate Z-scores
 		
 		self.zs_ce2 = calc_zscore(self.ce2)
@@ -253,9 +264,17 @@ class MasterData:
 		# Just make array of true
 		self.outlier_mask = (self.power_rf_dBm == self.power_rf_dBm)
 		
-	def rebuild_outlier_mask(self, ce2_zscore:float):
+	def rebuild_outlier_mask(self, ce2_zscore:float, extraz_zscore:float):
 		
-		self.outlier_mask = (self.zs_ce2 < ce2_zscore)
+		# Process CE2
+		if ce2_zscore is not None:
+			self.outlier_mask = (self.zs_ce2 < ce2_zscore)
+		else:
+			self.outlier_mask = (self.zs_ce2 == self.zs_ce2)
+		
+		# Process extra-z
+		if extraz_zscore is not None:
+			self.outlier_mask = self.outlier_mask & (self.zs_extra_z < extraz_zscore)
 		
 		print(f"Rebuilt outlier mask. Now has {self.outlier_mask.sum()} true values")
 
@@ -278,6 +297,7 @@ def calc_zscore(data:list):
 
 GCOND_REMOVE_OUTLIERS = 'remove_outliers'
 GCOND_OUTLIER_ZSCE2 = 'remove_outliers_ce2_zscore'
+GCOND_OUTLIER_ZSEXTRAZ = 'remove_outliers_extraz_zscore'
 
 class OutlierControlWidget(QWidget):
 	
@@ -292,19 +312,54 @@ class OutlierControlWidget(QWidget):
 		self.enable_cb = QCheckBox("Remove Outliers")
 		self.enable_cb.stateChanged.connect(self.reanalyze)
 		
-		self.zscore_label = QLabel("CE2 Z-Score < ")
-		self.zscore_edit = QLineEdit()
-		self.zscore_edit.setValidator(QDoubleValidator())
-		self.zscore_edit.setText("10")
-		self.zscore_edit.editingFinished.connect(self.reanalyze)
+
+			#-------- CE 2 subgroup
+			
+		self.ce2_gbox = QGroupBox("CE2")
+		
+		self.zscore_ce2_cb = QCheckBox("Enable")
+		self.zscore_ce2_cb.stateChanged.connect(self.reanalyze)
+		
+		self.zscore_ce2_label = QLabel("Z-Score < ")
+		self.zscore_ce2_edit = QLineEdit()
+		self.zscore_ce2_edit.setValidator(QDoubleValidator())
+		self.zscore_ce2_edit.setText("10")
+		self.zscore_ce2_edit.editingFinished.connect(self.reanalyze)
+		
+		self.ce2_gboxgrid = QGridLayout()
+		self.ce2_gboxgrid.addWidget(self.zscore_ce2_cb, 0, 0, 1, 2)
+		self.ce2_gboxgrid.addWidget(self.zscore_ce2_label, 1, 0)
+		self.ce2_gboxgrid.addWidget(self.zscore_ce2_edit, 1, 1)
+		self.ce2_gbox.setLayout(self.ce2_gboxgrid)
+			
+			#------------- Extra Z subgroup
+		
+		self.extraz_gbox = QGroupBox("Extra Impedance")
+		
+		self.zscore_extraz_cb = QCheckBox("Enable")
+		self.zscore_extraz_cb.stateChanged.connect(self.reanalyze)
+		
+		self.zscore_extraz_label = QLabel("Z-Score < ")
+		self.zscore_extraz_edit = QLineEdit()
+		self.zscore_extraz_edit.setValidator(QDoubleValidator())
+		self.zscore_extraz_edit.setText("10")
+		self.zscore_extraz_edit.editingFinished.connect(self.reanalyze)
+		
+		self.extraz_gboxgrid = QGridLayout()
+		self.extraz_gboxgrid.addWidget(self.zscore_extraz_cb, 0, 0, 1, 2)
+		self.extraz_gboxgrid.addWidget(self.zscore_extraz_label, 1, 0)
+		self.extraz_gboxgrid.addWidget(self.zscore_extraz_edit, 1, 1)
+		self.extraz_gbox.setLayout(self.extraz_gboxgrid)
 		
 		self.bottom_spacer = QSpacerItem(10, 10, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
 		
 		self.grid = QGridLayout()
 		self.grid.addWidget(self.enable_cb, 0, 0, 1, 2, alignment=QtCore.Qt.AlignmentFlag.AlignTop)
-		self.grid.addWidget(self.zscore_label, 1, 0, alignment=QtCore.Qt.AlignmentFlag.AlignTop)
-		self.grid.addWidget(self.zscore_edit, 1, 1, alignment=QtCore.Qt.AlignmentFlag.AlignTop)
-		self.grid.addItem(self.bottom_spacer, 2, 0)
+		self.grid.addWidget(self.ce2_gbox, 1, 0)
+		self.grid.addWidget(self.extraz_gbox, 2, 0)
+		# self.grid.addWidget(self.zscore_label, 1, 0, alignment=QtCore.Qt.AlignmentFlag.AlignTop)
+		# self.grid.addWidget(self.zscore_edit, 1, 1, alignment=QtCore.Qt.AlignmentFlag.AlignTop)
+		self.grid.addItem(self.bottom_spacer, 3, 0)
 		self.setLayout(self.grid)
 		
 		self.reanalyze()
@@ -313,18 +368,32 @@ class OutlierControlWidget(QWidget):
 		
 		self.log.debug(f"Reanalyzing OutlierControlWidget's control settings.")
 		
+		# Update enable/disable all 
 		self.gcond[GCOND_REMOVE_OUTLIERS] = self.enable_cb.isChecked()
 		
-		ro = self.gcond[GCOND_REMOVE_OUTLIERS]
-		self.log.debug(f"Reanalyzing OutlierControlWidget's control settings.")
-		
+		# Update CE2 spec
 		try:
-			self.gcond[GCOND_OUTLIER_ZSCE2] = float(self.zscore_edit.text())
+			if self.zscore_ce2_cb.isChecked():
+				self.gcond[GCOND_OUTLIER_ZSCE2] = float(self.zscore_ce2_edit.text())
+			else:
+				self.gcond[GCOND_OUTLIER_ZSCE2] = None
 		except Exception as e:
 			self.log.warning("Failed to interpret CE2 Z-score value. Defaulting to 10.", detail=f"{e}")
 			self.zscore_edit.setText("10")
+			self.gcond[GCOND_OUTLIER_ZSCE2] = 10
+			
+		# Update extra z spec
+		try:
+			if self.zscore_extraz_cb.isChecked():
+				self.gcond[GCOND_OUTLIER_ZSEXTRAZ] = float(self.zscore_extraz_edit.text())
+			else:
+				self.gcond[GCOND_OUTLIER_ZSEXTRAZ] = None
+		except Exception as e:
+			self.log.warning("Failed to interpret CE2 Z-score value. Defaulting to 10.", detail=f"{e}")
+			self.zscore_edit.setText("10")
+			self.gcond[GCOND_OUTLIER_ZSEXTRAZ] = 10
 		
-		self.mdata.rebuild_outlier_mask(self.gcond[GCOND_OUTLIER_ZSCE2])
+		self.mdata.rebuild_outlier_mask(self.gcond[GCOND_OUTLIER_ZSCE2], self.gcond[GCOND_OUTLIER_ZSEXTRAZ])
 		
 		# Replot all graph
 		self.replot_handle()
@@ -836,18 +905,18 @@ class IVPlotWidget(TabPlotWidget):
 		
 	def manual_init(self):
 		
-		# Estimate system Z
-		expected_Z = self.mdata.MFLI_V_offset_V[1]/(self.mdata.requested_Idc_mA[1]/1e3) #TODO: Do something more general than index 1
-		system_Z = self.mdata.MFLI_V_offset_V/(self.mdata.Idc_mA/1e3)
-		self.extra_z = system_Z - expected_Z
+		# # Estimate system Z
+		# expected_Z = self.mdata.MFLI_V_offset_V[1]/(self.mdata.requested_Idc_mA[1]/1e3) #TODO: Do something more general than index 1
+		# system_Z = self.mdata.MFLI_V_offset_V/(self.mdata.Idc_mA/1e3)
+		# self.extra_z = system_Z - expected_Z
 		
-		self.zs_extra_z = calc_zscore(self.extra_z)
-		self.zs_meas_Idc = calc_zscore(self.mdata.Idc_mA)
+		# self.zs_extra_z = calc_zscore(self.extra_z)
+		# self.zs_meas_Idc = calc_zscore(self.mdata.Idc_mA)
 		
-		self.init_zscore_data( [self.zs_extra_z, self.zs_meas_Idc], ['Extra Impedance', 'Measured Idc'], [self.mdata.requested_Idc_mA, self.mdata.requested_Idc_mA], 'Requested DC Bias (mA)' )
+		self.init_zscore_data( [self.mdata.zs_extra_z, self.mdata.zs_meas_Idc], ['Extra Impedance', 'Measured Idc'], [self.mdata.requested_Idc_mA, self.mdata.requested_Idc_mA], 'Requested DC Bias (mA)' )
 		
 		self.ylim1 = get_graph_lims(self.mdata.Idc_mA, 0.25)
-		self.ylim2 = get_graph_lims(self.extra_z, 50)
+		self.ylim2 = get_graph_lims(self.mdata.extra_z, 50)
 		self.xlimT = get_graph_lims(self.mdata.requested_Idc_mA, 0.25)
 		self.xlim1b = get_graph_lims(self.mdata.MFLI_V_offset_V, 0.1)
 		self.xlim2b = self.ylim1
@@ -889,8 +958,8 @@ class IVPlotWidget(TabPlotWidget):
 		self.ax1t.plot([minval, maxval], [minval, maxval], linestyle='-', color=(0.8, 0, 0), linewidth=0.5, label="1:1 ratio")
 		self.ax1b.plot(self.mdata.MFLI_V_offset_V[mask], self.mdata.Idc_mA[mask], linestyle=':', marker='s', markersize=4, color=(0.2, 0, 0.8))
 		
-		self.ax2t.plot(self.mdata.requested_Idc_mA[mask], self.extra_z[mask], linestyle=':', marker='o', markersize=4, color=(0.45, 0.5, 0.1))
-		self.ax2b.plot(self.mdata.Idc_mA[mask], self.extra_z[mask], linestyle=':', marker='o', markersize=4, color=(0, 0.5, 0.8))
+		self.ax2t.plot(self.mdata.requested_Idc_mA[mask], self.mdata.extra_z[mask], linestyle=':', marker='o', markersize=4, color=(0.45, 0.5, 0.1))
+		self.ax2b.plot(self.mdata.Idc_mA[mask], self.mdata.extra_z[mask], linestyle=':', marker='o', markersize=4, color=(0, 0.5, 0.8))
 		
 		self.ax1t.set_title(f"f = {f} GHz, p = {p} dBm")
 		self.ax1t.legend()
