@@ -296,6 +296,8 @@ def calc_zscore(data:list):
 GCOND_REMOVE_OUTLIERS = 'remove_outliers'
 GCOND_OUTLIER_ZSCE2 = 'remove_outliers_ce2_zscore'
 GCOND_OUTLIER_ZSEXTRAZ = 'remove_outliers_extraz_zscore'
+GCOND_FREQXAXIS_ISFUND = 'freqxaxis_isfund'
+GCOND_BIASXAXIS_ISMEAS = 'biasxaxis_ismeas'
 
 class OutlierControlWidget(QWidget):
 	
@@ -601,15 +603,15 @@ class HarmGenFreqDomainPlotWidget(TabPlotWidget):
 		
 		if self.get_condition(GCOND_REMOVE_OUTLIERS):
 			mask = np.array(loc_mask) & np.array(self.mdata.outlier_mask)
-			self.log.debug(f"Removing outliers. Mask had {loc_mask.sum()} vals, now {mask.sum()} vals.")
+			self.log.lowdebug(f"Removing outliers. Mask had {loc_mask.sum()} vals, now {mask.sum()} vals.")
 		else:
-			self.log.debug(f"Ignoring outlier spec")
+			self.log.lowdebug(f"Ignoring outlier spec")
 			mask = loc_mask
 		
 		return mask
 	
 	def render_plot(self):
-		use_fund = self.get_condition('freqxaxis_isfund')
+		use_fund = self.get_condition(GCOND_FREQXAXIS_ISFUND)
 		b = self.get_condition('sel_bias_mA')
 		p = self.get_condition('sel_power_dBm')
 		
@@ -710,9 +712,9 @@ class CE23FreqDomainPlotWidget(TabPlotWidget):
 	
 		if self.get_condition(GCOND_REMOVE_OUTLIERS):
 			mask = np.array(loc_mask) & np.array(self.mdata.outlier_mask)
-			self.log.debug(f"Removing outliers. Mask had {loc_mask.sum()} vals, now {mask.sum()} vals.")
+			self.log.lowdebug(f"Removing outliers. Mask had {loc_mask.sum()} vals, now {mask.sum()} vals.")
 		else:
-			self.log.debug(f"Ignoring outlier spec")
+			self.log.lowdebug(f"Ignoring outlier spec")
 			mask = loc_mask
 		
 		return mask
@@ -720,7 +722,7 @@ class CE23FreqDomainPlotWidget(TabPlotWidget):
 	def render_plot(self):
 		b = self.get_condition('sel_bias_mA')
 		p = self.get_condition('sel_power_dBm')
-		use_fund = self.get_condition('freqxaxis_isfund')
+		use_fund = self.get_condition(GCOND_FREQXAXIS_ISFUND)
 		
 		# Filter relevant data
 		mask_bias = (self.mdata.requested_Idc_mA == b)
@@ -812,8 +814,9 @@ class CE23BiasDomainPlotWidget(TabPlotWidget):
 		self.ylims1 = get_graph_lims(self.mdata.ce2, 5)
 		self.ylims2 = get_graph_lims(self.mdata.ce3, 0.5)
 		
-		self.xlimsX = get_graph_lims(self.mdata.requested_Idc_mA, 0.25)
-	
+		self.xlimsXr = get_graph_lims(self.mdata.requested_Idc_mA, 0.25)
+		self.xlimsXm = get_graph_lims(self.mdata.Idc_mA, 0.25)
+		
 	def calc_mask(self):
 		f = self.get_condition('sel_freq_GHz')
 		p = self.get_condition('sel_power_dBm')
@@ -825,9 +828,9 @@ class CE23BiasDomainPlotWidget(TabPlotWidget):
 		
 		if self.get_condition(GCOND_REMOVE_OUTLIERS):
 			mask = np.array(loc_mask) & np.array(self.mdata.outlier_mask)
-			self.log.debug(f"Removing outliers. Mask had {loc_mask.sum()} vals, now {mask.sum()} vals.")
+			self.log.lowdebug(f"Removing outliers. Mask had {loc_mask.sum()} vals, now {mask.sum()} vals.")
 		else:
-			self.log.debug(f"Ignoring outlier spec")
+			self.log.lowdebug(f"Ignoring outlier spec")
 			mask = loc_mask
 		
 		return mask
@@ -844,25 +847,35 @@ class CE23BiasDomainPlotWidget(TabPlotWidget):
 		self.ax1.cla()
 		self.ax2.cla()
 		
-		self.ax1.plot(self.mdata.requested_Idc_mA[mask], self.mdata.ce2[mask], linestyle=':', marker='o', markersize=4, color=(0.6, 0, 0.7))
-		self.ax2.plot(self.mdata.requested_Idc_mA[mask], self.mdata.ce3[mask], linestyle=':', marker='o', markersize=4, color=(0.45, 0.05, 0.1))
-		
+		if self.get_condition(GCOND_BIASXAXIS_ISMEAS):
+			self.ax1.plot(self.mdata.Idc_mA[mask], self.mdata.ce2[mask], linestyle=':', marker='o', markersize=4, color=(0.6, 0, 0.7))
+			self.ax2.plot(self.mdata.Idc_mA[mask], self.mdata.ce3[mask], linestyle=':', marker='o', markersize=4, color=(0.45, 0.05, 0.1))
+			self.ax1.set_xlabel("Measured DC Bias (mA)")
+			self.ax2.set_xlabel("Measured DC Bias (mA)")
+		else:
+			self.ax1.plot(self.mdata.requested_Idc_mA[mask], self.mdata.ce2[mask], linestyle=':', marker='o', markersize=4, color=(0.6, 0, 0.7))
+			self.ax2.plot(self.mdata.requested_Idc_mA[mask], self.mdata.ce3[mask], linestyle=':', marker='o', markersize=4, color=(0.45, 0.05, 0.1))
+			self.ax1.set_xlabel("Requested DC Bias (mA)")
+			self.ax2.set_xlabel("Requested DC Bias (mA)")
+			
 		self.ax1.set_title(f"f-fund = {f} GHz, f-harm2 = {rd(2*f)} GHz, p = {p} dBm")
-		self.ax1.set_xlabel("Requested DC Bias (mA)")
 		self.ax1.set_ylabel("2nd Harm. Conversion Efficiency (%)")
 		self.ax1.grid(True)
 		
 		self.ax2.set_title(f"f-fund = {f} GHz, f-harm3 = {rd(3*f)} GHz, p = {p} dBm")
-		self.ax2.set_xlabel("Requested DC Bias (mA)")
 		self.ax2.set_ylabel("3rd Harm. Conversion Efficiency (%)")
 		self.ax2.grid(True)
 		
 		if self.get_condition('fix_scale'):
 			self.ax1.set_ylim(self.ylims1)
-			self.ax1.set_xlim(self.xlimsX)
-			
 			self.ax2.set_ylim(self.ylims2)
-			self.ax2.set_xlim(self.xlimsX)
+			
+			if self.get_condition(GCOND_BIASXAXIS_ISMEAS):
+				self.ax1.set_xlim(self.xlimsXr)
+				self.ax2.set_xlim(self.xlimsXr)
+			else:
+				self.ax1.set_xlim(self.xlimsXm)
+				self.ax2.set_xlim(self.xlimsXm)
 		
 		self.fig1.tight_layout()
 		self.fig2.tight_layout()
@@ -936,9 +949,9 @@ class IVPlotWidget(TabPlotWidget):
 	
 		if self.get_condition(GCOND_REMOVE_OUTLIERS):
 			mask = np.array(loc_mask) & np.array(self.mdata.outlier_mask)
-			self.log.debug(f"Removing outliers. Mask had {loc_mask.sum()} vals, now {mask.sum()} vals.")
+			self.log.lowdebug(f"Removing outliers. Mask had {loc_mask.sum()} vals, now {mask.sum()} vals.")
 		else:
-			self.log.debug(f"Ignoring outlier spec")
+			self.log.lowdebug(f"Ignoring outlier spec")
 			mask = loc_mask
 		
 		return mask
@@ -1135,9 +1148,9 @@ class HarmGenBiasDomainPlotWidget(TabPlotWidget):
 	
 		if self.get_condition(GCOND_REMOVE_OUTLIERS):
 			mask = np.array(loc_mask) & np.array(self.mdata.outlier_mask)
-			self.log.debug(f"Removing outliers. Mask had {loc_mask.sum()} vals, now {mask.sum()} vals.")
+			self.log.lowdebug(f"Removing outliers. Mask had {loc_mask.sum()} vals, now {mask.sum()} vals.")
 		else:
-			self.log.debug(f"Ignoring outlier spec")
+			self.log.lowdebug(f"Ignoring outlier spec")
 			mask = loc_mask
 		
 		return mask
@@ -1147,8 +1160,9 @@ class HarmGenBiasDomainPlotWidget(TabPlotWidget):
 		self.init_zscore_data([self.mdata.zs_rf1, self.mdata.zs_rf2, self.mdata.zs_rf3], ['Fundamental', '2nd Harmonic', '3rd Harmonic'], [self.mdata.Idc_mA, self.mdata.Idc_mA, self.mdata.Idc_mA], "Bias Current (mA)")
 		
 		self.ylims1 = get_graph_lims(np.concatenate((self.mdata.rf1, self.mdata.rf2, self.mdata.rf3)), step=10)
-		self.xlims1 = get_graph_lims(self.mdata.Idc_mA, step=0.25)
-			
+		self.xlims1m = get_graph_lims(self.mdata.Idc_mA, step=0.25)
+		self.xlims1r = get_graph_lims(self.mdata.requested_Idc_mA, step=0.25)
+		
 	def render_plot(self):
 		f = self.get_condition('sel_freq_GHz')
 		p = self.get_condition('sel_power_dBm')
@@ -1159,19 +1173,30 @@ class HarmGenBiasDomainPlotWidget(TabPlotWidget):
 		# Plot results
 		self.ax1.cla()
 		
-		self.ax1.plot(self.mdata.Idc_mA[mask], self.mdata.rf1[mask], linestyle=':', marker='o', markersize=4, color=(0, 0.7, 0))
-		self.ax1.plot(self.mdata.Idc_mA[mask], self.mdata.rf2[mask], linestyle=':', marker='o', markersize=4, color=(0, 0, 0.7))
-		self.ax1.plot(self.mdata.Idc_mA[mask], self.mdata.rf3[mask], linestyle=':', marker='o', markersize=4, color=(0.7, 0, 0))
+		if self.get_condition(GCOND_BIASXAXIS_ISMEAS):
+			self.ax1.plot(self.mdata.Idc_mA[mask], self.mdata.rf1[mask], linestyle=':', marker='o', markersize=4, color=(0, 0.7, 0))
+			self.ax1.plot(self.mdata.Idc_mA[mask], self.mdata.rf2[mask], linestyle=':', marker='o', markersize=4, color=(0, 0, 0.7))
+			self.ax1.plot(self.mdata.Idc_mA[mask], self.mdata.rf3[mask], linestyle=':', marker='o', markersize=4, color=(0.7, 0, 0))
+			self.ax1.set_xlabel("Measured DC Bias (mA)")
+		else:
+			self.ax1.plot(self.mdata.requested_Idc_mA[mask], self.mdata.rf1[mask], linestyle=':', marker='o', markersize=4, color=(0, 0.7, 0))
+			self.ax1.plot(self.mdata.requested_Idc_mA[mask], self.mdata.rf2[mask], linestyle=':', marker='o', markersize=4, color=(0, 0, 0.7))
+			self.ax1.plot(self.mdata.requested_Idc_mA[mask], self.mdata.rf3[mask], linestyle=':', marker='o', markersize=4, color=(0.7, 0, 0))
+			self.ax1.set_xlabel("Requested DC Bias (mA)")
+			
 		self.ax1.set_title(f"f = {f} GHz, p = {p} dBm")
-		self.ax1.set_xlabel("DC Bias (mA)")
 		self.ax1.set_ylabel("Power (dBm)")
 		self.ax1.legend(["Fundamental", "2nd Harm.", "3rd Harm."])
 		self.ax1.grid(True)
 		
 		if self.get_condition('fix_scale'):
 			self.ax1.set_ylim(self.ylims1)
-			self.ax1.set_xlim(self.xlims1)
-		
+			
+			if self.get_condition(GCOND_BIASXAXIS_ISMEAS):
+				self.ax1.set_xlim(self.xlims1m)
+			else:
+				self.ax1.set_xlim(self.xlims1r)
+				
 		self.fig1.tight_layout()
 		
 		self.fig1.canvas.draw_idle()
@@ -1311,7 +1336,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.mdata = mdata
 		
 		# Initialize global conditions
-		self.gcond = {'sel_freq_GHz': self.mdata.unique_freqs[len(self.mdata.unique_freqs)//2], 'sel_power_dBm': self.mdata.unique_pwr[len(self.mdata.unique_pwr)//2], 'sel_bias_mA': self.mdata.unique_bias[len(self.mdata.unique_bias)//2], 'fix_scale':False, 'freqxaxis_isfund':False, "remove_outliers":True, "remove_outliers_ce2_zscore":10}
+		self.gcond = {'sel_freq_GHz': self.mdata.unique_freqs[len(self.mdata.unique_freqs)//2], 'sel_power_dBm': self.mdata.unique_pwr[len(self.mdata.unique_pwr)//2], 'sel_bias_mA': self.mdata.unique_bias[len(self.mdata.unique_bias)//2], 'fix_scale':False, GCOND_FREQXAXIS_ISFUND:False, GCOND_BIASXAXIS_ISMEAS:True, "remove_outliers":True, "remove_outliers_ce2_zscore":10}
 		
 		self.gcond_subscribers = []
 		
@@ -1607,13 +1632,32 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.freqxaxis_harm_act.setChecked(True)
 		self.freqxaxis_harm_act.setShortcut("Shift+X")
 		self.freqxaxis_fund_act.setShortcut("Ctrl+Shift+X")
-		self.set_gcond('freqxaxis_isfund', self.freqxaxis_fund_act.isChecked())
+		self.set_gcond(GCOND_FREQXAXIS_ISFUND, self.freqxaxis_fund_act.isChecked())
 		self.freqxaxis_graph_menu.addAction(self.freqxaxis_fund_act)
 		self.freqxaxis_graph_menu.addAction(self.freqxaxis_harm_act)
 		self.freqxaxis_group.addAction(self.freqxaxis_fund_act)
 		self.freqxaxis_group.addAction(self.freqxaxis_harm_act)
 		
-			# END Graph Menu: Freq-axis sub menu -------------
+			# Graph Menu: Bias-axis sub menu -------------
+		
+		
+		
+		self.biasxaxis_graph_menu = self.graph_menu.addMenu("Bias X-Axis")
+		
+		self.biasxaxis_group = QActionGroup(self)
+		
+		self.biasxaxis_req_act = QAction("Show Requested", self, checkable=True)
+		self.biasxaxis_meas_act = QAction("Show Measured", self, checkable=True)
+		self.biasxaxis_meas_act.setChecked(True)
+		self.biasxaxis_req_act.setShortcut("Shift+B")
+		self.biasxaxis_meas_act.setShortcut("Ctrl+Shift+B")
+		self.set_gcond(GCOND_BIASXAXIS_ISMEAS, self.biasxaxis_meas_act.isChecked())
+		self.biasxaxis_graph_menu.addAction(self.biasxaxis_req_act)
+		self.biasxaxis_graph_menu.addAction(self.biasxaxis_meas_act)
+		self.biasxaxis_group.addAction(self.biasxaxis_req_act)
+		self.biasxaxis_group.addAction(self.biasxaxis_meas_act)
+		
+			# END Graph Menu: Bias-axis sub menu -------------
 		
 		self.zscore_act = QAction("Show Active Z-Score", self)
 		self.zscore_act.setShortcut("Shift+Z")
@@ -1644,7 +1688,10 @@ class HGA1Window(QtWidgets.QMainWindow):
 			self.set_gcond('fix_scale', self.fix_scales_act.isChecked())
 			self.plot_all()
 		elif q.text() == "Show Fundamental" or q.text() == "Show Harmonics":
-			self.set_gcond('freqxaxis_isfund', self.freqxaxis_fund_act.isChecked())
+			self.set_gcond(GCOND_FREQXAXIS_ISFUND, self.freqxaxis_fund_act.isChecked())
+			self.plot_all()
+		elif q.text() == "Show Requested" or q.text() == "Show Measured":
+			self.set_gcond(GCOND_BIASXAXIS_ISMEAS, self.biasxaxis_meas_act.isChecked())
 			self.plot_all()
 		elif q.text() == "Show Active Z-Score":
 			self.plot_active_zscore()
