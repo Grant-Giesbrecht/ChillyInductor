@@ -65,7 +65,6 @@ cli_args = parser.parse_args()
 def get_font(font_ttf_path):
 	
 	abs_path = os.path.abspath(font_ttf_path)
-	print(abs_path)
 	
 	font_id = QFontDatabase.addApplicationFont(abs_path)
 	if font_id == -1:
@@ -131,7 +130,8 @@ class MasterData:
 	def import_sparam(self):
 		''' Imports S-parameter data into the master data object'''
 		
-		sp_datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 1 4mm', "VNA Traces"])
+		# sp_datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 1 4mm', "VNA Traces"])
+		sp_datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 2 43mm', "Uncalibrated SParam", "Prf -30 dBm"])
 		if sp_datapath is None:
 			print(f"{Fore.RED}Failed to find s-parameter data location{Style.RESET_ALL}")
 			sp_datapath = "M:\\data_transfer\\R4C4T2_Uncal_SParam\\Prf -30 dBm"
@@ -166,9 +166,9 @@ class MasterData:
 		# datapath = '/Volumes/M5 PERSONAL/data_transfer'
 		if datapath is None:
 			print(f"{Fore.RED}Failed to find data location{Style.RESET_ALL}")
-			datapath = "C:\\Users\\gmg3\\Documents\\GitHub\\ChillyInductor\\RP-22 Scripts\\SMC-B\\Measurement Scripts\\data"
-			print("WARNING WARNING REMOVE THIS")
-			# sys.exit()
+			# datapath = "C:\\Users\\gmg3\\Documents\\GitHub\\ChillyInductor\\RP-22 Scripts\\SMC-B\\Measurement Scripts\\data"
+			# print("WARNING WARNING REMOVE THIS")
+			sys.exit()
 		else:
 			print(f"{Fore.GREEN}Located data directory at: {Fore.LIGHTBLACK_EX}{datapath}{Style.RESET_ALL}")
 
@@ -276,8 +276,6 @@ class MasterData:
 		if extraz_zscore is not None:
 			self.outlier_mask = self.outlier_mask & (self.zs_extra_z < extraz_zscore)
 		
-		print(f"Rebuilt outlier mask. Now has {self.outlier_mask.sum()} true values")
-
 ##--------------------------------------------
 # Create GUI
 
@@ -602,8 +600,6 @@ class HarmGenFreqDomainPlotWidget(TabPlotWidget):
 		loc_mask = (mask_bias & mask_pwr)
 		
 		if self.get_condition(GCOND_REMOVE_OUTLIERS):
-			print(loc_mask)
-			print(self.mdata.outlier_mask)
 			mask = np.array(loc_mask) & np.array(self.mdata.outlier_mask)
 			self.log.debug(f"Removing outliers. Mask had {loc_mask.sum()} vals, now {mask.sum()} vals.")
 		else:
@@ -710,7 +706,16 @@ class CE23FreqDomainPlotWidget(TabPlotWidget):
 		# Filter relevant data
 		mask_bias = (self.mdata.requested_Idc_mA == b)
 		mask_pwr = (self.mdata.power_rf_dBm == p)
-		return (mask_bias & mask_pwr)
+		loc_mask = (mask_bias & mask_pwr)
+	
+		if self.get_condition(GCOND_REMOVE_OUTLIERS):
+			mask = np.array(loc_mask) & np.array(self.mdata.outlier_mask)
+			self.log.debug(f"Removing outliers. Mask had {loc_mask.sum()} vals, now {mask.sum()} vals.")
+		else:
+			self.log.debug(f"Ignoring outlier spec")
+			mask = loc_mask
+		
+		return mask
 	
 	def render_plot(self):
 		b = self.get_condition('sel_bias_mA')
@@ -819,8 +824,6 @@ class CE23BiasDomainPlotWidget(TabPlotWidget):
 		loc_mask = (mask_freq & mask_pwr)
 		
 		if self.get_condition(GCOND_REMOVE_OUTLIERS):
-			print(loc_mask)
-			print(self.mdata.outlier_mask)
 			mask = np.array(loc_mask) & np.array(self.mdata.outlier_mask)
 			self.log.debug(f"Removing outliers. Mask had {loc_mask.sum()} vals, now {mask.sum()} vals.")
 		else:
@@ -929,7 +932,16 @@ class IVPlotWidget(TabPlotWidget):
 		# Filter relevant data
 		mask_freq = (self.mdata.freq_rf_GHz == f)
 		mask_pwr = (self.mdata.power_rf_dBm == p)
-		return (mask_freq & mask_pwr)
+		loc_mask = (mask_freq & mask_pwr)
+	
+		if self.get_condition(GCOND_REMOVE_OUTLIERS):
+			mask = np.array(loc_mask) & np.array(self.mdata.outlier_mask)
+			self.log.debug(f"Removing outliers. Mask had {loc_mask.sum()} vals, now {mask.sum()} vals.")
+		else:
+			self.log.debug(f"Ignoring outlier spec")
+			mask = loc_mask
+		
+		return mask
 	
 	def render_plot(self):
 		f = self.get_condition('sel_freq_GHz')
@@ -1119,7 +1131,16 @@ class HarmGenBiasDomainPlotWidget(TabPlotWidget):
 		# Filter relevant data
 		mask_freq = (self.mdata.freq_rf_GHz == f)
 		mask_pwr = (self.mdata.power_rf_dBm == p)
-		return (mask_freq & mask_pwr)
+		loc_mask = (mask_freq & mask_pwr)
+	
+		if self.get_condition(GCOND_REMOVE_OUTLIERS):
+			mask = np.array(loc_mask) & np.array(self.mdata.outlier_mask)
+			self.log.debug(f"Removing outliers. Mask had {loc_mask.sum()} vals, now {mask.sum()} vals.")
+		else:
+			self.log.debug(f"Ignoring outlier spec")
+			mask = loc_mask
+		
+		return mask
 	
 	def manual_init(self):
 		
