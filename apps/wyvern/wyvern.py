@@ -8,7 +8,7 @@ from pylogfile.base import *
 from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtGui import QAction, QActionGroup, QDoubleValidator, QIcon, QFontDatabase, QFont
 from PyQt6.QtCore import Qt, QSize
-from PyQt6.QtWidgets import QWidget, QTabWidget, QLabel, QGridLayout, QLineEdit, QCheckBox, QSpacerItem, QSizePolicy, QMainWindow, QSlider, QPushButton, QGroupBox
+from PyQt6.QtWidgets import QWidget, QTabWidget, QLabel, QGridLayout, QLineEdit, QCheckBox, QSpacerItem, QSizePolicy, QMainWindow, QSlider, QPushButton, QGroupBox, QListWidget
 
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg, NavigationToolbar2QT
 from matplotlib.figure import Figure
@@ -299,9 +299,80 @@ GCOND_OUTLIER_ZSEXTRAZ = 'remove_outliers_extraz_zscore'
 GCOND_FREQXAXIS_ISFUND = 'freqxaxis_isfund'
 GCOND_BIASXAXIS_ISMEAS = 'biasxaxis_ismeas'
 
+class DataSelectWidget(QWidget):
+	
+	def __init__(self, global_conditions:dict, log:LogPile, mdata:MasterData, replot_handle, show_frame:bool=False):
+		super().__init__()
+		
+		self.chip_select = QListWidget()
+		self.chip_select.insertItem(0, "R4C3 Model D")
+		self.chip_select.insertItem(0, "R4C4 Model C")
+		self.chip_select.insertItem(0, "R2C3 Model B")
+		self.chip_select.insertItem(0, "R2C2 Model A")
+		self.chip_select.setFixedSize(QSize(150, 100))
+		
+		self.track_select = QListWidget()
+		self.track_select.insertItem(0, "Track 1,   4 mm")
+		self.track_select.insertItem(0, "Track 2,  43 mm")
+		self.track_select.insertItem(0, "Track 3. 454 mm")
+		self.track_select.setFixedSize(QSize(150, 100))
+		
+		self.dset_select = QListWidget()
+		self.dset_select.insertItem(0, "MP3a_t2_16Aug2024-r1")
+		self.dset_select.insertItem(0, "MP3a_t3_18Aug2024-r1")
+		self.dset_select.insertItem(0, "MP3a_t4_20Aug2024-r1")
+		self.dset_select.setFixedSize(QSize(250, 100))
+		
+		self.compare_btn = QPushButton("Compare Datasets")
+		self.compare_btn.setFixedSize(100, 40)
+		self.compare_btn.clicked.connect(self._compare_datasets)
+		
+		self.loadset_btn = QPushButton("Load Selected")
+		self.loadset_btn.setFixedSize(100, 40)
+		self.loadset_btn.clicked.connect(self._load_selected)
+		
+		self.loadconf_btn = QPushButton("Load Config File")
+		self.loadconf_btn.setFixedSize(100, 40)
+		self.loadconf_btn.clicked.connect(self._select_config)
+		
+		self.bottom_spacer = QSpacerItem(10, 10, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+		self.right_spacer = QSpacerItem(10, 10, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+		
+		self.grid = QGridLayout()
+		self.grid.addItem(self.right_spacer, 0, 0, 2, 1)
+		self.grid.addWidget(self.chip_select, 0, 1, 2, 1)
+		self.grid.addWidget(self.track_select, 0, 2, 2, 1)
+		self.grid.addWidget(self.dset_select, 0, 3, 2, 1)
+		self.grid.addWidget(self.compare_btn, 0, 4)
+		self.grid.addWidget(self.loadconf_btn, 1, 4)
+		self.grid.addWidget(self.loadset_btn, 0, 5)
+		# # self.grid.addWidget(self.zscore_label, 1, 0, alignment=QtCore.Qt.AlignmentFlag.AlignTop)
+		# # self.grid.addWidget(self.zscore_edit, 1, 1, alignment=QtCore.Qt.AlignmentFlag.AlignTop)
+		self.grid.addItem(self.bottom_spacer, 3, 0)
+		
+		if show_frame:
+			self.frame = QGroupBox("Data Selector")
+			self.frame.setLayout(self.grid)
+			self.overgrid = QGridLayout()
+			self.overgrid.addWidget(self.frame, 0, 0)
+			self.setLayout(self.overgrid)
+		else:
+			self.setLayout(self.grid)
+	
+	def _compare_datasets(self):
+		pass
+	def _load_selected(self):
+		pass
+	def _select_config(self):
+		pass
+	
+	def reanalyze(self):
+		
+		self.log.lowdebug(f"Reanalyzing DataSelectWidget's control settings.")
+
 class OutlierControlWidget(QWidget):
 	
-	def __init__(self, global_conditions:dict, log:LogPile, mdata:MasterData, replot_handle):
+	def __init__(self, global_conditions:dict, log:LogPile, mdata:MasterData, replot_handle, show_frame:bool=False):
 		super().__init__()
 		
 		self.gcond = global_conditions
@@ -360,13 +431,21 @@ class OutlierControlWidget(QWidget):
 		# self.grid.addWidget(self.zscore_label, 1, 0, alignment=QtCore.Qt.AlignmentFlag.AlignTop)
 		# self.grid.addWidget(self.zscore_edit, 1, 1, alignment=QtCore.Qt.AlignmentFlag.AlignTop)
 		self.grid.addItem(self.bottom_spacer, 3, 0)
-		self.setLayout(self.grid)
+		
+		if show_frame:
+			self.frame = QGroupBox("Outlier Control")
+			self.frame.setLayout(self.grid)
+			self.overgrid = QGridLayout()
+			self.overgrid.addWidget(self.frame, 0, 0)
+			self.setLayout(self.overgrid)
+		else:
+			self.setLayout(self.grid)
 		
 		self.reanalyze()
 		
 	def reanalyze(self):
 		
-		self.log.debug(f"Reanalyzing OutlierControlWidget's control settings.")
+		self.log.lowdebug(f"Reanalyzing OutlierControlWidget's control settings.")
 		
 		# Update enable/disable all 
 		self.gcond[GCOND_REMOVE_OUTLIERS] = self.enable_cb.isChecked()
@@ -1110,7 +1189,6 @@ class SParamSPDPlotWidget(TabPlotWidget):
 		
 		self.plot_is_current = True
 
-
 class HarmGenBiasDomainPlotWidget(TabPlotWidget):
 	
 	def __init__(self, global_conditions:dict, log:LogPile, mdata:MasterData):
@@ -1349,7 +1427,8 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.add_menu()
 		
 		# Make a controls widget
-		self.control_widget = OutlierControlWidget(self.gcond, self.log, self.mdata, self.plot_all)
+		self.control_widget = OutlierControlWidget(self.gcond, self.log, self.mdata, self.plot_all, show_frame=True)
+		self.dataselect_widget = DataSelectWidget(self.gcond, self.log, self.mdata, self.plot_all, show_frame=True)
 		
 		# Create tab widget
 		self.tab_widget_widgets = []
@@ -1375,8 +1454,9 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.grid.addWidget(self.control_widget, 0, 0)
 		self.grid.addWidget(self.tab_widget, 0, 1)
 		self.grid.addWidget(self.slider_box, 0, 2)
-		self.grid.addWidget(self.active_file_label, 1, 1, 1, 2)
-		self.grid.addWidget(self.active_spfile_label, 2, 1, 1, 2)
+		self.grid.addWidget(self.dataselect_widget, 1, 0, 1, 3)
+		self.grid.addWidget(self.active_file_label, 2, 1, 1, 2)
+		self.grid.addWidget(self.active_spfile_label, 3, 1, 1, 2)
 		
 		# Set the central widget
 		central_widget = QtWidgets.QWidget()
@@ -1702,10 +1782,9 @@ class HGA1Window(QtWidgets.QMainWindow):
 			self.set_gcond('sparam_show_sum', self.sparam_showsum_act.isChecked())
 			self.plot_all()
 
-
-
 master_data = MasterData()
 app = QtWidgets.QApplication(sys.argv)
+app.setStyle(f"Fusion")
 
 chicago_ff = get_font("./assets/Chicago.ttf")
 menlo_ff = get_font("./assets/Menlo-Regular.ttf")
@@ -1716,3 +1795,6 @@ QWidget {{
 
 w = HGA1Window(log, master_data, app)
 app.exec()
+
+
+
