@@ -11,12 +11,6 @@
 			"chip_model": "Model-C",
 			"track": 2,
 			"path": ["ARC0*", "RP-22*", "Data", "SMC-B*", "*R4C4*", "Track 2*"]
-		},
-		{
-			"chip_name": "R4C4",
-			"chip_model": "Model-C",
-			"track": 3,
-			"path": ["ARC0*", "RP-22*", "Data", "SMC-B*", "*R4C4*", "Track 3*"]
 		}
 	]
 }

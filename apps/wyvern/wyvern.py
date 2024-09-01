@@ -58,9 +58,14 @@ log.set_terminal_level("LOWDEBUG")
 parser = argparse.ArgumentParser()
 # parser.add_argument('-h', '--help')
 parser.add_argument('-s', '--subtle', help="Run without naming.", action='store_true')
+parser.add_argument('-d', '--detail', help="Show log details.", action='store_true')
+parser.add_argument('--autopathdetails', help="Print additional information for debugging which paths are found.", action='store_true')
 cli_args = parser.parse_args()
 # print(cli_args)
 # print(cli_args.subtle)
+
+if cli_args.detail:
+	log.str_format.show_detail = True
 
 def get_font(font_ttf_path):
 	
@@ -81,9 +86,18 @@ class MasterData:
 	''' Class to represent all the data analyzed by the application'''
 	
 	def __init__(self, log:LogPile):
+		
+		# Reinitialize all data as clear
 		self.clear_all()
 		
+		self.data_sources = {}
 		self.log = log
+		
+		# Mask of points to eliminate as outliers
+		self.outlier_mask = []
+		
+		# Find data sources
+		self.load_conf(os.path.join(".", "assets", "wyv_conf.json"))
 		
 		t0 = time.time()
 		self.import_hdf()
@@ -92,21 +106,35 @@ class MasterData:
 		t2 = time.time()
 		self.log.debug(f"HDF load time = {rd(t1-t0)} s, S2P load time = {t2-t1} s.")
 		
-		self.load_conf("./assets/wyv_conf.json")
 		
-		self.outlier_mask = []
 	
 	def load_conf(self, conf_file:str):
 		
 		# Load json file
 		try:
 			with open(conf_file, 'r') as fh:
-				jdata = json.load(fh)
+				self.data_sources = json.load(fh)
 		except Exception as e:
-			self.log.critical(f"Failed to load configuration file.")
+			self.log.critical(f"Failed to load configuration file.", detail=f"{e}")
 			return False
 		
-		# Interpret jdata struct
+		# Evaluate each source
+		for dss in self.data_sources['data_sources']:
+			
+			#For each entry, evaluate wildcards and find actual path
+			full_path = get_general_path(dss['path'], dos_id_folder=True, print_details=cli_args.autopathdetails)
+			
+			# Write log
+			name = dss['chip_name']
+			model = dss['chip_model']
+			track = dss['track']
+			if full_path is None:
+				self.log.error(f"Failed to find data source for chip {name}, track {track} ({model}).")
+			else:
+				self.log.debug(f"Data source identified for chip {name}, track {track} ({model}).", detail=f"Path = {full_path}")
+			
+			# Save full path string, or None for error
+			dss['full_path'] = full_path
 		
 		return True
 	
