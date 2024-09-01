@@ -80,13 +80,36 @@ def get_font(font_ttf_path):
 class MasterData:
 	''' Class to represent all the data analyzed by the application'''
 	
-	def __init__(self):
+	def __init__(self, log:LogPile):
 		self.clear_all()
+		
+		self.log = log
+		
+		t0 = time.time()
 		self.import_hdf()
+		t1 = time.time()
 		self.import_sparam()
+		t2 = time.time()
+		self.log.debug(f"HDF load time = {rd(t1-t0)} s, S2P load time = {t2-t1} s.")
+		
+		self.load_conf("./assets/wyv_conf.json")
 		
 		self.outlier_mask = []
+	
+	def load_conf(self, conf_file:str):
 		
+		# Load json file
+		try:
+			with open(conf_file, 'r') as fh:
+				jdata = json.load(fh)
+		except Exception as e:
+			self.log.critical(f"Failed to load configuration file.")
+			return False
+		
+		# Interpret jdata struct
+		
+		return True
+	
 	def clear_all(self):
 		
 		# Names of files loaded
@@ -187,7 +210,7 @@ class MasterData:
 		# Read HDF5 File
 
 
-		print("Loading file contents into memory")
+		self.log.lowdebug("Loading file contents into memory")
 		# log.info("Loading file contents into memory")
 
 		t_hdfr_0 = time.time()
@@ -323,15 +346,15 @@ class DataSelectWidget(QWidget):
 		self.dset_select.insertItem(0, "MP3a_t4_20Aug2024-r1")
 		self.dset_select.setFixedSize(QSize(250, 100))
 		
-		self.compare_btn = QPushButton("Compare Datasets")
+		self.compare_btn = QPushButton("Compare\nDatasets")
 		self.compare_btn.setFixedSize(100, 40)
 		self.compare_btn.clicked.connect(self._compare_datasets)
 		
-		self.loadset_btn = QPushButton("Load Selected")
+		self.loadset_btn = QPushButton("Load\nSelected")
 		self.loadset_btn.setFixedSize(100, 40)
 		self.loadset_btn.clicked.connect(self._load_selected)
 		
-		self.loadconf_btn = QPushButton("Load Config File")
+		self.loadconf_btn = QPushButton("Load Config\nFile")
 		self.loadconf_btn.setFixedSize(100, 40)
 		self.loadconf_btn.clicked.connect(self._select_config)
 		
@@ -1782,7 +1805,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 			self.set_gcond('sparam_show_sum', self.sparam_showsum_act.isChecked())
 			self.plot_all()
 
-master_data = MasterData()
+master_data = MasterData(log)
 app = QtWidgets.QApplication(sys.argv)
 app.setStyle(f"Fusion")
 
