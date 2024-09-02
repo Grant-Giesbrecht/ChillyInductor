@@ -1,16 +1,50 @@
 {
-	"data_sources": [
+	"chip_models": [
+		{
+			"model": "A",
+			"width_um": 2.5,
+			"ids": ["R0C1", "R0C3"]
+		},
+		{
+			"model": "B",
+			"width_um": 3,
+			"ids": []
+		}
+		{
+			"model": "C",
+			"width_um": 3.3,
+			"ids": ["R4C4"]
+		},
+		{
+			"model": "D",
+			"width_um": 3.7,
+			"ids": ["R3C1", "R3C3"]
+		},
+		{
+			"model": "E",
+			"width_um": 4.4,
+			"ids": ["R4C1", "R4C3"]
+		}
+	],
+	"sweep_sources": [
 		{
 			"chip_name": "R4C4",
-			"chip_model": "Model-C",
 			"track": "Track 1   (4 mm)",
 			"path": ["ARC0*", "RP-22*", "Data", "SMC-B*", "*R4C4*", "Track 1*"]
 		},
 		{
 			"chip_name": "R4C4",
-			"chip_model": "Model-C",
 			"track": "Track 2  (43 mm)",
 			"path": ["ARC0*", "RP-22*", "Data", "SMC-B*", "*R4C4*", "Track 2*"]
+		}
+	],
+	"sparam_sources": [
+		{
+			"chip_name": "R4C4",
+			"track":"Track 1   (4 mm)",
+			"filepath": ["ARC0*", "RP-22*", "Data", "SMC-B*", "*R4C4*", "Track 1*", "VNA Traces", "Sparam_31July2024_-30dBm_R4C4T1_Wide.csv"],
+			"calibrated": false,
+			"calibration_file": ""
 		}
 	],
 	"wild_filt_default": "*MP3*"

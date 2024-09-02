@@ -84,6 +84,8 @@ def get_font(font_ttf_path):
 
 class MasterData:
 	''' Class to represent all the data analyzed by the application'''
+
+# class sweepDataSet:
 	
 	def __init__(self, log:LogPile):
 		
@@ -117,7 +119,7 @@ class MasterData:
 			return False
 		
 		# Evaluate each source
-		for dss in self.data_sources['data_sources']:
+		for dss in self.data_sources['sweep_sources']:
 			
 			#For each entry, evaluate wildcards and find actual path
 			full_path = get_general_path(dss['path'], dos_id_folder=True, print_details=cli_args.autopathdetails)
@@ -440,7 +442,7 @@ class DataSelectWidget(QWidget):
 		
 		# Get list of chips
 		chips = []
-		for ds in self.mdata.data_sources['data_sources']:
+		for ds in self.mdata.data_sources['sweep_sources']:
 			if ds['chip_name'] not in chips:
 				chips.append(ds['chip_name'])
 				
@@ -468,7 +470,7 @@ class DataSelectWidget(QWidget):
 		
 		# Repopulate tracks
 		tracks = []
-		for ds in self.mdata.data_sources['data_sources']:
+		for ds in self.mdata.data_sources['sweep_sources']:
 			
 			# Skip wrong chips
 			if ds['chip_name'] != item_name:
@@ -498,7 +500,7 @@ class DataSelectWidget(QWidget):
 		
 		# Find matching full path
 		full_path = None
-		for ds in self.mdata.data_sources['data_sources']:
+		for ds in self.mdata.data_sources['sweep_sources']:
 			
 			# Skip wrong chips
 			if ds['chip_name'] != chip_item.text():
