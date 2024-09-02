@@ -357,8 +357,16 @@ class DataSelectWidget(QWidget):
 		self.log = log
 		self.gcond = global_conditions
 		
+		##------------ Make filter box ---------------
+		
+		self.filt_box = QGroupBox()
+		self.filt_box.setStyleSheet("QGroupBox{border:0;}")
+		self.filt_box.setFixedWidth(170)
+		
 		self.en_wild_filt_cb = QCheckBox("Enable Filter")
 		self.en_wild_filt_cb.stateChanged.connect(self.reinit_file_list)
+		
+		self.filt_label1 = QLabel("Filter text:")
 		
 		self.wild_filt_edit = QLineEdit()
 		try:
@@ -367,7 +375,18 @@ class DataSelectWidget(QWidget):
 			self.wild_filt_edit.setText("")
 		self.wild_filt_edit.editingFinished.connect(self.reinit_file_list)
 		self.wild_filt_edit.setFixedWidth(150)
-			
+		
+		self.filt_label2 = QLabel("(* = wildcard)")
+		
+		self.filt_boxgrid = QGridLayout()
+		self.filt_boxgrid.addWidget(self.en_wild_filt_cb, 0, 0)
+		self.filt_boxgrid.addWidget(self.filt_label1, 1, 0)
+		self.filt_boxgrid.addWidget(self.wild_filt_edit, 2, 0)
+		self.filt_boxgrid.addWidget(self.filt_label2, 3, 0)
+		self.filt_box.setLayout(self.filt_boxgrid)
+		
+		##------------ End filter box ---------------
+		
 		self.chip_select = QListWidget()
 		self.chip_select.setFixedSize(QSize(150, 100))
 		self.chip_select.itemClicked.connect(self.reinit_track_list)
@@ -380,7 +399,7 @@ class DataSelectWidget(QWidget):
 		self.dset_select.setFixedSize(QSize(350, 100))
 		
 		self.compare_btn = QPushButton("Compare\nDatasets", icon=QIcon("./assets/compare_src.png"))
-		self.compare_btn.setFixedSize(120, 40)
+		self.compare_btn.setFixedSize(130, 40)
 		self.compare_btn.clicked.connect(self._compare_datasets)
 		self.compare_btn.setIconSize(QSize(48, 32))
 		
@@ -394,7 +413,7 @@ class DataSelectWidget(QWidget):
 		self.loadset_btn.setIconSize(QSize(48, 32))
 		
 		self.loadconf_btn = QPushButton("Load Config\nFile", icon=QIcon("./assets/pick_conf.png"))
-		self.loadconf_btn.setFixedSize(120, 40)
+		self.loadconf_btn.setFixedSize(130, 40)
 		self.loadconf_btn.clicked.connect(self._load_conf_file)
 		self.loadconf_btn.setIconSize(QSize(48, 32))
 		
@@ -412,8 +431,7 @@ class DataSelectWidget(QWidget):
 		# self.grid.addWidget(self.loadset_btn, 0, 5)
 		# self.grid.addItem(self.bottom_spacer, 3, 0)
 		
-		self.grid.addWidget(self.en_wild_filt_cb, 0, 0)
-		self.grid.addWidget(self.wild_filt_edit, 1, 0)
+		self.grid.addWidget(self.filt_box, 0, 0, 2, 1)
 		self.grid.addWidget(self.compare_btn, 0, 1)
 		self.grid.addWidget(self.loadconf_btn, 1, 1)
 		self.grid.addWidget(self.chip_select, 0, 2, 2, 1)
