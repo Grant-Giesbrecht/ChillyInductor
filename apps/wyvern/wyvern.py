@@ -126,12 +126,11 @@ class MasterData:
 			
 			# Write log
 			name = dss['chip_name']
-			model = dss['chip_model']
 			track = dss['track']
 			if full_path is None:
-				self.log.error(f"Failed to find data source for chip {name}, track {track} ({model}).")
+				self.log.error(f"Failed to find data source for chip {name}, track {track}.")
 			else:
-				self.log.debug(f"Data source identified for chip {name}, track {track} ({model}).", detail=f"Path = {full_path}")
+				self.log.debug(f"Data source identified for chip {name}, track {track}.", detail=f"Path = {full_path}")
 			
 			# Save full path string, or None for error
 			dss['full_path'] = full_path
@@ -380,17 +379,24 @@ class DataSelectWidget(QWidget):
 		self.dset_select = QListWidget()
 		self.dset_select.setFixedSize(QSize(350, 100))
 		
-		self.compare_btn = QPushButton("Compare\nDatasets")
-		self.compare_btn.setFixedSize(100, 40)
+		self.compare_btn = QPushButton("Compare\nDatasets", icon=QIcon("./assets/compare_src.png"))
+		self.compare_btn.setFixedSize(120, 40)
 		self.compare_btn.clicked.connect(self._compare_datasets)
+		self.compare_btn.setIconSize(QSize(48, 32))
 		
-		self.loadset_btn = QPushButton("Load\nSelected")
-		self.loadset_btn.setFixedSize(100, 40)
+		# bottomBtn = QPushButton(, parent=self)
+		# bottomBtn.setFixedSize(100, 40)
+		# bottomBtn.setIconSize(QSize(100, 40))
+		
+		self.loadset_btn = QPushButton("Load\nSelected", icon=QIcon("./assets/reload_data.png"))
+		self.loadset_btn.setFixedSize(120, 40)
 		self.loadset_btn.clicked.connect(self._load_selected)
+		self.loadset_btn.setIconSize(QSize(48, 32))
 		
-		self.loadconf_btn = QPushButton("Load Config\nFile")
-		self.loadconf_btn.setFixedSize(100, 40)
+		self.loadconf_btn = QPushButton("Load Config\nFile", icon=QIcon("./assets/pick_conf.png"))
+		self.loadconf_btn.setFixedSize(120, 40)
 		self.loadconf_btn.clicked.connect(self._load_conf_file)
+		self.loadconf_btn.setIconSize(QSize(48, 32))
 		
 		self.bottom_spacer = QSpacerItem(10, 10, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
 		self.right_spacer = QSpacerItem(10, 10, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
