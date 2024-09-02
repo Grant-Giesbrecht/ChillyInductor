@@ -533,6 +533,13 @@ class DataSelectWidget(QWidget):
 			if fn[-4:].lower() != ".hdf":
 				continue
 			
+			# Handle wildcard match filtering
+			if self.en_wild_filt_cb.isChecked():
+				
+				# Skip file if doesn't match
+				if wildcard([fn], self.wild_filt_edit.text()) is None:
+					continue
+			
 			self.dset_select.addItem(fn)
 		
 	def _compare_datasets(self):
