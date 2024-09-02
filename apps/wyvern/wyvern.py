@@ -97,7 +97,7 @@ class MasterData:
 		self.outlier_mask = []
 		
 		# Find data sources
-		self.load_conf(os.path.join(".", "assets", "wyv_conf.json"))
+		self.load_conf(os.path.join(".", "wyv_conf.json"))
 		
 		t0 = time.time()
 		self.import_hdf()
@@ -1714,7 +1714,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 		
 		
 		self.freq_slider_hdrlabel = QtWidgets.QLabel()
-		self.freq_slider_hdrlabel.setText("Frequency (GHz)")
+		self.freq_slider_hdrlabel.setText("Frequency\n(GHz)")
 		
 		self.freq_slider_vallabel = QtWidgets.QLabel()
 		self.freq_slider_vallabel.setText("VOID (GHz)")
@@ -1729,7 +1729,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.freq_slider.setSliderPosition(0)
 		
 		self.pwr_slider_hdrlabel = QtWidgets.QLabel()
-		self.pwr_slider_hdrlabel.setText("Power (dBm)")
+		self.pwr_slider_hdrlabel.setText("Power\n(dBm)")
 		
 		self.pwr_slider_vallabel = QtWidgets.QLabel()
 		self.pwr_slider_vallabel.setText("VOID (dBm)")
@@ -1744,7 +1744,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.pwr_slider.setSliderPosition(0)
 		
 		self.bias_slider_hdrlabel = QtWidgets.QLabel()
-		self.bias_slider_hdrlabel.setText("Bias (mA)")
+		self.bias_slider_hdrlabel.setText("Bias\n(mA)")
 		
 		self.bias_slider_vallabel = QtWidgets.QLabel()
 		self.bias_slider_vallabel.setText("VOID (mA)")
