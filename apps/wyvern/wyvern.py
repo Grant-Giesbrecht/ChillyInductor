@@ -8,7 +8,7 @@ from pylogfile.base import *
 from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtGui import QAction, QActionGroup, QDoubleValidator, QIcon, QFontDatabase, QFont
 from PyQt6.QtCore import Qt, QSize
-from PyQt6.QtWidgets import QWidget, QTabWidget, QLabel, QGridLayout, QLineEdit, QCheckBox, QSpacerItem, QSizePolicy, QMainWindow, QSlider, QPushButton, QGroupBox, QListWidget
+from PyQt6.QtWidgets import QWidget, QTabWidget, QLabel, QGridLayout, QLineEdit, QCheckBox, QSpacerItem, QSizePolicy, QMainWindow, QSlider, QPushButton, QGroupBox, QListWidget, QFileDialog
 
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg, NavigationToolbar2QT
 from matplotlib.figure import Figure
@@ -106,8 +106,6 @@ class MasterData:
 		t2 = time.time()
 		self.log.debug(f"HDF load time = {rd(t1-t0)} s, S2P load time = {t2-t1} s.")
 		
-		
-	
 	def load_conf(self, conf_file:str):
 		
 		# Load json file
@@ -354,24 +352,29 @@ class DataSelectWidget(QWidget):
 	
 	def __init__(self, global_conditions:dict, log:LogPile, mdata:MasterData, replot_handle, show_frame:bool=False):
 		super().__init__()
+		self.mdata = mdata
+		self.log = log
+		self.gcond = global_conditions
 		
 		self.chip_select = QListWidget()
-		self.chip_select.insertItem(0, "R4C3 Model D")
-		self.chip_select.insertItem(0, "R4C4 Model C")
-		self.chip_select.insertItem(0, "R2C3 Model B")
-		self.chip_select.insertItem(0, "R2C2 Model A")
+		# self.chip_select.insertItem(0, "R4C3 Model D")
+		# self.chip_select.insertItem(0, "R4C4 Model C")
+		# self.chip_select.insertItem(0, "R2C3 Model B")
+		# self.chip_select.insertItem(0, "R2C2 Model A")
 		self.chip_select.setFixedSize(QSize(150, 100))
+		self.chip_select.itemClicked.connect(self.reinit_track_list)
 		
 		self.track_select = QListWidget()
-		self.track_select.insertItem(0, "Track 1,   4 mm")
-		self.track_select.insertItem(0, "Track 2,  43 mm")
-		self.track_select.insertItem(0, "Track 3. 454 mm")
+		# self.track_select.insertItem(0, "Track 1,   4 mm")
+		# self.track_select.insertItem(0, "Track 2,  43 mm")
+		# self.track_select.insertItem(0, "Track 3. 454 mm")
 		self.track_select.setFixedSize(QSize(150, 100))
+		self.track_select.itemClicked.connect(self.reinit_file_list)
 		
 		self.dset_select = QListWidget()
-		self.dset_select.insertItem(0, "MP3a_t2_16Aug2024-r1")
-		self.dset_select.insertItem(0, "MP3a_t3_18Aug2024-r1")
-		self.dset_select.insertItem(0, "MP3a_t4_20Aug2024-r1")
+		# self.dset_select.insertItem(0, "MP3a_t2_16Aug2024-r1")
+		# self.dset_select.insertItem(0, "MP3a_t3_18Aug2024-r1")
+		# self.dset_select.insertItem(0, "MP3a_t4_20Aug2024-r1")
 		self.dset_select.setFixedSize(QSize(250, 100))
 		
 		self.compare_btn = QPushButton("Compare\nDatasets")
@@ -384,7 +387,7 @@ class DataSelectWidget(QWidget):
 		
 		self.loadconf_btn = QPushButton("Load Config\nFile")
 		self.loadconf_btn.setFixedSize(100, 40)
-		self.loadconf_btn.clicked.connect(self._select_config)
+		self.loadconf_btn.clicked.connect(self._load_conf_file)
 		
 		self.bottom_spacer = QSpacerItem(10, 10, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
 		self.right_spacer = QSpacerItem(10, 10, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
@@ -409,12 +412,120 @@ class DataSelectWidget(QWidget):
 			self.setLayout(self.overgrid)
 		else:
 			self.setLayout(self.grid)
+		
+		self.reinit_chip_list()
+		
+	def _load_conf_file(self):
+		
+		openfile, __ = QFileDialog.getOpenFileName()
+		self.mdata.load_conf(openfile)
+		
+		self.reinit_chip_list()
+		
+	def reinit_chip_list(self):
+		
+		self.chip_select.clear()
+		
+		# Get list of chips
+		chips = []
+		for ds in self.mdata.data_sources['data_sources']:
+			if ds['chip_name'] not in chips:
+				chips.append(ds['chip_name'])
+				
+				# Update widget
+				self.chip_select.addItem(ds['chip_name'])
+		
+		self.chip_select.setCurrentRow(0)
+		
+		# If chips exist, pick on and reinit track list
+		if len(chips) > 0:
+			self.chip_select.setCurrentRow(0)
+			self.reinit_track_list()
 	
+	def reinit_track_list(self):
+		
+		# Clear tracks
+		self.track_select.clear()
+		
+		# Get selected chip
+		item = self.chip_select.currentItem()
+		if item is None:
+			return
+		
+		item_name = item.text()
+		
+		# Repopulate tracks
+		tracks = []
+		for ds in self.mdata.data_sources['data_sources']:
+			
+			# Skip wrong chips
+			if ds['chip_name'] != item_name:
+				continue
+			
+			if ds['track'] not in tracks:
+				tracks.append(ds['track'])
+				self.track_select.addItem(ds['track'])
+		
+		# If tracks exist, reinit file list
+		if len(tracks) > 0:
+			self.chip_select.setCurrentRow(0)
+			self.reinit_file_list()
+	
+	def reinit_file_list(self):
+		
+		# Clear file list
+		self.dset_select.clear()
+		
+		# Get selected chip and track
+		chip_item = self.chip_select.currentItem()
+		if chip_item is None:
+			return
+		track_item = self.track_select.currentItem()
+		if track_item is None:
+			return
+		
+		# Find matching full path
+		full_path = None
+		for ds in self.mdata.data_sources['data_sources']:
+			
+			# Skip wrong chips
+			if ds['chip_name'] != chip_item.text():
+				continue
+			
+			# Skip wrong tracks
+			if ds['track'] != track_item.text():
+				continue
+			
+			full_path = ds['full_path']
+		
+		# Abort if no path appears
+		if full_path is None:
+			self.log.error(f"Path to data directory not found!")
+			return
+		
+		# Get list of files in directory
+		file_list = [f for f in os.listdir(full_path) if os.path.isfile(os.path.join(full_path, f))]
+		
+		# Scan over directory, add all matching files
+		for fn in file_list:
+			
+			# Skip files with no extension, or double extensions
+			if fn.count('.') != 1:
+				continue
+			
+			# Skip files with names too short
+			if len(fn) < 5:
+				continue
+			
+			# Check extension
+			if fn[-4:].lower() != ".hdf":
+				continue
+			
+			self.dset_select.addItem(fn)
+		
 	def _compare_datasets(self):
 		pass
 	def _load_selected(self):
-		pass
-	def _select_config(self):
 		pass
 	
 	def reanalyze(self):

@@ -3,13 +3,13 @@
 		{
 			"chip_name": "R4C4",
 			"chip_model": "Model-C",
-			"track": 1,
+			"track": "Track 1  (4 mm)",
 			"path": ["ARC0*", "RP-22*", "Data", "SMC-B*", "*R4C4*", "Track 1*"]
 		},
 		{
 			"chip_name": "R4C4",
 			"chip_model": "Model-C",
-			"track": 2,
+			"track": "Track 2 (43 mm)",
 			"path": ["ARC0*", "RP-22*", "Data", "SMC-B*", "*R4C4*", "Track 2*"]
 		}
 	]
