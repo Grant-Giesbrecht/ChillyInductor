@@ -356,26 +356,27 @@ class DataSelectWidget(QWidget):
 		self.log = log
 		self.gcond = global_conditions
 		
+		self.en_wild_filt_cb = QCheckBox("Enable Filter")
+		self.en_wild_filt_cb.stateChanged.connect(self.reinit_file_list)
+		
+		self.wild_filt_edit = QLineEdit()
+		try:
+			self.wild_filt_edit.setText(self.mdata.data_sources["wild_filt_default"])
+		except:
+			self.wild_filt_edit.setText("")
+		self.wild_filt_edit.editingFinished.connect(self.reinit_file_list)
+		self.wild_filt_edit.setFixedWidth(150)
+			
 		self.chip_select = QListWidget()
-		# self.chip_select.insertItem(0, "R4C3 Model D")
-		# self.chip_select.insertItem(0, "R4C4 Model C")
-		# self.chip_select.insertItem(0, "R2C3 Model B")
-		# self.chip_select.insertItem(0, "R2C2 Model A")
 		self.chip_select.setFixedSize(QSize(150, 100))
 		self.chip_select.itemClicked.connect(self.reinit_track_list)
 		
 		self.track_select = QListWidget()
-		# self.track_select.insertItem(0, "Track 1,   4 mm")
-		# self.track_select.insertItem(0, "Track 2,  43 mm")
-		# self.track_select.insertItem(0, "Track 3. 454 mm")
 		self.track_select.setFixedSize(QSize(150, 100))
 		self.track_select.itemClicked.connect(self.reinit_file_list)
 		
 		self.dset_select = QListWidget()
-		# self.dset_select.insertItem(0, "MP3a_t2_16Aug2024-r1")
-		# self.dset_select.insertItem(0, "MP3a_t3_18Aug2024-r1")
-		# self.dset_select.insertItem(0, "MP3a_t4_20Aug2024-r1")
-		self.dset_select.setFixedSize(QSize(250, 100))
+		self.dset_select.setFixedSize(QSize(350, 100))
 		
 		self.compare_btn = QPushButton("Compare\nDatasets")
 		self.compare_btn.setFixedSize(100, 40)
@@ -393,16 +394,27 @@ class DataSelectWidget(QWidget):
 		self.right_spacer = QSpacerItem(10, 10, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 		
 		self.grid = QGridLayout()
-		self.grid.addItem(self.right_spacer, 0, 0, 2, 1)
-		self.grid.addWidget(self.chip_select, 0, 1, 2, 1)
-		self.grid.addWidget(self.track_select, 0, 2, 2, 1)
-		self.grid.addWidget(self.dset_select, 0, 3, 2, 1)
-		self.grid.addWidget(self.compare_btn, 0, 4)
-		self.grid.addWidget(self.loadconf_btn, 1, 4)
+		
+		# self.grid.addItem(self.right_spacer, 0, 0, 2, 1)
+		# self.grid.addWidget(self.chip_select, 0, 1, 2, 1)
+		# self.grid.addWidget(self.track_select, 0, 2, 2, 1)
+		# self.grid.addWidget(self.dset_select, 0, 3, 2, 1)
+		# self.grid.addWidget(self.compare_btn, 0, 4)
+		# self.grid.addWidget(self.loadconf_btn, 1, 4)
+		# self.grid.addWidget(self.loadset_btn, 0, 5)
+		# self.grid.addItem(self.bottom_spacer, 3, 0)
+		
+		self.grid.addWidget(self.en_wild_filt_cb, 0, 0)
+		self.grid.addWidget(self.wild_filt_edit, 1, 0)
+		self.grid.addWidget(self.compare_btn, 0, 1)
+		self.grid.addWidget(self.loadconf_btn, 1, 1)
+		self.grid.addWidget(self.chip_select, 0, 2, 2, 1)
+		self.grid.addWidget(self.track_select, 0, 3, 2, 1)
+		self.grid.addWidget(self.dset_select, 0, 4, 2, 1)
+		
 		self.grid.addWidget(self.loadset_btn, 0, 5)
-		# # self.grid.addWidget(self.zscore_label, 1, 0, alignment=QtCore.Qt.AlignmentFlag.AlignTop)
-		# # self.grid.addWidget(self.zscore_edit, 1, 1, alignment=QtCore.Qt.AlignmentFlag.AlignTop)
 		self.grid.addItem(self.bottom_spacer, 3, 0)
+		self.grid.addItem(self.right_spacer, 0, 5, 2, 1)
 		
 		if show_frame:
 			self.frame = QGroupBox("Data Selector")
@@ -468,7 +480,7 @@ class DataSelectWidget(QWidget):
 		
 		# If tracks exist, reinit file list
 		if len(tracks) > 0:
-			self.chip_select.setCurrentRow(0)
+			self.track_select.setCurrentRow(0)
 			self.reinit_file_list()
 	
 	def reinit_file_list(self):
