@@ -42,7 +42,22 @@
 		{
 			"chip_name": "R4C4",
 			"track":"Track 1   (4 mm)",
-			"filepath": ["ARC0*", "RP-22*", "Data", "SMC-B*", "*R4C4*", "Track 1*", "VNA Traces", "Sparam_31July2024_-30dBm_R4C4T1_Wide.csv"],
+			"sparam_set_name": "R4C4-T1 Uncalibrated | C",
+			"cryostat_file": ["ARC0*", "RP-22*", "Data", "SMC-B*", "*R4C4*", "Track 1*", "VNA Traces", "Sparam_31July2024_-30dBm_R4C4T1_Wide.csv"],
+			"biastee_in_file": [],
+			"biastee_out_file": [],
+			"through_file": [],
+			"calibrated": false,
+			"calibration_file": ""
+		},
+		{
+			"chip_name": "R4C4",
+			"track":"Track 2  (43 mm)",
+			"sparam_set_name": "R4C4-T2 Calibrated | CIOT",
+			"cryostat_file": ["ARC0*", "RP-22*", "Data", "SMC-B*", "*R4C4*", "Track 2*", "*Cal_and_unCal", "Caled_Dev*", "*Ch2ToLeft", "PRF-30dBm"],
+			"biastee_in_file": ["ARC0*", "RP-22*", "Data", "SMC-B*", "*R4C4*", "Track 2*", "*Cal_and_unCal", "Caled_Dev*", "PRF-30dBm"],
+			"biastee_out_file": [],
+			"through_file": [],
 			"calibrated": false,
 			"calibration_file": ""
 		}

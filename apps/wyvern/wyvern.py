@@ -6,7 +6,7 @@ from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from pylogfile.base import *
 
 from PyQt6 import QtCore, QtGui, QtWidgets
-from PyQt6.QtGui import QAction, QActionGroup, QDoubleValidator, QIcon, QFontDatabase, QFont
+from PyQt6.QtGui import QAction, QActionGroup, QDoubleValidator, QIcon, QFontDatabase, QFont, QPixmap
 from PyQt6.QtCore import Qt, QSize
 from PyQt6.QtWidgets import QWidget, QTabWidget, QLabel, QGridLayout, QLineEdit, QCheckBox, QSpacerItem, QSizePolicy, QMainWindow, QSlider, QPushButton, QGroupBox, QListWidget, QFileDialog
 
@@ -26,7 +26,7 @@ from abc import abstractmethod, ABC
 import argparse
 
 log = LogPile()
-log.set_terminal_level("LOWDEBUG")
+log.set_terminal_level("DEBUG")
 
 # TODO: Important
 #
@@ -81,45 +81,38 @@ def get_font(font_ttf_path):
 # chicago_ff = get_font("./assets/Chicago.ttf")
 # chicago_12 = QFont(chicago_ff, 12)
 
-
-class MasterData:
-	''' Class to represent all the data analyzed by the application'''
-
-# class sweepDataSet:
+class DataLoadingManager:
+	''' Class from which MasterData populates itself. Reads data from disk when neccesary. Stores
+	both S-parameter data and HDF sweep data.'''
 	
-	def __init__(self, log:LogPile):
+	def __init__(self, log:LogPile, conf_file:str=None):
 		
-		# Reinitialize all data as clear
-		self.clear_all()
-		
-		self.data_sources = {}
 		self.log = log
 		
-		# Mask of points to eliminate as outliers
-		self.outlier_mask = []
+		# Get conf data
+		self.data_conf = {}
+		if conf_file is None:
+			conf_file = os.path.join(".", "wyv_conf.json")
+		self.load_conf(conf_file)
 		
-		# Find data sources
-		self.load_conf(os.path.join(".", "wyv_conf.json"))
+		# Dictionary s.t. key=filename, value=dict of data
+		hdf_data = {}
 		
-		t0 = time.time()
-		self.import_hdf()
-		t1 = time.time()
-		self.import_sparam()
-		t2 = time.time()
-		self.log.debug(f"HDF load time = {rd(t1-t0)} s, S2P load time = {t2-t1} s.")
-		
+		# Dictionary s.t. key=filename, value = dict of data
+		sparam_data = {}
+	
 	def load_conf(self, conf_file:str):
 		
 		# Load json file
 		try:
 			with open(conf_file, 'r') as fh:
-				self.data_sources = json.load(fh)
+				self.data_conf = json.load(fh)
 		except Exception as e:
 			self.log.critical(f"Failed to load configuration file.", detail=f"{e}")
 			return False
 		
 		# Evaluate each source
-		for dss in self.data_sources['sweep_sources']:
+		for dss in self.data_conf['sweep_sources']:
 			
 			#For each entry, evaluate wildcards and find actual path
 			full_path = get_general_path(dss['path'], dos_id_folder=True, print_details=cli_args.autopathdetails)
@@ -136,6 +129,56 @@ class MasterData:
 			dss['full_path'] = full_path
 		
 		return True
+
+class MasterData:
+	''' Class to represent the data currently analyzed/plotted by the application'''
+	
+	def __init__(self, log:LogPile, dlm:DataLoadingManager):
+		
+		# Reinitialize all data as clear
+		self.clear_all()
+
+		self.log = log
+		self.dlm = dlm
+		
+		# Mask of points to eliminate as outliers
+		self.outlier_mask = []
+		
+		t0 = time.time()
+		self.import_hdf()
+		t1 = time.time()
+		self.import_sparam()
+		t2 = time.time()
+		self.log.debug(f"HDF load time = {rd(t1-t0)} s, S2P load time = {t2-t1} s.")
+		
+	# def load_conf(self, conf_file:str):
+		
+	# 	# Load json file
+	# 	try:
+	# 		with open(conf_file, 'r') as fh:
+	# 			self.dlm.data_conf = json.load(fh)
+	# 	except Exception as e:
+	# 		self.log.critical(f"Failed to load configuration file.", detail=f"{e}")
+	# 		return False
+		
+	# 	# Evaluate each source
+	# 	for dss in self.dlm.data_conf['sweep_sources']:
+			
+	# 		#For each entry, evaluate wildcards and find actual path
+	# 		full_path = get_general_path(dss['path'], dos_id_folder=True, print_details=cli_args.autopathdetails)
+			
+	# 		# Write log
+	# 		name = dss['chip_name']
+	# 		track = dss['track']
+	# 		if full_path is None:
+	# 			self.log.error(f"Failed to find data source for chip {name}, track {track}.")
+	# 		else:
+	# 			self.log.debug(f"Data source identified for chip {name}, track {track}.", detail=f"Path = {full_path}")
+			
+	# 		# Save full path string, or None for error
+	# 		dss['full_path'] = full_path
+		
+	# 	return True
 	
 	def clear_all(self):
 		
@@ -370,7 +413,7 @@ class DataSelectWidget(QWidget):
 		
 		self.wild_filt_edit = QLineEdit()
 		try:
-			self.wild_filt_edit.setText(self.mdata.data_sources["wild_filt_default"])
+			self.wild_filt_edit.setText(self.mdata.dlm.data_conf["wild_filt_default"])
 		except:
 			self.wild_filt_edit.setText("")
 		self.wild_filt_edit.editingFinished.connect(self.reinit_file_list)
@@ -387,21 +430,37 @@ class DataSelectWidget(QWidget):
 		
 		##------------ End filter box ---------------
 		
+		self.chip_select_label = QLabel("Chip:")
+		
 		self.chip_select = QListWidget()
-		self.chip_select.setFixedSize(QSize(150, 100))
+		self.chip_select.setFixedSize(QSize(75, 100))
 		self.chip_select.itemClicked.connect(self.reinit_track_list)
 		
+		self.track_select_label = QLabel("Track:")
+		
 		self.track_select = QListWidget()
-		self.track_select.setFixedSize(QSize(150, 100))
+		self.track_select.setFixedSize(QSize(120, 100))
 		self.track_select.itemClicked.connect(self.reinit_file_list)
+		
+		self.sweep_select_label = QLabel("Sweep:")
 		
 		self.dset_select = QListWidget()
 		self.dset_select.setFixedSize(QSize(350, 100))
+		
+		self.sparam_select_label = QLabel("S-Parameters:")
+		
+		self.sparam_select = QListWidget()
+		self.sparam_select.setFixedSize(QSize(350, 100))
 		
 		self.compare_btn = QPushButton("Compare\nDatasets", icon=QIcon("./assets/compare_src.png"))
 		self.compare_btn.setFixedSize(130, 40)
 		self.compare_btn.clicked.connect(self._compare_datasets)
 		self.compare_btn.setIconSize(QSize(48, 32))
+		
+		self.arrow_label = QLabel()
+		self.arrow_label.setPixmap(QPixmap("./assets/right_arrow.png").scaledToWidth(40))
+		# self.arrow_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter)
+		# self.arrow_label.setWindowIcon(QSize(20, 20))
 		
 		# bottomBtn = QPushButton(, parent=self)
 		# bottomBtn.setFixedSize(100, 40)
@@ -431,16 +490,26 @@ class DataSelectWidget(QWidget):
 		# self.grid.addWidget(self.loadset_btn, 0, 5)
 		# self.grid.addItem(self.bottom_spacer, 3, 0)
 		
-		self.grid.addWidget(self.filt_box, 0, 0, 2, 1)
-		self.grid.addWidget(self.compare_btn, 0, 1)
-		self.grid.addWidget(self.loadconf_btn, 1, 1)
-		self.grid.addWidget(self.chip_select, 0, 2, 2, 1)
-		self.grid.addWidget(self.track_select, 0, 3, 2, 1)
-		self.grid.addWidget(self.dset_select, 0, 4, 2, 1)
+		self.grid.addWidget(self.filt_box, 0, 0, 3, 1)
 		
-		self.grid.addWidget(self.loadset_btn, 0, 5)
-		self.grid.addItem(self.bottom_spacer, 3, 0)
-		self.grid.addItem(self.right_spacer, 0, 5, 2, 1)
+		self.grid.addWidget(self.compare_btn, 1, 1)
+		self.grid.addWidget(self.loadconf_btn, 2, 1)
+		
+		self.grid.addWidget(self.chip_select_label, 0, 2)
+		self.grid.addWidget(self.chip_select, 1, 2, 2, 1)
+		self.grid.addWidget(self.track_select_label, 0, 3)
+		self.grid.addWidget(self.track_select, 1, 3, 2, 1)
+		
+		self.grid.addWidget(self.arrow_label, 1, 4, alignment=QtCore.Qt.AlignmentFlag.AlignBottom)
+		
+		self.grid.addWidget(self.sweep_select_label, 0, 5)
+		self.grid.addWidget(self.dset_select, 1, 5, 2, 1)
+		self.grid.addWidget(self.sparam_select_label, 0, 6)
+		self.grid.addWidget(self.sparam_select, 1, 6, 2, 1)
+		
+		self.grid.addWidget(self.loadset_btn, 1, 7)
+		self.grid.addItem(self.bottom_spacer, 3, 0, 1, 9)
+		self.grid.addItem(self.right_spacer, 0, 8, 3, 1)
 		
 		if show_frame:
 			self.frame = QGroupBox("Data Selector")
@@ -456,7 +525,7 @@ class DataSelectWidget(QWidget):
 	def _load_conf_file(self):
 		
 		openfile, __ = QFileDialog.getOpenFileName()
-		self.mdata.load_conf(openfile)
+		self.mdata.dlm.load_conf(openfile)
 		
 		self.reinit_chip_list()
 		
@@ -466,7 +535,7 @@ class DataSelectWidget(QWidget):
 		
 		# Get list of chips
 		chips = []
-		for ds in self.mdata.data_sources['sweep_sources']:
+		for ds in self.mdata.dlm.data_conf['sweep_sources']:
 			if ds['chip_name'] not in chips:
 				chips.append(ds['chip_name'])
 				
@@ -494,7 +563,7 @@ class DataSelectWidget(QWidget):
 		
 		# Repopulate tracks
 		tracks = []
-		for ds in self.mdata.data_sources['sweep_sources']:
+		for ds in self.mdata.dlm.data_conf['sweep_sources']:
 			
 			# Skip wrong chips
 			if ds['chip_name'] != item_name:
@@ -524,7 +593,7 @@ class DataSelectWidget(QWidget):
 		
 		# Find matching full path
 		full_path = None
-		for ds in self.mdata.data_sources['sweep_sources']:
+		for ds in self.mdata.dlm.data_conf['sweep_sources']:
 			
 			# Skip wrong chips
 			if ds['chip_name'] != chip_item.text():
@@ -1989,7 +2058,8 @@ class HGA1Window(QtWidgets.QMainWindow):
 			self.set_gcond('sparam_show_sum', self.sparam_showsum_act.isChecked())
 			self.plot_all()
 
-master_data = MasterData(log)
+dlm = DataLoadingManager(log, conf_file=os.path.join(".", "wyv_conf.json"))
+master_data = MasterData(log, dlm)
 app = QtWidgets.QApplication(sys.argv)
 app.setStyle(f"Fusion")
 
