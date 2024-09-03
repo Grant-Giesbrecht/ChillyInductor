@@ -130,7 +130,16 @@ class DataLoadingManager:
 			dss['full_path'] = full_path
 		
 		return True
-
+	
+	def get_sweep(self, sweep_filename:str):
+		
+		# Load data from file if not already present
+		if sweep_filename not in self.sweep_data:
+			self.log.info(f"Loading sweep data from file: {sweep_filename}")
+			self.import_sweep_file(sweep_filename)
+		
+		return self.sweep_data[sweep_filename]
+	
 	def get_sparam(self, sp_filename:str):
 		
 		# Load data from file if not already present
@@ -139,22 +148,85 @@ class DataLoadingManager:
 			self.import_sparam_file(sp_filename)
 		
 		return self.sparam_data[sp_filename]
+	
+	def import_sweep_file(self, sweep_filename:str):
+		''' Imports sweep data into the DLM's sweep dict from file.'''
+		
+		##--------------------------------------------
+		# Read HDF5 File
+		
+		nd = {}
+		t_hdfr_0 = time.time()
+		with h5py.File(sweep_filename, 'r') as fh:
+			
+			# Read primary dataset
+			GROUP = 'dataset'
+			nd['freq_rf_GHz'] = fh[GROUP]['freq_rf_GHz'][()]
+			nd['power_rf_dBm'] = fh[GROUP]['power_rf_dBm'][()]
+			
+			nd['waveform_f_Hz'] = fh[GROUP]['waveform_f_Hz'][()]
+			nd['waveform_s_dBm'] = fh[GROUP]['waveform_s_dBm'][()]
+			nd['waveform_rbw_Hz'] = fh[GROUP]['waveform_rbw_Hz'][()]
+			
+			nd['MFLI_V_offset_V'] = fh[GROUP]['MFLI_V_offset_V'][()]
+			nd['requested_Idc_mA'] = fh[GROUP]['requested_Idc_mA'][()]
+			nd['raw_meas_Vdc_V'] = fh[GROUP]['raw_meas_Vdc_V'][()]
+			nd['Idc_mA'] = fh[GROUP]['Idc_mA'][()]
+			nd['detect_normal'] = fh[GROUP]['detect_normal'][()]
+			
+			nd['temperature_K'] = fh[GROUP]['temperature_K'][()]
 
+		##--------------------------------------------
+		# Generate Mixing Products lists
+
+		nd['rf1'] = spectrum_peak_list(nd['waveform_f_Hz'], nd['waveform_s_dBm'], nd['freq_rf_GHz']*1e9)
+		nd['rf2'] = spectrum_peak_list(nd['waveform_f_Hz'], nd['waveform_s_dBm'], nd['freq_rf_GHz']*2e9)
+		nd['rf3'] = spectrum_peak_list(nd['waveform_f_Hz'], nd['waveform_s_dBm'], nd['freq_rf_GHz']*3e9)
+		nd['rf1W'] = dBm2W(nd['rf1'])
+		nd['rf2W'] = dBm2W(nd['rf2'])
+		nd['rf3W'] = dBm2W(nd['rf3'])
+		
+		##-------------------------------------------
+		# Calculate conversion efficiencies
+		
+		nd['total_power'] = nd['rf1W'] + nd['rf2W'] + nd['rf3W']
+		nd['ce2'] = nd['rf2W']/nd['total_power']*100
+		nd['ce3'] = nd['rf3W']/nd['total_power']*100
+		
+		##-------------------------------------------
+		# Generate lists of unique conditions
+
+		nd['unique_bias'] = np.unique(nd['requested_Idc_mA'])
+		nd['unique_pwr'] = np.unique(nd['power_rf_dBm'])
+		nd['unique_freqs'] = np.unique(nd['freq_rf_GHz'])
+		
+		
+		##------------------------------------------
+		# Calculate extra impedance
+		
+		# Estimate system Z
+		expected_Z = nd['MFLI_V_offset_V'][1]/(nd['requested_Idc_mA'][1]/1e3) #TODO: Do something more general than index 1
+		system_Z = nd['MFLI_V_offset_V']/(nd['Idc_mA']/1e3)
+		nd['extra_z'] = system_Z - expected_Z
+		
+		nd['zs_extra_z'] = calc_zscore(nd['extra_z'])
+		nd['zs_meas_Idc'] = calc_zscore(nd['Idc_mA'])
+		
+		##------------------------------------------
+		# Generate Z-scores
+		
+		nd['zs_ce2'] = calc_zscore(nd['ce2'])
+		nd['zs_ce3'] = calc_zscore(nd['ce3'])
+		
+		nd['zs_rf1'] = calc_zscore(nd['rf1'])
+		nd['zs_rf2'] = calc_zscore(nd['rf2'])
+		nd['zs_rf3'] = calc_zscore(nd['rf3'])
+		
+		# Save to master databank
+		self.sweep_data[sweep_filename] = nd
+	
 	def import_sparam_file(self, sp_filename:str):
 		''' Imports S-parameter data into the DLM's sparam dict'''
-		
-		# sp_datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 2 43mm', "Uncalibrated SParam", "Prf -30 dBm"])
-		# if sp_datapath is None:
-		# 	print(f"{Fore.RED}Failed to find s-parameter data location{Style.RESET_ALL}")
-		# 	sp_datapath = "M:\\data_transfer\\R4C4T2_Uncal_SParam\\Prf -30 dBm"
-		# 	# sys.exit()
-		# else:
-		# 	print(f"{Fore.GREEN}Located s-parameter data directory at: {Fore.LIGHTBLACK_EX}{sp_datapath}{Style.RESET_ALL}")
-		
-		# # sp_filename = "Sparam_31July2024_-30dBm_R4C4T1_Wide.csv"
-		# sp_filename = "26Aug2024_Ch1ToCryoR_Ch2ToCryoL.csv"
-		
-		# sp_analysis_file = os.path.join(sp_datapath, sp_filename)#"Sparam_31July2024_-30dBm_R4C4T1.csv")
 		
 		try:
 			#TODO: Add CSV and S2P support
@@ -210,7 +282,27 @@ class MasterData:
 		# Mask of points to eliminate as outliers
 		self.outlier_mask = []
 		
-		self.import_hdf()
+		# datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 1 4mm'])
+		datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 2 43mm'])
+		# datapath = '/Volumes/M5 PERSONAL/data_transfer'
+		if datapath is None:
+			print(f"{Fore.RED}Failed to find data location{Style.RESET_ALL}")
+			# datapath = "C:\\Users\\gmg3\\Documents\\GitHub\\ChillyInductor\\RP-22 Scripts\\SMC-B\\Measurement Scripts\\data"
+			# print("WARNING WARNING REMOVE THIS")
+			sys.exit()
+		else:
+			print(f"{Fore.GREEN}Located data directory at: {Fore.LIGHTBLACK_EX}{datapath}{Style.RESET_ALL}")
+
+		# filename = "RP22B_MP3_t1_31July2024_R4C4T1_r1_autosave.hdf"
+		# filename = "RP22B_MP3_t1_1Aug2024_R4C4T1_r1.hdf"
+		# filename = "RP22B_MP3_t2_8Aug2024_R4C4T1_r1.hdf"
+		# filename = "RP22B_MP3a_t3_19Aug2024_R4C4T2_r1.hdf"
+		filename = "RP22B_MP3a_t2_20Aug2024_R4C4T2_r1.hdf"
+		# filename = "RP22B_MP3a_t4_26Aug2024_R4C4T2_r1.hdf"
+		
+		analysis_file = os.path.join(datapath, filename)
+		
+		self.load_sweep(analysis_file)
 		
 		sp_datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 2 43mm', "Uncalibrated SParam", "Prf -30 dBm"])
 		if sp_datapath is None:
@@ -297,6 +389,49 @@ class MasterData:
 		
 		self.current_sparam_file = sp_filename
 	
+	def load_sweep(self, sweep_filename:str):
+		''' Loads sweep data from the DLM.'''
+		
+		# Get data from manager
+		swdict = self.dlm.get_sweep(sweep_filename)
+		
+		# populate local variables
+		self.freq_rf_GHz = swdict['freq_rf_GHz']
+		self.power_rf_dBm = swdict['power_rf_dBm']
+		self.waveform_f_Hz = swdict['waveform_f_Hz']
+		self.waveform_s_dBm = swdict['waveform_s_dBm']
+		self.waveform_rbw_Hz = swdict['waveform_rbw_Hz']
+		self.MFLI_V_offset_V = swdict['MFLI_V_offset_V']
+		self.requested_Idc_mA = swdict['requested_Idc_mA']
+		self.raw_meas_Vdc_V = swdict['raw_meas_Vdc_V']
+		self.Idc_mA = swdict['Idc_mA']
+		self.detect_normal = swdict['detect_normal']
+		self.temperature_K = swdict['temperature_K']
+		self.rf1 = swdict['rf1']
+		self.rf2 = swdict['rf2']
+		self.rf3 = swdict['rf3']
+		self.rf1W = swdict['rf1W']
+		self.rf2W = swdict['rf2W']
+		self.rf3W = swdict['rf3W']
+		self.total_power = swdict['total_power']
+		self.ce2 = swdict['ce2']
+		self.ce3 = swdict['ce3']
+		self.unique_bias = swdict['unique_bias']
+		self.unique_pwr = swdict['unique_pwr']
+		self.unique_freqs = swdict['unique_freqs']
+		self.extra_z = swdict['extra_z']
+		self.zs_extra_z = swdict['zs_extra_z']
+		self.zs_meas_Idc = swdict['zs_meas_Idc']
+		self.zs_ce2 = swdict['zs_ce2']
+		self.zs_ce3 = swdict['zs_ce3']
+		self.zs_rf1 = swdict['zs_rf1']
+		self.zs_rf2 = swdict['zs_rf2']
+		self.zs_rf3 = swdict['zs_rf3']
+		
+		self.outlier_mask = (self.power_rf_dBm == self.power_rf_dBm)
+		
+		self.current_sweep_file = sweep_filename
+	
 	# def import_sparam(self):
 	# 	''' Imports S-parameter data into the master data object'''
 		
@@ -328,111 +463,111 @@ class MasterData:
 		
 	# 	self.current_sparam_file = sp_analysis_file
 		
-	def import_hdf(self):
-		''' Imports sweep data into the master data object'''
+	# def import_hdf(self):
+	# 	''' Imports sweep data into the master data object'''
 		
-		# datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 1 4mm'])
-		datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 2 43mm'])
-		# datapath = '/Volumes/M5 PERSONAL/data_transfer'
-		if datapath is None:
-			print(f"{Fore.RED}Failed to find data location{Style.RESET_ALL}")
-			# datapath = "C:\\Users\\gmg3\\Documents\\GitHub\\ChillyInductor\\RP-22 Scripts\\SMC-B\\Measurement Scripts\\data"
-			# print("WARNING WARNING REMOVE THIS")
-			sys.exit()
-		else:
-			print(f"{Fore.GREEN}Located data directory at: {Fore.LIGHTBLACK_EX}{datapath}{Style.RESET_ALL}")
+	# 	# datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 1 4mm'])
+	# 	datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 2 43mm'])
+	# 	# datapath = '/Volumes/M5 PERSONAL/data_transfer'
+	# 	if datapath is None:
+	# 		print(f"{Fore.RED}Failed to find data location{Style.RESET_ALL}")
+	# 		# datapath = "C:\\Users\\gmg3\\Documents\\GitHub\\ChillyInductor\\RP-22 Scripts\\SMC-B\\Measurement Scripts\\data"
+	# 		# print("WARNING WARNING REMOVE THIS")
+	# 		sys.exit()
+	# 	else:
+	# 		print(f"{Fore.GREEN}Located data directory at: {Fore.LIGHTBLACK_EX}{datapath}{Style.RESET_ALL}")
 
-		# filename = "RP22B_MP3_t1_31July2024_R4C4T1_r1_autosave.hdf"
-		# filename = "RP22B_MP3_t1_1Aug2024_R4C4T1_r1.hdf"
-		# filename = "RP22B_MP3_t2_8Aug2024_R4C4T1_r1.hdf"
-		# filename = "RP22B_MP3a_t3_19Aug2024_R4C4T2_r1.hdf"
-		filename = "RP22B_MP3a_t2_20Aug2024_R4C4T2_r1.hdf"
-		# filename = "RP22B_MP3a_t4_26Aug2024_R4C4T2_r1.hdf"
+	# 	# filename = "RP22B_MP3_t1_31July2024_R4C4T1_r1_autosave.hdf"
+	# 	# filename = "RP22B_MP3_t1_1Aug2024_R4C4T1_r1.hdf"
+	# 	# filename = "RP22B_MP3_t2_8Aug2024_R4C4T1_r1.hdf"
+	# 	# filename = "RP22B_MP3a_t3_19Aug2024_R4C4T2_r1.hdf"
+	# 	filename = "RP22B_MP3a_t2_20Aug2024_R4C4T2_r1.hdf"
+	# 	# filename = "RP22B_MP3a_t4_26Aug2024_R4C4T2_r1.hdf"
 		
-		analysis_file = os.path.join(datapath, filename)
+	# 	analysis_file = os.path.join(datapath, filename)
 
 		
 
-		##--------------------------------------------
-		# Read HDF5 File
+	# 	##--------------------------------------------
+	# 	# Read HDF5 File
 
 
-		self.log.lowdebug("Loading file contents into memory")
-		# log.info("Loading file contents into memory")
+	# 	self.log.lowdebug("Loading file contents into memory")
+	# 	# log.info("Loading file contents into memory")
 
-		t_hdfr_0 = time.time()
-		with h5py.File(analysis_file, 'r') as fh:
+	# 	t_hdfr_0 = time.time()
+	# 	with h5py.File(analysis_file, 'r') as fh:
 			
-			# Read primary dataset
-			GROUP = 'dataset'
-			self.freq_rf_GHz = fh[GROUP]['freq_rf_GHz'][()]
-			self.power_rf_dBm = fh[GROUP]['power_rf_dBm'][()]
+	# 		# Read primary dataset
+	# 		GROUP = 'dataset'
+	# 		self.freq_rf_GHz = fh[GROUP]['freq_rf_GHz'][()]
+	# 		self.power_rf_dBm = fh[GROUP]['power_rf_dBm'][()]
 			
-			self.waveform_f_Hz = fh[GROUP]['waveform_f_Hz'][()]
-			self.waveform_s_dBm = fh[GROUP]['waveform_s_dBm'][()]
-			self.waveform_rbw_Hz = fh[GROUP]['waveform_rbw_Hz'][()]
+	# 		self.waveform_f_Hz = fh[GROUP]['waveform_f_Hz'][()]
+	# 		self.waveform_s_dBm = fh[GROUP]['waveform_s_dBm'][()]
+	# 		self.waveform_rbw_Hz = fh[GROUP]['waveform_rbw_Hz'][()]
 			
-			self.MFLI_V_offset_V = fh[GROUP]['MFLI_V_offset_V'][()]
-			self.requested_Idc_mA = fh[GROUP]['requested_Idc_mA'][()]
-			self.raw_meas_Vdc_V = fh[GROUP]['raw_meas_Vdc_V'][()]
-			self.Idc_mA = fh[GROUP]['Idc_mA'][()]
-			self.detect_normal = fh[GROUP]['detect_normal'][()]
+	# 		self.MFLI_V_offset_V = fh[GROUP]['MFLI_V_offset_V'][()]
+	# 		self.requested_Idc_mA = fh[GROUP]['requested_Idc_mA'][()]
+	# 		self.raw_meas_Vdc_V = fh[GROUP]['raw_meas_Vdc_V'][()]
+	# 		self.Idc_mA = fh[GROUP]['Idc_mA'][()]
+	# 		self.detect_normal = fh[GROUP]['detect_normal'][()]
 			
-			self.temperature_K = fh[GROUP]['temperature_K'][()]
+	# 		self.temperature_K = fh[GROUP]['temperature_K'][()]
 
-		##--------------------------------------------
-		# Generate Mixing Products lists
+	# 	##--------------------------------------------
+	# 	# Generate Mixing Products lists
 
-		self.rf1 = spectrum_peak_list(self.waveform_f_Hz, self.waveform_s_dBm, self.freq_rf_GHz*1e9)
-		self.rf2 = spectrum_peak_list(self.waveform_f_Hz, self.waveform_s_dBm, self.freq_rf_GHz*2e9)
-		self.rf3 = spectrum_peak_list(self.waveform_f_Hz, self.waveform_s_dBm, self.freq_rf_GHz*3e9)
+	# 	self.rf1 = spectrum_peak_list(self.waveform_f_Hz, self.waveform_s_dBm, self.freq_rf_GHz*1e9)
+	# 	self.rf2 = spectrum_peak_list(self.waveform_f_Hz, self.waveform_s_dBm, self.freq_rf_GHz*2e9)
+	# 	self.rf3 = spectrum_peak_list(self.waveform_f_Hz, self.waveform_s_dBm, self.freq_rf_GHz*3e9)
 
-		self.rf1W = dBm2W(self.rf1)
-		self.rf2W = dBm2W(self.rf2)
-		self.rf3W = dBm2W(self.rf3)
+	# 	self.rf1W = dBm2W(self.rf1)
+	# 	self.rf2W = dBm2W(self.rf2)
+	# 	self.rf3W = dBm2W(self.rf3)
 		
-		##-------------------------------------------
-		# Calculate conversion efficiencies
+	# 	##-------------------------------------------
+	# 	# Calculate conversion efficiencies
 		
-		self.total_power = self.rf1W + self.rf2W + self.rf3W
-		self.ce2 = self.rf2W/self.total_power*100
-		self.ce3 = self.rf3W/self.total_power*100
+	# 	self.total_power = self.rf1W + self.rf2W + self.rf3W
+	# 	self.ce2 = self.rf2W/self.total_power*100
+	# 	self.ce3 = self.rf3W/self.total_power*100
 		
-		##-------------------------------------------
-		# Generate lists of unique conditions
+	# 	##-------------------------------------------
+	# 	# Generate lists of unique conditions
 
-		self.unique_bias = np.unique(self.requested_Idc_mA)
-		self.unique_pwr = np.unique(self.power_rf_dBm)
-		self.unique_freqs = np.unique(self.freq_rf_GHz)
+	# 	self.unique_bias = np.unique(self.requested_Idc_mA)
+	# 	self.unique_pwr = np.unique(self.power_rf_dBm)
+	# 	self.unique_freqs = np.unique(self.freq_rf_GHz)
 		
-		self.current_sweep_file = analysis_file
+	# 	self.current_sweep_file = analysis_file
 		
-		##------------------------------------------
-		# Calculate extra impedance
+	# 	##------------------------------------------
+	# 	# Calculate extra impedance
 		
-		# Estimate system Z
-		expected_Z = self.MFLI_V_offset_V[1]/(self.requested_Idc_mA[1]/1e3) #TODO: Do something more general than index 1
-		system_Z = self.MFLI_V_offset_V/(self.Idc_mA/1e3)
-		self.extra_z = system_Z - expected_Z
+	# 	# Estimate system Z
+	# 	expected_Z = self.MFLI_V_offset_V[1]/(self.requested_Idc_mA[1]/1e3) #TODO: Do something more general than index 1
+	# 	system_Z = self.MFLI_V_offset_V/(self.Idc_mA/1e3)
+	# 	self.extra_z = system_Z - expected_Z
 		
-		self.zs_extra_z = calc_zscore(self.extra_z)
-		self.zs_meas_Idc = calc_zscore(self.Idc_mA)
+	# 	self.zs_extra_z = calc_zscore(self.extra_z)
+	# 	self.zs_meas_Idc = calc_zscore(self.Idc_mA)
 		
-		##------------------------------------------
-		# Generate Z-scores
+	# 	##------------------------------------------
+	# 	# Generate Z-scores
 		
-		self.zs_ce2 = calc_zscore(self.ce2)
-		self.zs_ce3 = calc_zscore(self.ce3)
+	# 	self.zs_ce2 = calc_zscore(self.ce2)
+	# 	self.zs_ce3 = calc_zscore(self.ce3)
 		
-		self.zs_rf1 = calc_zscore(self.rf1)
-		self.zs_rf2 = calc_zscore(self.rf2)
-		self.zs_rf3 = calc_zscore(self.rf3)
+	# 	self.zs_rf1 = calc_zscore(self.rf1)
+	# 	self.zs_rf2 = calc_zscore(self.rf2)
+	# 	self.zs_rf3 = calc_zscore(self.rf3)
 		
-		##------------------------------------------
-		# Outlier mask
+	# 	##------------------------------------------
+	# 	# Outlier mask
 		
-		# Just make array of true
-		self.outlier_mask = (self.power_rf_dBm == self.power_rf_dBm)
+	# 	# Just make array of true
+	# 	self.outlier_mask = (self.power_rf_dBm == self.power_rf_dBm)
 		
 	def rebuild_outlier_mask(self, ce2_zscore:float, extraz_zscore:float):
 		
