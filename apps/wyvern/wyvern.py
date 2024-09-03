@@ -1,5 +1,6 @@
 import sys
 import matplotlib
+import copy
 matplotlib.use('qtagg')
 
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
@@ -537,12 +538,13 @@ GCOND_BIASXAXIS_ISMEAS = 'biasxaxis_ismeas'
 
 class DataSelectWidget(QWidget):
 	
-	def __init__(self, global_conditions:dict, log:LogPile, mdata:MasterData, replot_handle, show_frame:bool=False):
+	def __init__(self, global_conditions:dict, log:LogPile, mdata:MasterData, replot_handle, remake_sliders_handle, show_frame:bool=False):
 		super().__init__()
 		self.mdata = mdata
 		self.log = log
 		self.gcond = global_conditions
 		self.replot_handle = replot_handle
+		self.remake_sliders_handle = remake_sliders_handle
 		
 		##------------ Make filter box ---------------
 		
@@ -888,6 +890,9 @@ class DataSelectWidget(QWidget):
 		
 		# Realod data
 		self.mdata.load_sweep(fullfile)
+		
+		# Update slider values
+		self.remake_sliders_handle()
 		
 		# Replot graphs
 		self.replot_handle()
@@ -1983,7 +1988,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 		
 		# Make a controls widget
 		self.control_widget = OutlierControlWidget(self.gcond, self.log, self.mdata, self.plot_all, show_frame=True)
-		self.dataselect_widget = DataSelectWidget(self.gcond, self.log, self.mdata, self.plot_all, show_frame=True)
+		self.dataselect_widget = DataSelectWidget(self.gcond, self.log, self.mdata, self.plot_all, self.update_slider_vals, show_frame=True)
 		
 		# Create tab widget
 		self.tab_widget_widgets = []
@@ -2083,9 +2088,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 	
 	def populate_slider_box(self):
 		
-		
 		ng = QtWidgets.QGridLayout()
-		
 		
 		self.freq_slider_hdrlabel = QtWidgets.QLabel()
 		self.freq_slider_hdrlabel.setText("Frequency\n(GHz)")
@@ -2168,6 +2171,38 @@ class HGA1Window(QtWidgets.QMainWindow):
 		ng.addWidget(self.btn_groupbox, 3, 0, 1, 3)
 		
 		self.slider_box.setLayout(ng)
+		
+		# Copy of mdata vals so if mdata is reloaded to a new file, the
+		# old values can be read one more time to readjust sliders to appropriate position
+		self.slider_unique_bias = copy.deepcopy(self.mdata.unique_bias)
+		self.slider_unique_pwr = copy.deepcopy(self.mdata.unique_pwr)
+		self.slider_unique_freqs = copy.deepcopy(self.mdata.unique_freqs)
+		
+		# Trigger all slider callbacks
+		self.update_bias(self.bias_slider.value())
+		self.update_freq(self.freq_slider.value())
+		self.update_pwr(self.pwr_slider.value())
+	
+	def update_slider_vals(self):
+		
+		# Get old values to match
+		try:
+			prev_bias = self.slider_unique_bias[self.bias_slider.value()]
+			prev_pwr = self.slider_unique_pwr[self.pwr_slider.value()]
+			prev_freq = self.slider_unique_freqs[self.freq_slider.value()]
+		except:
+			# If this function gets called during init and before any datasets are loaded, just skip it.
+			return
+		
+		# Update slider limits
+		self.bias_slider.setMaximum(len(self.mdata.unique_bias)-1)
+		self.pwr_slider.setMaximum(len(self.mdata.unique_pwr)-1)
+		self.freq_slider.setMaximum(len(self.mdata.unique_freqs)-1)
+		
+		# Move sliders to closest match positions
+		self.bias_slider.setSliderPosition(np.argmin(np.abs(self.mdata.unique_bias - prev_bias)))
+		self.freq_slider.setSliderPosition(np.argmin(np.abs(self.mdata.unique_freqs - prev_freq)))
+		self.pwr_slider.setSliderPosition(np.argmin(np.abs(self.mdata.unique_pwr - prev_pwr)))
 		
 		# Trigger all slider callbacks
 		self.update_bias(self.bias_slider.value())
