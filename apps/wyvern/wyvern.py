@@ -26,7 +26,7 @@ from abc import abstractmethod, ABC
 import argparse
 
 log = LogPile()
-log.set_terminal_level("DEBUG")
+log.set_terminal_level("LOWDEBUG")
 
 # TODO: Important
 #
@@ -155,7 +155,9 @@ class DataLoadingManager:
 			self.log.info(f"Loading sweep data from file: {sweep_filename}")
 			self.import_sweep_file(sweep_filename)
 		
-		return self.sweep_data[sweep_filename]
+		# return data if in databank
+		if sweep_filename  in self.sweep_data:
+			return self.sweep_data[sweep_filename]
 	
 	def get_sparam(self, sp_filename:str):
 		
@@ -164,7 +166,9 @@ class DataLoadingManager:
 			self.log.info(f"Loading s-parameter data from file: {sp_filename}")
 			self.import_sparam_file(sp_filename)
 		
-		return self.sparam_data[sp_filename]
+		# Return data if in databank
+		if sp_filename in self.sparam_data:
+			return self.sparam_data[sp_filename]
 	
 	def import_sweep_file(self, sweep_filename:str):
 		''' Imports sweep data into the DLM's sweep dict from file.'''
@@ -178,21 +182,24 @@ class DataLoadingManager:
 			
 			# Read primary dataset
 			GROUP = 'dataset'
-			nd['freq_rf_GHz'] = fh[GROUP]['freq_rf_GHz'][()]
-			nd['power_rf_dBm'] = fh[GROUP]['power_rf_dBm'][()]
-			
-			nd['waveform_f_Hz'] = fh[GROUP]['waveform_f_Hz'][()]
-			nd['waveform_s_dBm'] = fh[GROUP]['waveform_s_dBm'][()]
-			nd['waveform_rbw_Hz'] = fh[GROUP]['waveform_rbw_Hz'][()]
-			
-			nd['MFLI_V_offset_V'] = fh[GROUP]['MFLI_V_offset_V'][()]
-			nd['requested_Idc_mA'] = fh[GROUP]['requested_Idc_mA'][()]
-			nd['raw_meas_Vdc_V'] = fh[GROUP]['raw_meas_Vdc_V'][()]
-			nd['Idc_mA'] = fh[GROUP]['Idc_mA'][()]
-			nd['detect_normal'] = fh[GROUP]['detect_normal'][()]
-			
-			nd['temperature_K'] = fh[GROUP]['temperature_K'][()]
-
+			try:
+				nd['freq_rf_GHz'] = fh[GROUP]['freq_rf_GHz'][()]
+				nd['power_rf_dBm'] = fh[GROUP]['power_rf_dBm'][()]
+				
+				nd['waveform_f_Hz'] = fh[GROUP]['waveform_f_Hz'][()]
+				nd['waveform_s_dBm'] = fh[GROUP]['waveform_s_dBm'][()]
+				nd['waveform_rbw_Hz'] = fh[GROUP]['waveform_rbw_Hz'][()]
+				
+				nd['MFLI_V_offset_V'] = fh[GROUP]['MFLI_V_offset_V'][()]
+				nd['requested_Idc_mA'] = fh[GROUP]['requested_Idc_mA'][()]
+				nd['raw_meas_Vdc_V'] = fh[GROUP]['raw_meas_Vdc_V'][()]
+				nd['Idc_mA'] = fh[GROUP]['Idc_mA'][()]
+				nd['detect_normal'] = fh[GROUP]['detect_normal'][()]
+				
+				nd['temperature_K'] = fh[GROUP]['temperature_K'][()]
+			except Exception as e:
+				self.log.error(f"Failed ot load file {sweep_filename}.", detail=f"{e}")
+				return
 		##--------------------------------------------
 		# Generate Mixing Products lists
 
@@ -359,6 +366,8 @@ class MasterData:
 		self.S21_dB = []
 		self.S12_dB = []
 		self.S22_dB = []
+		
+		self._valid_sparam = False
 	
 	def clear_sweep(self):
 		
@@ -387,6 +396,8 @@ class MasterData:
 		self.unique_bias = []
 		self.unique_pwr = []
 		self.unique_freqs = []
+		
+		self._valid_sweep = False
 	
 	def load_sparam(self, sp_filename:str):
 		''' Loads S-parameter data from the DLM.'''
@@ -395,6 +406,9 @@ class MasterData:
 		
 		# Get data from manager
 		spdict = self.dlm.get_sparam(sp_filename)
+		
+		if spdict is None:
+			return
 		
 		# Populate local variables
 		self.S11 = spdict['S11']
@@ -408,12 +422,26 @@ class MasterData:
 		self.S_freq_GHz = spdict['freq_GHz']
 		
 		self.current_sparam_file = sp_filename
+		
+		if len(self.S11) == 0 or len(self.S_freq_GHz) == 0:
+			self._valid_sparam = False
+		
+		self._valid_sparam = True
+		# all_lists = [self.S11, self.S21, self.S12, self.S22, self.S11_dB, self.S21_dB, , self.S12_dB, self.S22_dB, self.S_freq_GHz]
+	
+		# it = iter(all_lists)
+		# the_len = len(next(it))
+		# if not all(len(l) == the_len for l in it):
+		# 	self._valid_sparam = False
 	
 	def load_sweep(self, sweep_filename:str):
 		''' Loads sweep data from the DLM.'''
 		
 		# Get data from manager
 		swdict = self.dlm.get_sweep(sweep_filename)
+		
+		if swdict is None:
+			return
 		
 		# populate local variables
 		self.freq_rf_GHz = swdict['freq_rf_GHz']
@@ -452,6 +480,20 @@ class MasterData:
 		
 		self.current_sweep_file = sweep_filename
 		
+		if len(self.power_rf_dBm) == 0:
+			self._valid_sweep = False
+			return
+		
+		all_lists = [self.freq_rf_GHz, self.power_rf_dBm, self.waveform_f_Hz, self.waveform_s_dBm, self.waveform_rbw_Hz, self.MFLI_V_offset_V, self.requested_Idc_mA, self.raw_meas_Vdc_V, self.Idc_mA, self.detect_normal, self.temperature_K, self.rf1, self.rf2, self.rf3, self.rf1W, self.rf2W, self.rf3W, self.total_power, self.ce2, self.ce3, self.unique_bias, self.unique_freqs, self.unique_pwr, self.extra_z, self.zs_extra_z, self.zs_meas_Idc, self.zs_ce2, self.zs_ce3, self.zs_rf1, self.zs_rf2, self.zs_rf3]
+	
+		it = iter(all_lists)
+		the_len = len(next(it))
+		if not all(len(l) == the_len for l in it):
+			self._valid_sweep = False
+		
+		self._valid_sweep = True
+		
+		
 	def rebuild_outlier_mask(self, ce2_zscore:float, extraz_zscore:float):
 		
 		# Process CE2
@@ -463,6 +505,12 @@ class MasterData:
 		# Process extra-z
 		if extraz_zscore is not None:
 			self.outlier_mask = self.outlier_mask & (self.zs_extra_z < extraz_zscore)
+		
+	def is_valid_sweep(self):
+		return self._valid_sweep
+	
+	def is_valid_sparam(self):
+		return self._valid_sparam
 		
 ##--------------------------------------------
 # Create GUI
@@ -503,6 +551,7 @@ class DataSelectWidget(QWidget):
 		self.filt_box.setFixedWidth(170)
 		
 		self.en_wild_filt_cb = QCheckBox("Enable Filter")
+		self.en_wild_filt_cb.setChecked(True)
 		self.en_wild_filt_cb.stateChanged.connect(self.reinit_file_list)
 		
 		self.filt_label1 = QLabel("Filter text:")
@@ -542,13 +591,12 @@ class DataSelectWidget(QWidget):
 		
 		self.dset_select = QListWidget()
 		self.dset_select.setFixedSize(QSize(350, 100))
-		self.dset_select.itemChanged.connect(self.reload_sweep)
+		self.dset_select.itemClicked.connect(self.reload_sweep)
 		
 		self.sparam_select_label = QLabel("S-Parameters:")
 		
 		self.sparam_select = QListWidget()
 		self.sparam_select.setFixedSize(QSize(350, 100))
-		self.sparam_select.itemChanged.connect(self.reload_sparam)
 		self.sparam_select.itemClicked.connect(self.reload_sparam)
 		
 		if cli_args.theme:
@@ -799,7 +847,50 @@ class DataSelectWidget(QWidget):
 		self.replot_handle()
 		
 	def reload_sweep(self):
-		pass
+		
+		self.log.lowdebug(f"Reloading sweep data")
+		
+		# Get selected chip and track
+		chip_item = self.chip_select.currentItem()
+		if chip_item is None:
+			return
+		track_item = self.track_select.currentItem()
+		if track_item is None:
+			return
+		
+		# Get selected file
+		item = self.dset_select.currentItem()
+		if item is None:
+			return
+		file_name = item.text()
+		
+		self.log.lowdebug(f"Selected sweep file: {file_name}")
+		
+		# Find full path for file
+		full_path = None
+		for ds in self.mdata.dlm.data_conf['sweep_sources']:
+			
+			# Skip wrong chips
+			if ds['chip_name'] != chip_item.text():
+				continue
+			
+			# Skip wrong tracks
+			if ds['track'] != track_item.text():
+				continue
+			
+			full_path = ds['full_path']
+		
+		if full_path is None:
+			self.log.error(f"Cannot reload sweep data - path not found.")
+			return
+		
+		fullfile = os.path.join(full_path, file_name)
+		
+		# Realod data
+		self.mdata.load_sweep(fullfile)
+		
+		# Replot graphs
+		self.replot_handle()
 	
 	def reanalyze(self):
 		
@@ -943,6 +1034,10 @@ class ZScorePlotWindow(QMainWindow):
 	def render_plot(self):
 		
 		self.ax1.cla()
+		
+		if not self.mdata.is_valid_sweep():
+			self.log.debug(f"Invalid sweep data. Aborting plot.")
+			return
 		
 		for (x, y, leglab) in zip(self.x_data, self.y_zscore, self.legend_labels):
 			self.ax1.plot(x, y, label=leglab, linestyle=':', marker='X')
@@ -1247,6 +1342,10 @@ class CE23FreqDomainPlotWidget(TabPlotWidget):
 		self.ax1.cla()
 		self.ax2.cla()
 		
+		if not self.mdata.is_valid_sweep():
+			self.log.debug(f"Invalid sweep data. Aborting plot.")
+			return
+		
 		if use_fund:
 			self.ax1.plot(self.mdata.freq_rf_GHz[mask], self.mdata.ce2[mask], linestyle=':', marker='o', markersize=4, color=(0.6, 0, 0.7))
 			self.ax2.plot(self.mdata.freq_rf_GHz[mask], self.mdata.ce3[mask], linestyle=':', marker='o', markersize=4, color=(0.45, 0.05, 0.1))
@@ -1360,6 +1459,10 @@ class CE23BiasDomainPlotWidget(TabPlotWidget):
 		# Plot results
 		self.ax1.cla()
 		self.ax2.cla()
+		
+		if not self.mdata.is_valid_sweep():
+			self.log.debug(f"Invalid sweep data. Aborting plot.")
+			return
 		
 		if self.get_condition(GCOND_BIASXAXIS_ISMEAS):
 			self.ax1.plot(self.mdata.Idc_mA[mask], self.mdata.ce2[mask], linestyle=':', marker='o', markersize=4, color=(0.6, 0, 0.7))
@@ -1483,13 +1586,22 @@ class IVPlotWidget(TabPlotWidget):
 		self.ax2t.cla()
 		self.ax2b.cla()
 		
+		if not self.mdata.is_valid_sweep():
+			self.log.debug(f"Invalid sweep data. Aborting plot.")
+			return
+		
 		# Check correct number of points
 		mask_len = np.sum(mask)
+		if (mask_len) == 0:
+			self.log.debug(f"No data met slider conditions. Aborting render.")
+			return
+		
 		# if len(self.mdata.unique_bias) != mask_len:
 		# 	log.warning(f"Cannot display data: Mismatched number of points (freq = {f} GHz, pwr = {p} dBm, mask: {mask_len}, bias: {len(self.mdata.unique_bias)})")
 		# 	self.fig1.canvas.draw_idle()
 		# 	returnz
-		
+		print(self.mdata.current_sweep_file)
+		print(self.mdata.Idc_mA)
 		minval = np.min([0, np.min(self.mdata.requested_Idc_mA[mask]), np.min(self.mdata.Idc_mA[mask]) ])
 		maxval = np.max([0, np.max(self.mdata.requested_Idc_mA[mask]), np.max(self.mdata.Idc_mA[mask]) ])
 		
@@ -1593,6 +1705,10 @@ class SParamSPDPlotWidget(TabPlotWidget):
 		# Plot results
 		self.ax1.cla()
 		
+		if not self.mdata.is_valid_sweep():
+			self.log.debug(f"Invalid sweep data. Aborting plot.")
+			return
+		
 		# Check correct number of points
 		# mask_len = np.sum(mask)
 		# if len(self.self.mdata.unique_bias) != mask_len:
@@ -1685,6 +1801,10 @@ class HarmGenBiasDomainPlotWidget(TabPlotWidget):
 		
 		# Plot results
 		self.ax1.cla()
+		
+		if not self.mdata.is_valid_sweep():
+			self.log.debug(f"Invalid sweep data. Aborting plot.")
+			return
 		
 		if self.get_condition(GCOND_BIASXAXIS_ISMEAS):
 			self.ax1.plot(self.mdata.Idc_mA[mask], self.mdata.rf1[mask], linestyle=':', marker='o', markersize=4, color=(0, 0.7, 0))
