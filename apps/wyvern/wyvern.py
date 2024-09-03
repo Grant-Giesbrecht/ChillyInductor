@@ -535,6 +535,7 @@ GCOND_OUTLIER_ZSCE2 = 'remove_outliers_ce2_zscore'
 GCOND_OUTLIER_ZSEXTRAZ = 'remove_outliers_extraz_zscore'
 GCOND_FREQXAXIS_ISFUND = 'freqxaxis_isfund'
 GCOND_BIASXAXIS_ISMEAS = 'biasxaxis_ismeas'
+GCOND_ADJUST_SLIDER = 'adjust_sliders'
 
 class DataSelectWidget(QWidget):
 	
@@ -1974,7 +1975,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.mdata = mdata
 		
 		# Initialize global conditions
-		self.gcond = {'sel_freq_GHz': self.mdata.unique_freqs[len(self.mdata.unique_freqs)//2], 'sel_power_dBm': self.mdata.unique_pwr[len(self.mdata.unique_pwr)//2], 'sel_bias_mA': self.mdata.unique_bias[len(self.mdata.unique_bias)//2], 'fix_scale':False, GCOND_FREQXAXIS_ISFUND:False, GCOND_BIASXAXIS_ISMEAS:True, "remove_outliers":True, "remove_outliers_ce2_zscore":10}
+		self.gcond = {'sel_freq_GHz': self.mdata.unique_freqs[len(self.mdata.unique_freqs)//2], 'sel_power_dBm': self.mdata.unique_pwr[len(self.mdata.unique_pwr)//2], 'sel_bias_mA': self.mdata.unique_bias[len(self.mdata.unique_bias)//2], 'fix_scale':False, GCOND_FREQXAXIS_ISFUND:False, GCOND_BIASXAXIS_ISMEAS:True, "remove_outliers":True, "remove_outliers_ce2_zscore":10, GCOND_ADJUST_SLIDER:True}
 		
 		self.gcond_subscribers = []
 		
@@ -2029,6 +2030,13 @@ class HGA1Window(QtWidgets.QMainWindow):
 		''' This will be called before the window closes. Save any stuff etc here.'''
 		
 		pass
+	
+	def get_condition(self, c:str):
+	
+		if c in self.gcond:
+			return self.gcond[c]
+		else:
+			return None
 	
 	def set_gcond(self, key, value):
 		
@@ -2184,6 +2192,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.update_pwr(self.pwr_slider.value())
 	
 	def update_slider_vals(self):
+		''' Call when the dataset changes. It will readjust the slider positions to something valid for the new dataset.'''
 		
 		# Get old values to match
 		try:
@@ -2200,9 +2209,20 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.freq_slider.setMaximum(len(self.mdata.unique_freqs)-1)
 		
 		# Move sliders to closest match positions
-		self.bias_slider.setSliderPosition(np.argmin(np.abs(self.mdata.unique_bias - prev_bias)))
-		self.freq_slider.setSliderPosition(np.argmin(np.abs(self.mdata.unique_freqs - prev_freq)))
-		self.pwr_slider.setSliderPosition(np.argmin(np.abs(self.mdata.unique_pwr - prev_pwr)))
+		if self.get_condition(GCOND_ADJUST_SLIDER):
+			self.bias_slider.setSliderPosition(np.argmin(np.abs(self.mdata.unique_bias - prev_bias)))
+			self.freq_slider.setSliderPosition(np.argmin(np.abs(self.mdata.unique_freqs - prev_freq)))
+			self.pwr_slider.setSliderPosition(np.argmin(np.abs(self.mdata.unique_pwr - prev_pwr)))
+		else:
+			self.bias_slider.setSliderPosition(0)
+			self.freq_slider.setSliderPosition(0)
+			self.pwr_slider.setSliderPosition(0)
+		
+		# Copy of mdata vals so if mdata is reloaded to a new file, the
+		# old values can be read one more time to readjust sliders to appropriate position
+		self.slider_unique_bias = copy.deepcopy(self.mdata.unique_bias)
+		self.slider_unique_pwr = copy.deepcopy(self.mdata.unique_pwr)
+		self.slider_unique_freqs = copy.deepcopy(self.mdata.unique_freqs)
 		
 		# Trigger all slider callbacks
 		self.update_bias(self.bias_slider.value())
@@ -2285,6 +2305,12 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.graph_menu = self.bar.addMenu("Graph")
 		self.graph_menu.triggered[QAction].connect(self._process_graph_menu)
 		
+		self.adjust_sliders_act = QAction("Preserve Sliders", self, checkable=True)
+		self.adjust_sliders_act.setShortcut("Ctrl+;")
+		self.adjust_sliders_act.setChecked(True)
+		self.set_gcond(GCOND_ADJUST_SLIDER, self.adjust_sliders_act.isChecked())
+		self.graph_menu.addAction(self.adjust_sliders_act)
+		
 		self.fix_scales_act = QAction("Fix Scales", self, checkable=True)
 		self.fix_scales_act.setShortcut("Ctrl+F")
 		self.fix_scales_act.setChecked(True)
@@ -2356,6 +2382,9 @@ class HGA1Window(QtWidgets.QMainWindow):
 		
 		if q.text() == "Fix Scales":
 			self.set_gcond('fix_scale', self.fix_scales_act.isChecked())
+			self.plot_all()
+		elif q.text() == "Preserve Sliders":
+			self.set_gcond(GCOND_ADJUST_SLIDER, self.adjust_sliders_act.isChecked())
 			self.plot_all()
 		elif q.text() == "Show Fundamental" or q.text() == "Show Harmonics":
 			self.set_gcond(GCOND_FREQXAXIS_ISFUND, self.freqxaxis_fund_act.isChecked())
