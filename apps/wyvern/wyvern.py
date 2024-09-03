@@ -97,10 +97,10 @@ class DataLoadingManager:
 		self.load_conf(conf_file)
 		
 		# Dictionary s.t. key=filename, value=dict of data
-		hdf_data = {}
+		self.sweep_data = {}
 		
 		# Dictionary s.t. key=filename, value = dict of data
-		sparam_data = {}
+		self.sparam_data = {}
 	
 	def load_conf(self, conf_file:str):
 		
@@ -131,61 +131,129 @@ class DataLoadingManager:
 		
 		return True
 
+	def get_sparam(self, sp_filename:str):
+		
+		# Load data from file if not already present
+		if sp_filename not in self.sparam_data:
+			self.log.info(f"Loading s-parameter data from file: {sp_filename}")
+			self.import_sparam_file(sp_filename)
+		
+		return self.sparam_data[sp_filename]
+
+	def import_sparam_file(self, sp_filename:str):
+		''' Imports S-parameter data into the DLM's sparam dict'''
+		
+		# sp_datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 2 43mm', "Uncalibrated SParam", "Prf -30 dBm"])
+		# if sp_datapath is None:
+		# 	print(f"{Fore.RED}Failed to find s-parameter data location{Style.RESET_ALL}")
+		# 	sp_datapath = "M:\\data_transfer\\R4C4T2_Uncal_SParam\\Prf -30 dBm"
+		# 	# sys.exit()
+		# else:
+		# 	print(f"{Fore.GREEN}Located s-parameter data directory at: {Fore.LIGHTBLACK_EX}{sp_datapath}{Style.RESET_ALL}")
+		
+		# # sp_filename = "Sparam_31July2024_-30dBm_R4C4T1_Wide.csv"
+		# sp_filename = "26Aug2024_Ch1ToCryoR_Ch2ToCryoL.csv"
+		
+		# sp_analysis_file = os.path.join(sp_datapath, sp_filename)#"Sparam_31July2024_-30dBm_R4C4T1.csv")
+		
+		try:
+			#TODO: Add CSV and S2P support
+			sparam_data = read_rohde_schwarz_csv(sp_filename)
+		except Exception as e:
+			print(f"Failed to read S-parameter CSV file. {e}")
+			sys.exit()
+		
+		nd = {}
+		
+		try:
+			nd['S11'] = sparam_data.S11_real + complex(0, 1)*sparam_data.S11_imag
+		except:
+			nd["S11"] = []
+			
+		try:
+			nd['S21'] = sparam_data.S21_real + complex(0, 1)*sparam_data.S21_imag
+		except:
+			nd['S21'] = []
+			
+		try:
+			nd['S12'] = sparam_data.S12_real + complex(0, 1)*sparam_data.S12_imag
+		except:
+			nd['S12'] = []
+			
+		try:
+			nd['S22'] = sparam_data.S22_real + complex(0, 1)*sparam_data.S22_imag
+		except:
+			nd['S22'] = []
+		
+		nd['S11_dB'] = lin_to_dB(np.abs(nd['S11']))
+		nd['S21_dB'] = lin_to_dB(np.abs(nd['S21']))
+		nd['S12_dB'] = lin_to_dB(np.abs(nd['S12']))
+		nd['S22_dB'] = lin_to_dB(np.abs(nd['S22']))
+		
+		nd['freq_GHz'] = sparam_data.freq_Hz/1e9
+
+		# Add dictionary to main databank
+		self.sparam_data[sp_filename] = nd
+
 class MasterData:
 	''' Class to represent the data currently analyzed/plotted by the application'''
 	
 	def __init__(self, log:LogPile, dlm:DataLoadingManager):
 		
 		# Reinitialize all data as clear
-		self.clear_all()
-
+		self.clear_sparam()
+		self.clear_sweep()
+	
 		self.log = log
 		self.dlm = dlm
 		
 		# Mask of points to eliminate as outliers
 		self.outlier_mask = []
 		
-		t0 = time.time()
 		self.import_hdf()
-		t1 = time.time()
-		self.import_sparam()
-		t2 = time.time()
-		self.log.debug(f"HDF load time = {rd(t1-t0)} s, S2P load time = {t2-t1} s.")
 		
-	# def load_conf(self, conf_file:str):
+		sp_datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 2 43mm', "Uncalibrated SParam", "Prf -30 dBm"])
+		if sp_datapath is None:
+			print(f"{Fore.RED}Failed to find s-parameter data location{Style.RESET_ALL}")
+			sp_datapath = "M:\\data_transfer\\R4C4T2_Uncal_SParam\\Prf -30 dBm"
+			# sys.exit()
+		else:
+			print(f"{Fore.GREEN}Located s-parameter data directory at: {Fore.LIGHTBLACK_EX}{sp_datapath}{Style.RESET_ALL}")
 		
-	# 	# Load json file
-	# 	try:
-	# 		with open(conf_file, 'r') as fh:
-	# 			self.dlm.data_conf = json.load(fh)
-	# 	except Exception as e:
-	# 		self.log.critical(f"Failed to load configuration file.", detail=f"{e}")
-	# 		return False
+		# sp_filename = "Sparam_31July2024_-30dBm_R4C4T1_Wide.csv"
+		sp_filename = "26Aug2024_Ch1ToCryoR_Ch2ToCryoL.csv"
 		
-	# 	# Evaluate each source
-	# 	for dss in self.dlm.data_conf['sweep_sources']:
-			
-	# 		#For each entry, evaluate wildcards and find actual path
-	# 		full_path = get_general_path(dss['path'], dos_id_folder=True, print_details=cli_args.autopathdetails)
-			
-	# 		# Write log
-	# 		name = dss['chip_name']
-	# 		track = dss['track']
-	# 		if full_path is None:
-	# 			self.log.error(f"Failed to find data source for chip {name}, track {track}.")
-	# 		else:
-	# 			self.log.debug(f"Data source identified for chip {name}, track {track}.", detail=f"Path = {full_path}")
-			
-	# 		# Save full path string, or None for error
-	# 		dss['full_path'] = full_path
+		sp_analysis_file = os.path.join(sp_datapath, sp_filename)#"Sparam_31July2024_-30dBm_R4C4T1.csv")
 		
-	# 	return True
+		
+		self.load_sparam(sp_analysis_file)
+		# t0 = time.time()
+		# self.import_hdf()
+		# t1 = time.time()
+		# self.import_sparam()
+		# t2 = time.time()
+		# self.log.debug(f"HDF load time = {rd(t1-t0)} s, S2P load time = {t2-t1} s.")
+
+	def clear_sparam(self):
+		
+		# Names of files loaded
+		self.current_sparam_file = ""
+		
+		# S-Parameter arrays
+		self.S_freq_GHz = []
+		self.S11 = []
+		self.S21 = []
+		self.S12 = []
+		self.S22 = []
+		self.S11_dB = []
+		self.S21_dB = []
+		self.S12_dB = []
+		self.S22_dB = []
 	
-	def clear_all(self):
+	def clear_sweep(self):
 		
 		# Names of files loaded
 		self.current_sweep_file = ""
-		self.current_sparam_file = ""
 		
 		# Main sweep data - from file
 		self.power_rf_dBm = []
@@ -209,48 +277,56 @@ class MasterData:
 		self.unique_bias = []
 		self.unique_pwr = []
 		self.unique_freqs = []
-		
-		# S-Parameter arrays
-		self.S_freq_GHz = []
-		self.S11 = []
-		self.S21 = []
-		self.S12 = []
-		self.S22 = []
-		self.S11_dB = []
-		self.S21_dB = []
-		self.S12_dB = []
-		self.S22_dB = []
 	
-	def import_sparam(self):
-		''' Imports S-parameter data into the master data object'''
+	def load_sparam(self, sp_filename:str):
+		''' Loads S-parameter data from the DLM.'''
 		
-		# sp_datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 1 4mm', "VNA Traces"])
-		sp_datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 2 43mm', "Uncalibrated SParam", "Prf -30 dBm"])
-		if sp_datapath is None:
-			print(f"{Fore.RED}Failed to find s-parameter data location{Style.RESET_ALL}")
-			sp_datapath = "M:\\data_transfer\\R4C4T2_Uncal_SParam\\Prf -30 dBm"
-			# sys.exit()
-		else:
-			print(f"{Fore.GREEN}Located s-parameter data directory at: {Fore.LIGHTBLACK_EX}{sp_datapath}{Style.RESET_ALL}")
+		# Get data from manager
+		spdict = self.dlm.get_sparam(sp_filename)
 		
-		# sp_filename = "Sparam_31July2024_-30dBm_R4C4T1_Wide.csv"
-		sp_filename = "26Aug2024_Ch1ToCryoR_Ch2ToCryoL.csv"
+		# Populate local variables
+		self.S11 = spdict['S11']
+		self.S21 = spdict['S21']
+		self.S12 = spdict['S12']
+		self.S22 = spdict['S22']
+		self.S11_dB = spdict['S11_dB']
+		self.S21_dB = spdict['S21_dB']
+		self.S12_dB = spdict['S12_dB']
+		self.S22_dB = spdict['S22_dB']
+		self.S_freq_GHz = spdict['freq_GHz']
 		
-		sp_analysis_file = os.path.join(sp_datapath, sp_filename)#"Sparam_31July2024_-30dBm_R4C4T1.csv")
+		self.current_sparam_file = sp_filename
+	
+	# def import_sparam(self):
+	# 	''' Imports S-parameter data into the master data object'''
 		
-		try:
-			sparam_data = read_rohde_schwarz_csv(sp_analysis_file)
-		except Exception as e:
-			print(f"Failed to read S-parameter CSV file. {e}")
-			sys.exit()
+	# 	# sp_datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 1 4mm', "VNA Traces"])
+	# 	sp_datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 2 43mm', "Uncalibrated SParam", "Prf -30 dBm"])
+	# 	if sp_datapath is None:
+	# 		print(f"{Fore.RED}Failed to find s-parameter data location{Style.RESET_ALL}")
+	# 		sp_datapath = "M:\\data_transfer\\R4C4T2_Uncal_SParam\\Prf -30 dBm"
+	# 		# sys.exit()
+	# 	else:
+	# 		print(f"{Fore.GREEN}Located s-parameter data directory at: {Fore.LIGHTBLACK_EX}{sp_datapath}{Style.RESET_ALL}")
+		
+	# 	# sp_filename = "Sparam_31July2024_-30dBm_R4C4T1_Wide.csv"
+	# 	sp_filename = "26Aug2024_Ch1ToCryoR_Ch2ToCryoL.csv"
+		
+	# 	sp_analysis_file = os.path.join(sp_datapath, sp_filename)#"Sparam_31July2024_-30dBm_R4C4T1.csv")
+		
+	# 	try:
+	# 		sparam_data = read_rohde_schwarz_csv(sp_analysis_file)
+	# 	except Exception as e:
+	# 		print(f"Failed to read S-parameter CSV file. {e}")
+	# 		sys.exit()
 
-		self.S11 = sparam_data.S11_real + complex(0, 1)*sparam_data.S11_imag
-		self.S21 = sparam_data.S21_real + complex(0, 1)*sparam_data.S21_imag
-		self.S11_dB = lin_to_dB(np.abs(self.S11))
-		self.S21_dB = lin_to_dB(np.abs(self.S21))
-		self.S_freq_GHz = sparam_data.freq_Hz/1e9
+	# 	self.S11 = sparam_data.S11_real + complex(0, 1)*sparam_data.S11_imag
+	# 	self.S21 = sparam_data.S21_real + complex(0, 1)*sparam_data.S21_imag
+	# 	self.S11_dB = lin_to_dB(np.abs(self.S11))
+	# 	self.S21_dB = lin_to_dB(np.abs(self.S21))
+	# 	self.S_freq_GHz = sparam_data.freq_Hz/1e9
 		
-		self.current_sparam_file = sp_analysis_file
+	# 	self.current_sparam_file = sp_analysis_file
 		
 	def import_hdf(self):
 		''' Imports sweep data into the master data object'''
