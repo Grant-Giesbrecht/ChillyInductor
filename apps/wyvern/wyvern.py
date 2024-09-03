@@ -59,6 +59,7 @@ parser = argparse.ArgumentParser()
 # parser.add_argument('-h', '--help')
 parser.add_argument('-s', '--subtle', help="Run without naming.", action='store_true')
 parser.add_argument('-d', '--detail', help="Show log details.", action='store_true')
+parser.add_argument('-t', '--theme', help="Change color theme.", action='store_true')
 parser.add_argument('--autopathdetails', help="Print additional information for debugging which paths are found.", action='store_true')
 cli_args = parser.parse_args()
 # print(cli_args)
@@ -452,13 +453,20 @@ class DataSelectWidget(QWidget):
 		self.sparam_select = QListWidget()
 		self.sparam_select.setFixedSize(QSize(350, 100))
 		
-		self.compare_btn = QPushButton("Compare\nDatasets", icon=QIcon("./assets/compare_src.png"))
+		if cli_args.theme:
+			self.compare_btn = QPushButton("Compare\nDatasets", icon=QIcon("./assets/compare_src_dr.png"))
+		else:
+			self.compare_btn = QPushButton("Compare\nDatasets", icon=QIcon("./assets/compare_src.png"))
+			
 		self.compare_btn.setFixedSize(130, 40)
-		self.compare_btn.clicked.connect(self._compare_datasets)
+		# self.compare_btn.clicked.connect(self._compare_datasets)
 		self.compare_btn.setIconSize(QSize(48, 32))
 		
 		self.arrow_label = QLabel()
-		self.arrow_label.setPixmap(QPixmap("./assets/right_arrow.png").scaledToWidth(40))
+		if cli_args.theme:
+			self.arrow_label.setPixmap(QPixmap("./assets/right_arrow_dr.png").scaledToWidth(40))
+		else:
+			self.arrow_label.setPixmap(QPixmap("./assets/right_arrow.png").scaledToWidth(40))
 		# self.arrow_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter)
 		# self.arrow_label.setWindowIcon(QSize(20, 20))
 		
@@ -468,10 +476,13 @@ class DataSelectWidget(QWidget):
 		
 		self.loadset_btn = QPushButton("Load\nSelected", icon=QIcon("./assets/reload_data.png"))
 		self.loadset_btn.setFixedSize(120, 40)
-		self.loadset_btn.clicked.connect(self._load_selected)
+		# self.loadset_btn.clicked.connect(self._load_selected)
 		self.loadset_btn.setIconSize(QSize(48, 32))
 		
-		self.loadconf_btn = QPushButton("Load Config\nFile", icon=QIcon("./assets/pick_conf.png"))
+		if cli_args.theme:
+			self.loadconf_btn = QPushButton("Load Config\nFile", icon=QIcon("./assets/pick_conf_dr.png"))
+		else:
+			self.loadconf_btn = QPushButton("Load Config\nFile", icon=QIcon("./assets/pick_conf.png"))
 		self.loadconf_btn.setFixedSize(130, 40)
 		self.loadconf_btn.clicked.connect(self._load_conf_file)
 		self.loadconf_btn.setIconSize(QSize(48, 32))
@@ -582,6 +593,7 @@ class DataSelectWidget(QWidget):
 		
 		# Clear file list
 		self.dset_select.clear()
+		self.sparam_select.clear()
 		
 		# Get selected chip and track
 		chip_item = self.chip_select.currentItem()
@@ -590,6 +602,8 @@ class DataSelectWidget(QWidget):
 		track_item = self.track_select.currentItem()
 		if track_item is None:
 			return
+		
+		#------ Populate Sweep list --------
 		
 		# Find matching full path
 		full_path = None
@@ -637,10 +651,21 @@ class DataSelectWidget(QWidget):
 			
 			self.dset_select.addItem(fn)
 		
-	def _compare_datasets(self):
-		pass
-	def _load_selected(self):
-		pass
+		#------ SParam Sweep list --------
+		
+		# Find relevant S-parameter sources
+		for sps in self.mdata.dlm.data_conf['sparam_sources']:
+			
+			# Skip wrong chips
+			if sps['chip_name'] != chip_item.text():
+				continue
+			
+			# Skip wrong tracks
+			if sps['track'] != track_item.text():
+				continue
+			
+			# Add to list
+			self.sparam_select.addItem(sps['sparam_set_name'])
 	
 	def reanalyze(self):
 		
@@ -2065,11 +2090,17 @@ app.setStyle(f"Fusion")
 
 chicago_ff = get_font("./assets/Chicago.ttf")
 menlo_ff = get_font("./assets/Menlo-Regular.ttf")
-app.setStyleSheet(f"""
-QWidget {{
-	font-family: '{menlo_ff}';
-}}""")
-
+if cli_args.theme:
+	app.setStyleSheet(f"""
+	QWidget {{
+		font-family: '{chicago_ff}';
+	}}""")
+else:
+	app.setStyleSheet(f"""
+	QWidget {{
+		font-family: '{menlo_ff}';
+	}}""")
+	
 w = HGA1Window(log, master_data, app)
 app.exec()
 
