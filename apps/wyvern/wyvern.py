@@ -539,13 +539,13 @@ GCOND_ADJUST_SLIDER = 'adjust_sliders'
 
 class DataSelectWidget(QWidget):
 	
-	def __init__(self, global_conditions:dict, log:LogPile, mdata:MasterData, replot_handle, remake_sliders_handle, show_frame:bool=False):
+	def __init__(self, global_conditions:dict, log:LogPile, mdata:MasterData, replot_handle, dataset_changed_handle, show_frame:bool=False):
 		super().__init__()
 		self.mdata = mdata
 		self.log = log
 		self.gcond = global_conditions
 		self.replot_handle = replot_handle
-		self.remake_sliders_handle = remake_sliders_handle
+		self.dataset_changed_handle = dataset_changed_handle
 		
 		##------------ Make filter box ---------------
 		
@@ -893,7 +893,7 @@ class DataSelectWidget(QWidget):
 		self.mdata.load_sweep(fullfile)
 		
 		# Update slider values
-		self.remake_sliders_handle()
+		self.dataset_changed_handle()
 		
 		# Replot graphs
 		self.replot_handle()
@@ -1041,10 +1041,6 @@ class ZScorePlotWindow(QMainWindow):
 		
 		self.ax1.cla()
 		
-		if not self.mdata.is_valid_sweep():
-			self.log.debug(f"Invalid sweep data. Aborting plot.")
-			return
-		
 		for (x, y, leglab) in zip(self.x_data, self.y_zscore, self.legend_labels):
 			self.ax1.plot(x, y, label=leglab, linestyle=':', marker='X')
 			
@@ -1167,6 +1163,10 @@ class TabPlotWidget(QWidget):
 		
 		self.plot_data()
 		
+	@abstractmethod
+	def manual_init(self):
+		pass
+	
 	@abstractmethod
 	def render_plot(self):
 		pass
@@ -1989,7 +1989,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 		
 		# Make a controls widget
 		self.control_widget = OutlierControlWidget(self.gcond, self.log, self.mdata, self.plot_all, show_frame=True)
-		self.dataselect_widget = DataSelectWidget(self.gcond, self.log, self.mdata, self.plot_all, self.update_slider_vals, show_frame=True)
+		self.dataselect_widget = DataSelectWidget(self.gcond, self.log, self.mdata, self.plot_all, self.dataset_changed, show_frame=True)
 		
 		# Create tab widget
 		self.tab_widget_widgets = []
@@ -2191,7 +2191,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.update_freq(self.freq_slider.value())
 		self.update_pwr(self.pwr_slider.value())
 	
-	def update_slider_vals(self):
+	def dataset_changed(self):
 		''' Call when the dataset changes. It will readjust the slider positions to something valid for the new dataset.'''
 		
 		# Get old values to match
@@ -2228,6 +2228,10 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.update_bias(self.bias_slider.value())
 		self.update_freq(self.freq_slider.value())
 		self.update_pwr(self.pwr_slider.value())
+		
+		# Reinitialize all widgets (this will fix their autolims and recalculate z-scores)
+		for gcs in self.gcond_subscribers:
+			gcs.manual_init()
 	
 	def _set_max_ce2(self):
 		
