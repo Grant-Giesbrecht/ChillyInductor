@@ -54,7 +54,7 @@
 			"chip_name": "R4C4",
 			"track":"Track 2  (43 mm)",
 			"sparam_set_name": "R4C4-T2 Calibrated | CIOT",
-			"cryostat_file": ["ARC0*", "RP-22*", "Data", "SMC-B*", "*R4C4*", "Track 2*", "*Cal_and_unCal", "Caled_Dev*", "*Ch2ToLeft", "PRF-30dBm"],
+			"cryostat_file": ["ARC0*", "RP-22*", "Data", "SMC-B*", "*R4C4*", "Track 2*", "*Cal_and_unCal", "Caled_Dev*", "*Ch2ToLeft", "PRF-30dBm.csv"],
 			"biastee_in_file": ["ARC0*", "RP-22*", "Data", "SMC-B*", "*R4C4*", "Track 2*", "*Cal_and_unCal", "Caled_Dev*", "PRF-30dBm"],
 			"biastee_out_file": [],
 			"through_file": [],

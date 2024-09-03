@@ -112,7 +112,7 @@ class DataLoadingManager:
 			self.log.critical(f"Failed to load configuration file.", detail=f"{e}")
 			return False
 		
-		# Evaluate each source
+		# Evaluate each sweep source
 		for dss in self.data_conf['sweep_sources']:
 			
 			#For each entry, evaluate wildcards and find actual path
@@ -122,12 +122,29 @@ class DataLoadingManager:
 			name = dss['chip_name']
 			track = dss['track']
 			if full_path is None:
-				self.log.error(f"Failed to find data source for chip {name}, track {track}.")
+				self.log.error(f"Failed to find sweep data source for chip {name}, track {track}.")
 			else:
-				self.log.debug(f"Data source identified for chip {name}, track {track}.", detail=f"Path = {full_path}")
+				self.log.debug(f"Sweep data source identified for chip {name}, track {track}.", detail=f"Path = {full_path}")
 			
 			# Save full path string, or None for error
 			dss['full_path'] = full_path
+		
+		# Evaluate each sparam source
+		for dss in self.data_conf['sparam_sources']:
+			
+			#For each entry, evaluate wildcards and find actual path
+			cryo_full_path = get_general_path(dss['cryostat_file'], dos_id_folder=True, print_details=cli_args.autopathdetails)
+			
+			# Write log
+			name = dss['chip_name']
+			track = dss['track']
+			if cryo_full_path is None:
+				self.log.error(f"Failed to find s-parameter data source for chip {name}, track {track}.")
+			else:
+				self.log.debug(f"S-parameter data source identified for chip {name}, track {track}.", detail=f"Path = {full_path}")
+			
+			# Save full path string, or None for error
+			dss['cryo_full_path'] = cryo_full_path
 		
 		return True
 	
@@ -319,12 +336,6 @@ class MasterData:
 		
 		
 		self.load_sparam(sp_analysis_file)
-		# t0 = time.time()
-		# self.import_hdf()
-		# t1 = time.time()
-		# self.import_sparam()
-		# t2 = time.time()
-		# self.log.debug(f"HDF load time = {rd(t1-t0)} s, S2P load time = {t2-t1} s.")
 
 	def clear_sparam(self):
 		
@@ -431,143 +442,6 @@ class MasterData:
 		self.outlier_mask = (self.power_rf_dBm == self.power_rf_dBm)
 		
 		self.current_sweep_file = sweep_filename
-	
-	# def import_sparam(self):
-	# 	''' Imports S-parameter data into the master data object'''
-		
-	# 	# sp_datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 1 4mm', "VNA Traces"])
-	# 	sp_datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 2 43mm', "Uncalibrated SParam", "Prf -30 dBm"])
-	# 	if sp_datapath is None:
-	# 		print(f"{Fore.RED}Failed to find s-parameter data location{Style.RESET_ALL}")
-	# 		sp_datapath = "M:\\data_transfer\\R4C4T2_Uncal_SParam\\Prf -30 dBm"
-	# 		# sys.exit()
-	# 	else:
-	# 		print(f"{Fore.GREEN}Located s-parameter data directory at: {Fore.LIGHTBLACK_EX}{sp_datapath}{Style.RESET_ALL}")
-		
-	# 	# sp_filename = "Sparam_31July2024_-30dBm_R4C4T1_Wide.csv"
-	# 	sp_filename = "26Aug2024_Ch1ToCryoR_Ch2ToCryoL.csv"
-		
-	# 	sp_analysis_file = os.path.join(sp_datapath, sp_filename)#"Sparam_31July2024_-30dBm_R4C4T1.csv")
-		
-	# 	try:
-	# 		sparam_data = read_rohde_schwarz_csv(sp_analysis_file)
-	# 	except Exception as e:
-	# 		print(f"Failed to read S-parameter CSV file. {e}")
-	# 		sys.exit()
-
-	# 	self.S11 = sparam_data.S11_real + complex(0, 1)*sparam_data.S11_imag
-	# 	self.S21 = sparam_data.S21_real + complex(0, 1)*sparam_data.S21_imag
-	# 	self.S11_dB = lin_to_dB(np.abs(self.S11))
-	# 	self.S21_dB = lin_to_dB(np.abs(self.S21))
-	# 	self.S_freq_GHz = sparam_data.freq_Hz/1e9
-		
-	# 	self.current_sparam_file = sp_analysis_file
-		
-	# def import_hdf(self):
-	# 	''' Imports sweep data into the master data object'''
-		
-	# 	# datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 1 4mm'])
-	# 	datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 2 43mm'])
-	# 	# datapath = '/Volumes/M5 PERSONAL/data_transfer'
-	# 	if datapath is None:
-	# 		print(f"{Fore.RED}Failed to find data location{Style.RESET_ALL}")
-	# 		# datapath = "C:\\Users\\gmg3\\Documents\\GitHub\\ChillyInductor\\RP-22 Scripts\\SMC-B\\Measurement Scripts\\data"
-	# 		# print("WARNING WARNING REMOVE THIS")
-	# 		sys.exit()
-	# 	else:
-	# 		print(f"{Fore.GREEN}Located data directory at: {Fore.LIGHTBLACK_EX}{datapath}{Style.RESET_ALL}")
-
-	# 	# filename = "RP22B_MP3_t1_31July2024_R4C4T1_r1_autosave.hdf"
-	# 	# filename = "RP22B_MP3_t1_1Aug2024_R4C4T1_r1.hdf"
-	# 	# filename = "RP22B_MP3_t2_8Aug2024_R4C4T1_r1.hdf"
-	# 	# filename = "RP22B_MP3a_t3_19Aug2024_R4C4T2_r1.hdf"
-	# 	filename = "RP22B_MP3a_t2_20Aug2024_R4C4T2_r1.hdf"
-	# 	# filename = "RP22B_MP3a_t4_26Aug2024_R4C4T2_r1.hdf"
-		
-	# 	analysis_file = os.path.join(datapath, filename)
-
-		
-
-	# 	##--------------------------------------------
-	# 	# Read HDF5 File
-
-
-	# 	self.log.lowdebug("Loading file contents into memory")
-	# 	# log.info("Loading file contents into memory")
-
-	# 	t_hdfr_0 = time.time()
-	# 	with h5py.File(analysis_file, 'r') as fh:
-			
-	# 		# Read primary dataset
-	# 		GROUP = 'dataset'
-	# 		self.freq_rf_GHz = fh[GROUP]['freq_rf_GHz'][()]
-	# 		self.power_rf_dBm = fh[GROUP]['power_rf_dBm'][()]
-			
-	# 		self.waveform_f_Hz = fh[GROUP]['waveform_f_Hz'][()]
-	# 		self.waveform_s_dBm = fh[GROUP]['waveform_s_dBm'][()]
-	# 		self.waveform_rbw_Hz = fh[GROUP]['waveform_rbw_Hz'][()]
-			
-	# 		self.MFLI_V_offset_V = fh[GROUP]['MFLI_V_offset_V'][()]
-	# 		self.requested_Idc_mA = fh[GROUP]['requested_Idc_mA'][()]
-	# 		self.raw_meas_Vdc_V = fh[GROUP]['raw_meas_Vdc_V'][()]
-	# 		self.Idc_mA = fh[GROUP]['Idc_mA'][()]
-	# 		self.detect_normal = fh[GROUP]['detect_normal'][()]
-			
-	# 		self.temperature_K = fh[GROUP]['temperature_K'][()]
-
-	# 	##--------------------------------------------
-	# 	# Generate Mixing Products lists
-
-	# 	self.rf1 = spectrum_peak_list(self.waveform_f_Hz, self.waveform_s_dBm, self.freq_rf_GHz*1e9)
-	# 	self.rf2 = spectrum_peak_list(self.waveform_f_Hz, self.waveform_s_dBm, self.freq_rf_GHz*2e9)
-	# 	self.rf3 = spectrum_peak_list(self.waveform_f_Hz, self.waveform_s_dBm, self.freq_rf_GHz*3e9)
-
-	# 	self.rf1W = dBm2W(self.rf1)
-	# 	self.rf2W = dBm2W(self.rf2)
-	# 	self.rf3W = dBm2W(self.rf3)
-		
-	# 	##-------------------------------------------
-	# 	# Calculate conversion efficiencies
-		
-	# 	self.total_power = self.rf1W + self.rf2W + self.rf3W
-	# 	self.ce2 = self.rf2W/self.total_power*100
-	# 	self.ce3 = self.rf3W/self.total_power*100
-		
-	# 	##-------------------------------------------
-	# 	# Generate lists of unique conditions
-
-	# 	self.unique_bias = np.unique(self.requested_Idc_mA)
-	# 	self.unique_pwr = np.unique(self.power_rf_dBm)
-	# 	self.unique_freqs = np.unique(self.freq_rf_GHz)
-		
-	# 	self.current_sweep_file = analysis_file
-		
-	# 	##------------------------------------------
-	# 	# Calculate extra impedance
-		
-	# 	# Estimate system Z
-	# 	expected_Z = self.MFLI_V_offset_V[1]/(self.requested_Idc_mA[1]/1e3) #TODO: Do something more general than index 1
-	# 	system_Z = self.MFLI_V_offset_V/(self.Idc_mA/1e3)
-	# 	self.extra_z = system_Z - expected_Z
-		
-	# 	self.zs_extra_z = calc_zscore(self.extra_z)
-	# 	self.zs_meas_Idc = calc_zscore(self.Idc_mA)
-		
-	# 	##------------------------------------------
-	# 	# Generate Z-scores
-		
-	# 	self.zs_ce2 = calc_zscore(self.ce2)
-	# 	self.zs_ce3 = calc_zscore(self.ce3)
-		
-	# 	self.zs_rf1 = calc_zscore(self.rf1)
-	# 	self.zs_rf2 = calc_zscore(self.rf2)
-	# 	self.zs_rf3 = calc_zscore(self.rf3)
-		
-	# 	##------------------------------------------
-	# 	# Outlier mask
-		
-	# 	# Just make array of true
-	# 	self.outlier_mask = (self.power_rf_dBm == self.power_rf_dBm)
 		
 	def rebuild_outlier_mask(self, ce2_zscore:float, extraz_zscore:float):
 		
@@ -658,11 +532,13 @@ class DataSelectWidget(QWidget):
 		
 		self.dset_select = QListWidget()
 		self.dset_select.setFixedSize(QSize(350, 100))
+		self.dset_select.itemChanged.connect(self.reload_sweep)
 		
 		self.sparam_select_label = QLabel("S-Parameters:")
 		
 		self.sparam_select = QListWidget()
 		self.sparam_select.setFixedSize(QSize(350, 100))
+		self.dset_select.itemChanged.connect(self.reload_sparam)
 		
 		if cli_args.theme:
 			self.compare_btn = QPushButton("Compare\nDatasets", icon=QIcon("./assets/compare_src_dr.png"))
@@ -678,12 +554,6 @@ class DataSelectWidget(QWidget):
 			self.arrow_label.setPixmap(QPixmap("./assets/right_arrow_dr.png").scaledToWidth(40))
 		else:
 			self.arrow_label.setPixmap(QPixmap("./assets/right_arrow.png").scaledToWidth(40))
-		# self.arrow_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignVCenter)
-		# self.arrow_label.setWindowIcon(QSize(20, 20))
-		
-		# bottomBtn = QPushButton(, parent=self)
-		# bottomBtn.setFixedSize(100, 40)
-		# bottomBtn.setIconSize(QSize(100, 40))
 		
 		self.loadset_btn = QPushButton("Load\nSelected", icon=QIcon("./assets/reload_data.png"))
 		self.loadset_btn.setFixedSize(120, 40)
@@ -702,15 +572,6 @@ class DataSelectWidget(QWidget):
 		self.right_spacer = QSpacerItem(10, 10, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
 		
 		self.grid = QGridLayout()
-		
-		# self.grid.addItem(self.right_spacer, 0, 0, 2, 1)
-		# self.grid.addWidget(self.chip_select, 0, 1, 2, 1)
-		# self.grid.addWidget(self.track_select, 0, 2, 2, 1)
-		# self.grid.addWidget(self.dset_select, 0, 3, 2, 1)
-		# self.grid.addWidget(self.compare_btn, 0, 4)
-		# self.grid.addWidget(self.loadconf_btn, 1, 4)
-		# self.grid.addWidget(self.loadset_btn, 0, 5)
-		# self.grid.addItem(self.bottom_spacer, 3, 0)
 		
 		self.grid.addWidget(self.filt_box, 0, 0, 3, 1)
 		
@@ -875,8 +736,37 @@ class DataSelectWidget(QWidget):
 			if sps['track'] != track_item.text():
 				continue
 			
+			# Skip sets with invalid data
+			if sps['cryo_full_path'] is None:
+				continue
+			
 			# Add to list
 			self.sparam_select.addItem(sps['sparam_set_name'])
+	
+	def reload_sparam(self):
+		
+		# Get selected file
+		item = self.sparam_select.currentItem()
+		if item is None:
+			return
+		file_name = item.text()
+		
+		# Find full path for file
+		full_path = None
+		for sps in self.mdata.dlm.data_conf['sparam_sources']:
+			
+			if sps['sparam_set_name'] == file_name:
+				full_path = sps['cryo_full_path']
+				break
+		
+		if full_path is None:
+			self.log.error(f"Cannot reload sparameters - file not found.")
+			return
+		
+		self.mdata.load_sparam(full_path)
+		
+	def reload_sweep(self):
+		pass
 	
 	def reanalyze(self):
 		

@@ -306,7 +306,7 @@ def plot_spectrum_df(df_sa, df_cond, index, rbw_threshold_Hz=5e3, linestyle=':',
 	
 	plot_spectrum(df_sa['wav_f_Hz'].iloc[index], df_sa['wav_s_dBm'].iloc[index], df_sa['wav_rbw_Hz'].iloc[index], f_rf=df_cond['freq_rf_GHz'].iloc[index], f_lo=df_cond['freq_lo_GHz'].iloc[index], rbw_threshold_Hz=rbw_threshold_Hz, linestyle=linestyle, marker=marker, fig_no=fig_no, autoshow=autoshow)
 
-def wildcard_path(base_path:str, partial:str, print_errors:bool=False):
+def wildcard_path(base_path:str, partial:str, print_errors:bool=False, include_files:bool=True):
 	''' Given a partial directory name, like Fold*r, returns
 	the full path including that directory. Returns None if
 	zero or more than one path matched. '''
@@ -324,6 +324,9 @@ def wildcard_path(base_path:str, partial:str, print_errors:bool=False):
 		
 	# Wildcard compare
 	match_list = fnmatch.filter(dirs, partial)
+	
+	if include_files and len(match_list) != 1:
+		match_list = fnmatch.filter(files, partial)
 	
 	if len(match_list) == 1:
 		return os.path.join(base_path, match_list[0])
