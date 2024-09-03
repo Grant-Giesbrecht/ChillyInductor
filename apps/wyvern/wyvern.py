@@ -249,8 +249,12 @@ class DataLoadingManager:
 			#TODO: Add CSV and S2P support
 			sparam_data = read_rohde_schwarz_csv(sp_filename)
 		except Exception as e:
-			print(f"Failed to read S-parameter CSV file. {e}")
+			self.log.error(f"Failed to read S-parameter CSV file. {e}")
 			sys.exit()
+		
+		if sparam_data is None:
+			self.log.error(f"Failed to read S-parameter CSV file '{sp_filename}'.")
+			return
 		
 		nd = {}
 		
@@ -279,7 +283,10 @@ class DataLoadingManager:
 		nd['S12_dB'] = lin_to_dB(np.abs(nd['S12']))
 		nd['S22_dB'] = lin_to_dB(np.abs(nd['S22']))
 		
-		nd['freq_GHz'] = sparam_data.freq_Hz/1e9
+		try:
+			nd['freq_GHz'] = sparam_data.freq_Hz/1e9
+		except Exception as e:
+			self.log.error(f"S-parameter data is corrupted. Missing frequency data.", detail=f"{e}. data_struct={sparam_data}")
 
 		# Add dictionary to main databank
 		self.sparam_data[sp_filename] = nd
@@ -384,6 +391,8 @@ class MasterData:
 	def load_sparam(self, sp_filename:str):
 		''' Loads S-parameter data from the DLM.'''
 		
+		self.log.debug(f"MasterData loading s-parameter file: {sp_filename}")
+		
 		# Get data from manager
 		spdict = self.dlm.get_sparam(sp_filename)
 		
@@ -485,6 +494,7 @@ class DataSelectWidget(QWidget):
 		self.mdata = mdata
 		self.log = log
 		self.gcond = global_conditions
+		self.replot_handle = replot_handle
 		
 		##------------ Make filter box ---------------
 		
@@ -538,7 +548,8 @@ class DataSelectWidget(QWidget):
 		
 		self.sparam_select = QListWidget()
 		self.sparam_select.setFixedSize(QSize(350, 100))
-		self.dset_select.itemChanged.connect(self.reload_sparam)
+		self.sparam_select.itemChanged.connect(self.reload_sparam)
+		self.sparam_select.itemClicked.connect(self.reload_sparam)
 		
 		if cli_args.theme:
 			self.compare_btn = QPushButton("Compare\nDatasets", icon=QIcon("./assets/compare_src_dr.png"))
@@ -700,6 +711,7 @@ class DataSelectWidget(QWidget):
 		file_list = [f for f in os.listdir(full_path) if os.path.isfile(os.path.join(full_path, f))]
 		
 		# Scan over directory, add all matching files
+		has_items = False
 		for fn in file_list:
 			
 			# Skip files with no extension, or double extensions
@@ -721,11 +733,18 @@ class DataSelectWidget(QWidget):
 				if wildcard([fn], self.wild_filt_edit.text()) is None:
 					continue
 			
+			has_items = True
 			self.dset_select.addItem(fn)
+		
+		# If dsets exist, pick first
+		if has_items:
+			self.dset_select.setCurrentRow(0)
+			self.reload_sweep()
 		
 		#------ SParam Sweep list --------
 		
 		# Find relevant S-parameter sources
+		has_items = False
 		for sps in self.mdata.dlm.data_conf['sparam_sources']:
 			
 			# Skip wrong chips
@@ -742,14 +761,24 @@ class DataSelectWidget(QWidget):
 			
 			# Add to list
 			self.sparam_select.addItem(sps['sparam_set_name'])
+			has_items = True
+		
+		# If dsets exist, pick first
+		if has_items:
+			self.sparam_select.setCurrentRow(0)
+			self.reload_sparam()
 	
 	def reload_sparam(self):
+		
+		self.log.lowdebug(f"Reloading s-parameter data")
 		
 		# Get selected file
 		item = self.sparam_select.currentItem()
 		if item is None:
 			return
 		file_name = item.text()
+		
+		self.log.lowdebug(f"Selected S-parameter file: {file_name}")
 		
 		# Find full path for file
 		full_path = None
@@ -763,7 +792,11 @@ class DataSelectWidget(QWidget):
 			self.log.error(f"Cannot reload sparameters - file not found.")
 			return
 		
+		# Realod data
 		self.mdata.load_sparam(full_path)
+		
+		# Replot graphs
+		self.replot_handle()
 		
 	def reload_sweep(self):
 		pass

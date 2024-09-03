@@ -1284,16 +1284,24 @@ def read_rohde_schwarz_csv(filename:str) -> pd.DataFrame:
 	'''
 	
 	# Read file
-	df = pd.read_csv(filename, header=2)
+	df = pd.read_csv(filename, header=2, sep=',')
 	
 	# Use wildcard compare to find unnamed column
 	cols = list(df.columns)
 	ch_unnamed = fnmatch.filter(cols, 'Unnamed*')
 	if len(ch_unnamed) != 1:
-		return None
-	else:
-		ch_unnamed = ch_unnamed[0]
 		
+		# df not in expected form - try reading again with tabs
+		df = pd.read_csv(filename, header=2, sep='\t')
+		cols = list(df.columns)
+		ch_unnamed = fnmatch.filter(cols, 'Unnamed*')
+		
+		# If format is still wrong, return
+		if len(ch_unnamed) != 1:
+			return None
+	
+	ch_unnamed = ch_unnamed[0]
+	
 	# Remove last column (insturments adds extra comma)
 	df = df.drop(ch_unnamed, axis=1)
 	
