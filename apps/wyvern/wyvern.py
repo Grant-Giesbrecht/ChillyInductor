@@ -1,7 +1,9 @@
 import sys
+from sys import platform
 import matplotlib
 import copy
 from heimdallr.base import interpret_range
+import ctypes
 matplotlib.use('qtagg')
 
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
@@ -2603,7 +2605,12 @@ else:
 	QWidget {{
 		font-family: '{menlo_ff}';
 	}}""")
-	
+
+if platform == "win32":
+	# Manually override app ID to tell windows to use the Window Icon in the taskbar
+	myappid = 'giesbrecht.wyvern.main.v0' # arbitrary string
+	ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
+
 w = HGA1Window(log, master_data, app)
 app.exec()
 
