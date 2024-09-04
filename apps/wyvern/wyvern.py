@@ -1,6 +1,7 @@
 import sys
 import matplotlib
 import copy
+from heimdallr.base import interpret_range
 matplotlib.use('qtagg')
 
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
@@ -151,6 +152,8 @@ class DataLoadingManager:
 	
 	def get_sweep(self, sweep_filename:str):
 		
+		print(sweep_filename)
+		
 		# Load data from file if not already present
 		if sweep_filename not in self.sweep_data:
 			self.log.info(f"Loading sweep data from file: {sweep_filename}")
@@ -158,7 +161,7 @@ class DataLoadingManager:
 		
 		# return data if in databank
 		if sweep_filename  in self.sweep_data:
-			return self.sweep_data[sweep_filename]
+			return self.sweep_data[sweep_filename]['dataset']
 	
 	def get_sparam(self, sp_filename:str):
 		
@@ -177,78 +180,83 @@ class DataLoadingManager:
 		##--------------------------------------------
 		# Read HDF5 File
 		
-		nd = {}
-		t_hdfr_0 = time.time()
-		with h5py.File(sweep_filename, 'r') as fh:
+		# Load data from file
+		hdfdata = hdf_to_dict(sweep_filename, to_lists=False)
+		
+		# nd = {}
+		# t_hdfr_0 = time.time()
+		# with h5py.File(sweep_filename, 'r') as fh:
 			
-			# Read primary dataset
-			GROUP = 'dataset'
-			try:
-				nd['freq_rf_GHz'] = fh[GROUP]['freq_rf_GHz'][()]
-				nd['power_rf_dBm'] = fh[GROUP]['power_rf_dBm'][()]
+		# 	# Read primary dataset
+		# 	GROUP = 'dataset'
+		# 	try:
+		# 		nd['freq_rf_GHz'] = fh[GROUP]['freq_rf_GHz'][()]
+		# 		nd['power_rf_dBm'] = fh[GROUP]['power_rf_dBm'][()]
 				
-				nd['waveform_f_Hz'] = fh[GROUP]['waveform_f_Hz'][()]
-				nd['waveform_s_dBm'] = fh[GROUP]['waveform_s_dBm'][()]
-				nd['waveform_rbw_Hz'] = fh[GROUP]['waveform_rbw_Hz'][()]
+		# 		nd['waveform_f_Hz'] = fh[GROUP]['waveform_f_Hz'][()]
+		# 		nd['waveform_s_dBm'] = fh[GROUP]['waveform_s_dBm'][()]
+		# 		nd['waveform_rbw_Hz'] = fh[GROUP]['waveform_rbw_Hz'][()]
 				
-				nd['MFLI_V_offset_V'] = fh[GROUP]['MFLI_V_offset_V'][()]
-				nd['requested_Idc_mA'] = fh[GROUP]['requested_Idc_mA'][()]
-				nd['raw_meas_Vdc_V'] = fh[GROUP]['raw_meas_Vdc_V'][()]
-				nd['Idc_mA'] = fh[GROUP]['Idc_mA'][()]
-				nd['detect_normal'] = fh[GROUP]['detect_normal'][()]
+		# 		nd['MFLI_V_offset_V'] = fh[GROUP]['MFLI_V_offset_V'][()]
+		# 		nd['requested_Idc_mA'] = fh[GROUP]['requested_Idc_mA'][()]
+		# 		nd['raw_meas_Vdc_V'] = fh[GROUP]['raw_meas_Vdc_V'][()]
+		# 		nd['Idc_mA'] = fh[GROUP]['Idc_mA'][()]
+		# 		nd['detect_normal'] = fh[GROUP]['detect_normal'][()]
 				
-				nd['temperature_K'] = fh[GROUP]['temperature_K'][()]
-			except Exception as e:
-				self.log.error(f"Failed ot load file {sweep_filename}.", detail=f"{e}")
-				return
+		# 		nd['temperature_K'] = fh[GROUP]['temperature_K'][()]
+		# 	except Exception as e:
+		# 		self.log.error(f"Failed ot load file {sweep_filename}.", detail=f"{e}")
+		# 		return
+		
 		##--------------------------------------------
 		# Generate Mixing Products lists
 
-		nd['rf1'] = spectrum_peak_list(nd['waveform_f_Hz'], nd['waveform_s_dBm'], nd['freq_rf_GHz']*1e9)
-		nd['rf2'] = spectrum_peak_list(nd['waveform_f_Hz'], nd['waveform_s_dBm'], nd['freq_rf_GHz']*2e9)
-		nd['rf3'] = spectrum_peak_list(nd['waveform_f_Hz'], nd['waveform_s_dBm'], nd['freq_rf_GHz']*3e9)
-		nd['rf1W'] = dBm2W(nd['rf1'])
-		nd['rf2W'] = dBm2W(nd['rf2'])
-		nd['rf3W'] = dBm2W(nd['rf3'])
+		
+		hdfdata['dataset']['rf1'] = spectrum_peak_list(hdfdata['dataset']['waveform_f_Hz'], hdfdata['dataset']['waveform_s_dBm'], hdfdata['dataset']['freq_rf_GHz']*1e9)
+		hdfdata['dataset']['rf2'] = spectrum_peak_list(hdfdata['dataset']['waveform_f_Hz'], hdfdata['dataset']['waveform_s_dBm'], hdfdata['dataset']['freq_rf_GHz']*2e9)
+		hdfdata['dataset']['rf3'] = spectrum_peak_list(hdfdata['dataset']['waveform_f_Hz'], hdfdata['dataset']['waveform_s_dBm'], hdfdata['dataset']['freq_rf_GHz']*3e9)
+		hdfdata['dataset']['rf1W'] = dBm2W(hdfdata['dataset']['rf1'])
+		hdfdata['dataset']['rf2W'] = dBm2W(hdfdata['dataset']['rf2'])
+		hdfdata['dataset']['rf3W'] = dBm2W(hdfdata['dataset']['rf3'])
 		
 		##-------------------------------------------
 		# Calculate conversion efficiencies
 		
-		nd['total_power'] = nd['rf1W'] + nd['rf2W'] + nd['rf3W']
-		nd['ce2'] = nd['rf2W']/nd['total_power']*100
-		nd['ce3'] = nd['rf3W']/nd['total_power']*100
+		hdfdata['dataset']['total_power'] = hdfdata['dataset']['rf1W'] + hdfdata['dataset']['rf2W'] + hdfdata['dataset']['rf3W']
+		hdfdata['dataset']['ce2'] = hdfdata['dataset']['rf2W']/hdfdata['dataset']['total_power']*100
+		hdfdata['dataset']['ce3'] = hdfdata['dataset']['rf3W']/hdfdata['dataset']['total_power']*100
 		
 		##-------------------------------------------
 		# Generate lists of unique conditions
 
-		nd['unique_bias'] = np.unique(nd['requested_Idc_mA'])
-		nd['unique_pwr'] = np.unique(nd['power_rf_dBm'])
-		nd['unique_freqs'] = np.unique(nd['freq_rf_GHz'])
+		hdfdata['dataset']['unique_bias'] = np.unique(hdfdata['dataset']['requested_Idc_mA'])
+		hdfdata['dataset']['unique_pwr'] = np.unique(hdfdata['dataset']['power_rf_dBm'])
+		hdfdata['dataset']['unique_freqs'] = np.unique(hdfdata['dataset']['freq_rf_GHz'])
 		
 		
 		##------------------------------------------
 		# Calculate extra impedance
 		
 		# Estimate system Z
-		expected_Z = nd['MFLI_V_offset_V'][1]/(nd['requested_Idc_mA'][1]/1e3) #TODO: Do something more general than index 1
-		system_Z = nd['MFLI_V_offset_V']/(nd['Idc_mA']/1e3)
-		nd['extra_z'] = system_Z - expected_Z
+		expected_Z = hdfdata['dataset']['MFLI_V_offset_V'][1]/(hdfdata['dataset']['requested_Idc_mA'][1]/1e3) #TODO: Do something more general than index 1
+		system_Z = hdfdata['dataset']['MFLI_V_offset_V']/(hdfdata['dataset']['Idc_mA']/1e3)
+		hdfdata['dataset']['extra_z'] = system_Z - expected_Z
 		
-		nd['zs_extra_z'] = calc_zscore(nd['extra_z'])
-		nd['zs_meas_Idc'] = calc_zscore(nd['Idc_mA'])
+		hdfdata['dataset']['zs_extra_z'] = calc_zscore(hdfdata['dataset']['extra_z'])
+		hdfdata['dataset']['zs_meas_Idc'] = calc_zscore(hdfdata['dataset']['Idc_mA'])
 		
 		##------------------------------------------
 		# Generate Z-scores
 		
-		nd['zs_ce2'] = calc_zscore(nd['ce2'])
-		nd['zs_ce3'] = calc_zscore(nd['ce3'])
+		hdfdata['dataset']['zs_ce2'] = calc_zscore(hdfdata['dataset']['ce2'])
+		hdfdata['dataset']['zs_ce3'] = calc_zscore(hdfdata['dataset']['ce3'])
 		
-		nd['zs_rf1'] = calc_zscore(nd['rf1'])
-		nd['zs_rf2'] = calc_zscore(nd['rf2'])
-		nd['zs_rf3'] = calc_zscore(nd['rf3'])
+		hdfdata['dataset']['zs_rf1'] = calc_zscore(hdfdata['dataset']['rf1'])
+		hdfdata['dataset']['zs_rf2'] = calc_zscore(hdfdata['dataset']['rf2'])
+		hdfdata['dataset']['zs_rf3'] = calc_zscore(hdfdata['dataset']['rf3'])
 		
 		# Save to master databank
-		self.sweep_data[sweep_filename] = nd
+		self.sweep_data[sweep_filename] = hdfdata
 	
 	def import_sparam_file(self, sp_filename:str):
 		''' Imports S-parameter data into the DLM's sparam dict'''
@@ -298,6 +306,18 @@ class DataLoadingManager:
 
 		# Add dictionary to main databank
 		self.sparam_data[sp_filename] = nd
+
+	def get_sweep_full(self, sweep_filename:str):
+		''' Returns info struct for a sweep file.'''
+		
+		# Load data from file if not already present
+		if sweep_filename not in self.sweep_data:
+			self.log.info(f"Loading sweep data from file: {sweep_filename}")
+			self.import_sweep_file(sweep_filename)
+		
+		# return data if in databank
+		if sweep_filename  in self.sweep_data:
+			return self.sweep_data[sweep_filename]
 
 class MasterData:
 	''' Class to represent the data currently analyzed/plotted by the application'''
@@ -537,6 +557,126 @@ GCOND_FREQXAXIS_ISFUND = 'freqxaxis_isfund'
 GCOND_BIASXAXIS_ISMEAS = 'biasxaxis_ismeas'
 GCOND_ADJUST_SLIDER = 'adjust_sliders'
 
+class DataCompareWindow(QMainWindow):
+	
+	def __init__(self, files:list, log:LogPile, dlm:DataLoadingManager):
+		super().__init__()
+		
+		self.files = files
+		self.dlm = dlm
+		self.log = log
+		
+		# Create figure
+		self.fig1, ax_list = plt.subplots(3, 1)
+		self.ax1 = ax_list[0]
+		self.ax2 = ax_list[1]
+		self.ax3 = ax_list[2]
+		
+		# Create widgets
+		self.fig1cvs = FigureCanvas(self.fig1)
+		self.toolbar1 = NavigationToolbar2QT(self.fig1cvs, self)
+		
+		self.render_plot()
+		
+		# Add widgets to parent-widget and set layout
+		self.grid = QtWidgets.QGridLayout()
+		self.grid.addWidget(self.toolbar1, 0, 0)
+		self.grid.addWidget(self.fig1cvs, 1, 0)
+		
+		central_widget = QtWidgets.QWidget()
+		central_widget.setLayout(self.grid)
+		self.setCentralWidget(central_widget)
+	
+	def render_plot(self):
+		
+		self.ax1.cla()
+		self.ax2.cla()
+		self.ax3.cla()
+		
+		markers = []
+		marker_sizes = []
+		colors = []
+		labels = []
+		
+		# Get conf dict for each file
+		conf_list = []
+		for fn in self.files:
+			bfn = os.path.basename(fn) # Strip file name from full path
+			
+			# Access data from DLM
+			full_data = self.dlm.get_sweep_full(fn)
+			
+			try:
+				conf_list.append(json.loads(full_data['info']['configuration'].decode()))
+			except:
+				self.log.warning(f"Failed to load configuration data for file: {bfn}.")
+				continue
+			
+			markers.append('s')
+			marker_sizes.append(10)
+			colors.append((0, 0, 0.7))
+			labels.append(bfn)
+		
+		axs = [self.ax1, self.ax2, self.ax3]
+		
+		# Scan over files
+		for src_idx, conf in enumerate(conf_list):
+			
+			
+			# Scan over parameters
+			data_idx = 0
+			for k in conf.keys():
+				
+				# Get values
+				try:
+					vals = interpret_range(conf[k])
+				except Exception as e:
+					self.log.warning("Interpret range failed. Skipping file in comparison.", detail=f"{e}")
+					continue
+				
+				unit_str = conf[k]['unit']
+				
+				# Plot data
+				axs[data_idx].grid(True)
+				axs[data_idx].scatter(vals, [len(conf_list)-src_idx]*len(vals), [marker_sizes[src_idx]]*len(vals), marker=markers[src_idx], color=colors[src_idx], label=labels[src_idx])
+				axs[data_idx].set_xlabel(f"{k} [{unit_str}]")
+				
+				# Set parameters on last loops
+				if src_idx == len(conf_list) -1:
+					# axs[data_idx].legend()
+					axs[data_idx].set_yticks(list(range(1, len(conf_list)+1)))
+					axs[data_idx].set_yticklabels(reversed(labels))
+				
+				data_idx += 1
+
+		self.fig1.tight_layout()
+		
+		# for (x, y, leglab) in zip(self.x_data, self.y_zscore, self.legend_labels):
+		# 	self.ax1.plot(x, y, label=leglab, linestyle=':', marker='X')
+			
+		# self.ax1.set_ylabel("Z-Score")
+		# self.ax1.legend()
+		# self.ax1.grid(True)
+		# self.ax1.set_xlabel(self.x_label)
+		
+		# if type(self.y_zscore[0]) == list or type(self.y_zscore[0]) == np.ndarray: # 2D list
+			
+		# 	for (x, y, leglab) in zip(self.x_data, self.y_zscore, self.legend_labels):
+		# 		self.ax1.plot(x, y, label=leglab)
+			
+		# 	self.ax1.set_ylabel("Z-Score")
+		# 	self.ax1.legend()
+		# 	self.ax1.grid(True)
+		# 	self.ax1.set_xlabel(self.x_label)
+		# else:
+		# 	self.ax1.plot(self.x_data, self.y_zscore)
+		# 	self.ax1.set_xlabel(self.x_label)
+		# 	self.ax1.set_ylabel(self.legend_labels)
+		# 	self.ax1.grid(True)
+		
+		self.fig1.canvas.draw_idle()
+
+
 class DataSelectWidget(QWidget):
 	
 	def __init__(self, global_conditions:dict, log:LogPile, mdata:MasterData, replot_handle, dataset_changed_handle, show_frame:bool=False):
@@ -608,7 +748,7 @@ class DataSelectWidget(QWidget):
 			self.compare_btn = QPushButton("Compare\nDatasets", icon=QIcon("./assets/compare_src.png"))
 			
 		self.compare_btn.setFixedSize(130, 40)
-		# self.compare_btn.clicked.connect(self._compare_datasets)
+		self.compare_btn.clicked.connect(self._compare_datasets)
 		self.compare_btn.setIconSize(QSize(48, 32))
 		
 		self.arrow_label = QLabel()
@@ -666,7 +806,45 @@ class DataSelectWidget(QWidget):
 			self.setLayout(self.grid)
 		
 		self.reinit_chip_list()
+	
+	def _compare_datasets(self):
 		
+		# Get selected chip and track
+		chip_item = self.chip_select.currentItem()
+		if chip_item is None:
+			return
+		track_item = self.track_select.currentItem()
+		if track_item is None:
+			return
+		
+		# Find matching full path
+		full_path = None
+		for ds in self.mdata.dlm.data_conf['sweep_sources']:
+			
+			# Skip wrong chips
+			if ds['chip_name'] != chip_item.text():
+				continue
+			
+			# Skip wrong tracks
+			if ds['track'] != track_item.text():
+				continue
+			
+			full_path = ds['full_path']
+		
+		# Abort if no path appears
+		if full_path is None:
+			self.log.error(f"Path to data directory not found!")
+			return
+		
+		# Make list of file names
+		file_list = [os.path.join(full_path, self.dset_select.item(x).text()) for x in range(self.dset_select.count())]
+		
+		print(file_list)
+		
+		# Create window
+		self.dcw = DataCompareWindow(file_list, self.log, self.mdata.dlm)
+		self.dcw.show()
+	
 	def _load_conf_file(self):
 		
 		openfile, __ = QFileDialog.getOpenFileName()
@@ -1606,8 +1784,7 @@ class IVPlotWidget(TabPlotWidget):
 		# 	log.warning(f"Cannot display data: Mismatched number of points (freq = {f} GHz, pwr = {p} dBm, mask: {mask_len}, bias: {len(self.mdata.unique_bias)})")
 		# 	self.fig1.canvas.draw_idle()
 		# 	returnz
-		print(self.mdata.current_sweep_file)
-		print(self.mdata.Idc_mA)
+		
 		minval = np.min([0, np.min(self.mdata.requested_Idc_mA[mask]), np.min(self.mdata.Idc_mA[mask]) ])
 		maxval = np.max([0, np.max(self.mdata.requested_Idc_mA[mask]), np.max(self.mdata.Idc_mA[mask]) ])
 		
