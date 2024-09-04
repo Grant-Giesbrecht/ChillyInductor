@@ -562,6 +562,9 @@ class DataCompareWindow(QMainWindow):
 	def __init__(self, files:list, log:LogPile, dlm:DataLoadingManager):
 		super().__init__()
 		
+		self.setWindowTitle("Data Sweep Comparison")
+		self.setWind
+		
 		self.files = files
 		self.dlm = dlm
 		self.log = log
@@ -2586,6 +2589,7 @@ dlm = DataLoadingManager(log, conf_file=os.path.join(".", "wyv_conf.json"))
 master_data = MasterData(log, dlm)
 app = QtWidgets.QApplication(sys.argv)
 app.setStyle(f"Fusion")
+app.setWindowIcon(QIcon("./assets/icon.png"))
 
 chicago_ff = get_font("./assets/Chicago.ttf")
 menlo_ff = get_font("./assets/Menlo-Regular.ttf")
