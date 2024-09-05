@@ -565,7 +565,6 @@ class DataCompareWindow(QMainWindow):
 		super().__init__()
 		
 		self.setWindowTitle("Data Sweep Comparison")
-		self.setWind
 		
 		self.files = files
 		self.dlm = dlm
@@ -2614,5 +2613,6 @@ if platform == "win32":
 w = HGA1Window(log, master_data, app)
 app.exec()
 
-
+#TODO: When bias is set to show requested, the fixed scale doesnt work. Look at max-CE2 in 8Aug dataset.
+#TODO: When you turn off the filter, it loads the wrong types of datasets and crashes!
 
