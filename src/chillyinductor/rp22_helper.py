@@ -14,6 +14,7 @@ from dataclasses import dataclass
 from mpl_toolkits.mplot3d import axes3d
 from pylogfile.base import *
 from ganymede import *
+import skrf
 
 def visualize_dataset_conditions(file:str):
 	
@@ -1274,8 +1275,37 @@ def wildcard(checks:list, pattern:str, ignore_case:bool=False):
 		matched = matched[0]
 	
 	return matched
-	
 
+
+def read_s2p(filename:str) -> pd.DataFrame:
+	
+	# Create network object from filename
+	try:
+		data_net = skrf.Network(filename)
+	except:
+		return None
+	
+	# Convert to pandas dataframe
+	net_df = data_net.to_dataframe(attrs=['s_re', 's_im'])
+	
+	# Convert to internally standardized format
+	dfd = {}
+	dfd['freq_Hz'] = list(net_df.index)
+	
+	dfd['S11_real'] = list(net_df['s_re 11'])
+	dfd['S21_real'] = list(net_df['s_re 21'])
+	dfd['S12_real'] = list(net_df['s_re 12'])
+	dfd['S22_real'] = list(net_df['s_re 22'])
+	
+	dfd['S11_imag'] = list(net_df['s_im 11'])
+	dfd['S21_imag'] = list(net_df['s_im 21'])
+	dfd['S12_imag'] = list(net_df['s_im 12'])
+	dfd['S22_imag'] = list(net_df['s_im 22'])
+	
+	df = pd.DataFrame(dfd)
+	
+	return df
+	
 def read_rohde_schwarz_csv(filename:str) -> pd.DataFrame:
 	''' Reads a CSV file containing S-parameter data from a Rohde & Schwarz ZVA
 	vector network analyzer. Returns a Pandas DataFrame.

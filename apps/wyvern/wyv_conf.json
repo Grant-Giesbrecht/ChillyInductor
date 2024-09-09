@@ -36,6 +36,11 @@
 			"chip_name": "R4C4",
 			"track": "Track 2  (43 mm)",
 			"path": ["ARC0*", "RP-22*", "Data", "SMC-B*", "*R4C4*", "Track 2*"]
+		},
+		{
+			"chip_name": "R4C1",
+			"track": "Track 2  (43 mm)",
+			"path": ["ARC0*", "RP-22*", "Data", "SMC-B*", "*R4C1*", "Track 2*"]
 		}
 	],
 	"sparam_sources": [
@@ -58,7 +63,29 @@
 			"biastee_in_file": ["ARC0*", "RP-22*", "Data", "SMC-B*", "*R4C4*", "Track 2*", "*Cal_and_unCal", "Caled_Dev*", "PRF-30dBm"],
 			"biastee_out_file": [],
 			"through_file": [],
-			"calibrated": false,
+			"calibrated": true,
+			"calibration_file": ""
+		},
+		{
+			"chip_name": "R4C1",
+			"track":"Track 2  (43 mm)",
+			"sparam_set_name": "R4C1-T2 Calibrated FS | CIOT",
+			"cryostat_file": ["ARC0*", "RP-22*", "Data", "SMC-B*", "*R4C1*", "Track 2*", "*s_parameters", "9Sept2024", "full span", "cryostat.s2p"],
+			"biastee_in_file": ["ARC0*", "RP-22*", "Data", "SMC-B*", "*R4C1*", "Track 2*", "*s_parameters", "9Sept2024", "full span", "BiasTeeInputBlack.s2p"],
+			"biastee_out_file": ["ARC0*", "RP-22*", "Data", "SMC-B*", "*R4C1*", "Track 2*", "*s_parameters", "9Sept2024", "full span", "BiasTeeOutputBlue.s2p"],
+			"through_file": ["ARC0*", "RP-22*", "Data", "SMC-B*", "*R4C1*", "Track 2*", "*s_parameters", "9Sept2024", "full span", "Through.s2p"],
+			"calibrated": true,
+			"calibration_file": ""
+		},
+		{
+			"chip_name": "R4C1",
+			"track":"Track 2  (43 mm)",
+			"sparam_set_name": "R4C1-T2 Calibrated Nw | CIOT",
+			"cryostat_file": ["ARC0*", "RP-22*", "Data", "SMC-B*", "*R4C1*", "Track 2*", "*s_parameters", "9Sept2024", "narrow", "cryostat.s2p"],
+			"biastee_in_file": ["ARC0*", "RP-22*", "Data", "SMC-B*", "*R4C1*", "Track 2*", "*s_parameters", "9Sept2024", "narrow", "BiasTeeInputBlack.s2p"],
+			"biastee_out_file": ["ARC0*", "RP-22*", "Data", "SMC-B*", "*R4C1*", "Track 2*", "*s_parameters", "9Sept2024", "narrow", "BiasTeeOutputBlue.s2p"],
+			"through_file": ["ARC0*", "RP-22*", "Data", "SMC-B*", "*R4C1*", "Track 2*", "*s_parameters", "9Sept2024", "narrow", "Through.s2p"],
+			"calibrated": true,
 			"calibration_file": ""
 		}
 	],

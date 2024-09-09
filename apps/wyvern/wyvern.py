@@ -4,7 +4,9 @@ import matplotlib
 import copy
 from heimdallr.base import interpret_range
 import ctypes
+from jarnsaxa import *
 matplotlib.use('qtagg')
+from skrf import Network
 
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from pylogfile.base import *
@@ -264,8 +266,13 @@ class DataLoadingManager:
 		''' Imports S-parameter data into the DLM's sparam dict'''
 		
 		try:
-			#TODO: Add CSV and S2P support
-			sparam_data = read_rohde_schwarz_csv(sp_filename)
+			if sp_filename[-4:].lower() == '.csv':
+				sparam_data = read_rohde_schwarz_csv(sp_filename)
+			else:
+				
+				# Read S-parameters
+				sparam_data = read_s2p(sp_filename)
+				
 		except Exception as e:
 			self.log.error(f"Failed to read S-parameter CSV file. {e}")
 			sys.exit()
