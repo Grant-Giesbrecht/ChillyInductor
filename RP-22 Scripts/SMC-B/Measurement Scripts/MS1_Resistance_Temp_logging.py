@@ -13,10 +13,10 @@ from inputimeout import inputimeout, TimeoutOccurred
 from ganymede import *
 import datetime
 
-DATA_DIRECTORY = "data"
-LOG_DIRECTORY = "logs"
+DATA_DIRECTORY = "C:\\Users\\gmg3\\Mega\\remote_data\\data"
+LOG_DIRECTORY = "C:\\Users\\gmg3\\Mega\\remote_data\\logs"
 
-LOGGING_PERIOD_S = 10
+LOGGING_PERIOD_S = 5
 
 TIME_AUTOSAVE_S = 600
 
