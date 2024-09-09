@@ -618,9 +618,13 @@ class DataCompareWindow(QMainWindow):
 			full_data = self.dlm.get_sweep_full(fn)
 			
 			try:
-				conf_list.append(json.loads(full_data['info']['configuration'].decode()))
-			except:
-				self.log.warning(f"Failed to load configuration data for file: {bfn}.")
+				conf_str = full_data['info']['configuration']
+				if type(conf_str) != str:
+					print(type(conf_str))
+					conf_str = conf_str.decode()
+				conf_list.append(json.loads(conf_str))
+			except Exception as e:
+				self.log.warning(f"Failed to load configuration data for file: {bfn}.", detail=f"{e}")
 				continue
 			
 			markers.append('s')
@@ -633,16 +637,18 @@ class DataCompareWindow(QMainWindow):
 		# Scan over files
 		for src_idx, conf in enumerate(conf_list):
 			
-			
 			# Scan over parameters
 			data_idx = 0
 			for k in conf.keys():
+				
+				# Skip lists
+				if type(conf[k]) == list:continue
 				
 				# Get values
 				try:
 					vals = interpret_range(conf[k])
 				except Exception as e:
-					self.log.warning("Interpret range failed. Skipping file in comparison.", detail=f"{e}")
+					self.log.debug(f"Interpret range failed. Skipping parameter '{k}' in comparison.", detail=f"{e}")
 					continue
 				
 				unit_str = conf[k]['unit']
@@ -849,8 +855,6 @@ class DataSelectWidget(QWidget):
 		
 		# Make list of file names
 		file_list = [os.path.join(full_path, self.dset_select.item(x).text()) for x in range(self.dset_select.count())]
-		
-		print(file_list)
 		
 		# Create window
 		self.dcw = DataCompareWindow(file_list, self.log, self.mdata.dlm)
