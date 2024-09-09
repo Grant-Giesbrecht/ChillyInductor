@@ -15,8 +15,10 @@ import argparse
 
 # Set directories for data and sweep configuration
 CONF_DIRECTORY = "sweep_configs"
-DATA_DIRECTORY = "data"
-LOG_DIRECTORY = "logs"
+# DATA_DIRECTORY = "data"
+# LOG_DIRECTORY = "logs"
+DATA_DIRECTORY = "C:\\Users\\gmg3\\Mega\\remote_data\\data"
+LOG_DIRECTORY = "C:\\Users\\gmg3\\Mega\\remote_data\\logs"
 
 # Set autosave period in seconds
 TIME_AUTOSAVE_S = 600
@@ -264,6 +266,10 @@ for f_rf in freq_rf:
 			
 			# Read Vdc (-> Idc)
 			v_cs_read = np.abs(dmm.trigger_and_read())
+			
+			log.info(f"Measured bias current at {v_cs_read/cs_res*1e3} mA", detail=f"V_current_sense_read = {v_cs_read} V, CS-resistor = {cs_res} ohms.")
+			if np.abs((v_cs_read/cs_res*1e3) - idc)/idc > 0.2 and idc != 0:
+				log.warning(f"Measured Idc missed target by more than 20%. (Error = {np.abs((v_cs_read/cs_res*1e3) - idc)/idc*100} %)")
 			
 			# Read temperature
 			t_meas = tempctrl.get_temp()
