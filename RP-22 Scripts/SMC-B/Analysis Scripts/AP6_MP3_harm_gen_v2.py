@@ -69,9 +69,9 @@ if datapath is None:
 else:
 	print(f"{Fore.GREEN}Located data directory at: {Fore.LIGHTBLACK_EX}{datapath}{Style.RESET_ALL}")
 
-# filename = "RP22B_MP3_t1_31July2024_R4C4T1_r1_autosave.hdf"
-# filename = "RP22B_MP3_t1_1Aug2024_R4C4T1_r1.hdf"
-# filename = "RP22B_MP3_t2_8Aug2024_R4C4T1_r1.hdf"
+# # filename = "RP22B_MP3_t1_31July2024_R4C4T1_r1_autosave.hdf"
+# # filename = "RP22B_MP3_t1_1Aug2024_R4C4T1_r1.hdf"
+# # filename = "RP22B_MP3_t2_8Aug2024_R4C4T1_r1.hdf"
 # filename = "RP22B_MP3a_t3_19Aug2024_R4C4T2_r1.hdf"
 filename = "RP22B_MP3a_t2_20Aug2024_R4C4T2_r1.hdf"
 
@@ -81,6 +81,7 @@ sp_filename = "Sparam_31July2024_-30dBm_R4C4T1_Wide.csv"
 sp_analysis_file = os.path.join(sp_datapath, sp_filename)#"Sparam_31July2024_-30dBm_R4C4T1.csv")
 
 analysis_file = os.path.join(datapath, filename)
+# analysis_file = "C:\\Users\\grant\\Downloads\\RP22B_MP3a_t5_31Aug2024_R4C1T2_r1_autosave.hdf"
 
 log = LogPile()
 

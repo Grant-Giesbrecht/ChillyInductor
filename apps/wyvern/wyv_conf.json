@@ -1,0 +1,66 @@
+{
+	"chip_models": [
+		{
+			"model": "A",
+			"width_um": 2.5,
+			"ids": ["R0C1", "R0C3"]
+		},
+		{
+			"model": "B",
+			"width_um": 3,
+			"ids": []
+		},
+		{
+			"model": "C",
+			"width_um": 3.3,
+			"ids": ["R4C4"]
+		},
+		{
+			"model": "D",
+			"width_um": 3.7,
+			"ids": ["R3C1", "R3C3"]
+		},
+		{
+			"model": "E",
+			"width_um": 4.4,
+			"ids": ["R4C1", "R4C3"]
+		}
+	],
+	"sweep_sources": [
+		{
+			"chip_name": "R4C4",
+			"track": "Track 1   (4 mm)",
+			"path": ["ARC0*", "RP-22*", "Data", "SMC-B*", "*R4C4*", "Track 1*"]
+		},
+		{
+			"chip_name": "R4C4",
+			"track": "Track 2  (43 mm)",
+			"path": ["ARC0*", "RP-22*", "Data", "SMC-B*", "*R4C4*", "Track 2*"]
+		}
+	],
+	"sparam_sources": [
+		{
+			"chip_name": "R4C4",
+			"track":"Track 1   (4 mm)",
+			"sparam_set_name": "R4C4-T1 Uncalibrated | C",
+			"cryostat_file": ["ARC0*", "RP-22*", "Data", "SMC-B*", "*R4C4*", "Track 1*", "VNA Traces", "Sparam_31July2024_-30dBm_R4C4T1_Wide.csv"],
+			"biastee_in_file": [],
+			"biastee_out_file": [],
+			"through_file": [],
+			"calibrated": false,
+			"calibration_file": ""
+		},
+		{
+			"chip_name": "R4C4",
+			"track":"Track 2  (43 mm)",
+			"sparam_set_name": "R4C4-T2 Calibrated | CIOT",
+			"cryostat_file": ["ARC0*", "RP-22*", "Data", "SMC-B*", "*R4C4*", "Track 2*", "*Cal_and_unCal", "Caled_Dev*", "*Ch2ToLeft", "PRF-30dBm.csv"],
+			"biastee_in_file": ["ARC0*", "RP-22*", "Data", "SMC-B*", "*R4C4*", "Track 2*", "*Cal_and_unCal", "Caled_Dev*", "PRF-30dBm"],
+			"biastee_out_file": [],
+			"through_file": [],
+			"calibrated": false,
+			"calibration_file": ""
+		}
+	],
+	"wild_filt_default": "*MP3*"
+}

@@ -306,7 +306,7 @@ def plot_spectrum_df(df_sa, df_cond, index, rbw_threshold_Hz=5e3, linestyle=':',
 	
 	plot_spectrum(df_sa['wav_f_Hz'].iloc[index], df_sa['wav_s_dBm'].iloc[index], df_sa['wav_rbw_Hz'].iloc[index], f_rf=df_cond['freq_rf_GHz'].iloc[index], f_lo=df_cond['freq_lo_GHz'].iloc[index], rbw_threshold_Hz=rbw_threshold_Hz, linestyle=linestyle, marker=marker, fig_no=fig_no, autoshow=autoshow)
 
-def wildcard_path(base_path:str, partial:str):
+def wildcard_path(base_path:str, partial:str, print_errors:bool=False, include_files:bool=True):
 	''' Given a partial directory name, like Fold*r, returns
 	the full path including that directory. Returns None if
 	zero or more than one path matched. '''
@@ -318,11 +318,15 @@ def wildcard_path(base_path:str, partial:str):
 	try:
 		root, dirs, files = next(os.walk(base_path))
 	except Exception as e:
-		print(f"Error finding directory contents for '{base_path}'. ({e})")
+		if print_errors:
+			print(f"wildcard_path(): Error finding directory contents for '{base_path}'. ({e})")
 		return None
 		
 	# Wildcard compare
 	match_list = fnmatch.filter(dirs, partial)
+	
+	if include_files and len(match_list) != 1:
+		match_list = fnmatch.filter(files, partial)
 	
 	if len(match_list) == 1:
 		return os.path.join(base_path, match_list[0])
@@ -377,6 +381,76 @@ def reform_dictlist(data:list):
 			newform[k] = pad_ragged_lists(newform[k], max_len)
 	
 	return newform
+
+def get_general_path(sub_dirs:list=[], check_drive_letters:list=None, unix_vol_name:str=None, dos_drive_letter:str="C:\\", dos_id_folder:bool=False, print_details:bool=False):
+	''' Returns the path to the directory. Defaults to main disk ('/' on unix and 'C:\\' on Windows). Can change to 
+	external volume by providing the volume name in unix systems, or the drive letter on DOS/Windows. DOS/Windows can
+	also identify the drive letter by checking which external drive first (in alphabetical order) contains the first 
+	folder specified in sub_dirs. You can set which drive letters are checked, and in which order, by providing a list of
+	letters to 'check_drive_letters'.
+	
+	Returns the matching path, otherwise returns None
+	'''
+	
+	# Check OS
+	if platform == "linux" or platform == "linux2":
+		is_unix = True
+	elif platform == "darwin":
+		is_unix = True
+	elif platform == "win32":
+		is_unix = False
+		
+	# Find drive
+	if is_unix:
+		if print_details:
+			print(f"get_general_path(): Identified system as UNIX")
+		if unix_vol_name is None:
+			path = '/'
+		else:
+			path = os.path.join('/', 'Volumes', {unix_vol_name})
+	
+	else:
+		if print_details:
+			print(f"get_general_path(): Identified system as DOS")
+		
+		# List letters to check
+		if check_drive_letters is None:
+			check_drive_letters = ['D:\\', 'E:\\', 'F:\\', 'G:\\', 'H:\\', 'I:\\', 'J:\\', 'K:\\', 'L:\\']
+		
+		if dos_id_folder:
+			
+			try:
+				dos_id_folder = sub_dirs[0]
+				sub_dirs = sub_dirs[1:]
+				if print_details:
+					print(f"get_general_path(): Identified ID folder as {dos_id_folder}.")
+			except:
+				return None
+				
+			# Find drive letter
+			path = None
+			for cdl in check_drive_letters:
+				try_path = wildcard_path(cdl, dos_id_folder, print_errors=print_details)
+				if try_path is not None:
+					if print_details:
+						print(f"get_general_path(): Drive letter {cdl} identified as match.")
+					path = try_path
+					break
+				elif print_details:
+					print(f"get_general_path(): Drive letter {cdl} did not match conditions.")
+			# Return None if none found
+			if path is None:
+				if print_details:
+					print(f"get_general_path(): Failed to find drive with ID folder {dos_id_folder}. Exiting.")
+				return None
+		else:
+			path = "C:\\"
+	
+	# Add on additional paths
+	for ad in sub_dirs:
+		path = wildcard_path(path, ad)
+	
+	return path
 
 def get_datadir_path(rp:int, smc:str, sub_dirs:list=[], check_drive_letters:list=None):
 	''' Returns the path to the data directory for RP-{rp}, and SMC-{smc}.
@@ -434,6 +508,63 @@ def get_datadir_path(rp:int, smc:str, sub_dirs:list=[], check_drive_letters:list
 		path = wildcard_path(path, ad)
 	
 	return path
+
+# def get_path(sub_dirs:list=[], check_drive_letters:list=None):
+# 	''' Returns the path to the data directory for RP-{rp}, and SMC-{smc}.
+	
+# 	sub_dirs accepts wildcarded directory names to append, in order, after the SMC directory.
+	
+# 	Return None if can't find path.
+# 	'''
+	
+# 	# Check OS
+# 	if platform == "linux" or platform == "linux2":
+# 		is_unix = True
+# 	elif platform == "darwin":
+# 		is_unix = True
+# 	elif platform == "win32":
+# 		is_unix = False
+	
+# 	 # /Volumes/M6\ T7S/ARC0\ PhD\ Data/RP-22\ Lk\ Dil\ Fridge\ 2024/Data/SMC-A\ Downconversion
+	
+# 	# Find drive
+# 	if is_unix:
+		
+# 		path = os.path.join('/', 'Volumes', 'M6 T7S', 'ARC0 PhD Data')
+# 		path = wildcard_path(path, f"RP-{rp}*")
+# 		path = wildcard_path(path, f"Data")
+# 		path = wildcard_path(path, f"SMC-{smc}*")
+		
+# 	else:
+		
+# 		# List letters to check
+# 		if check_drive_letters is None:
+# 			check_drive_letters = ['D:\\', 'E:\\', 'F:\\', 'G:\\', 'H:\\', 'I:\\', 'J:\\', 'K:\\', 'L:\\']
+		
+# 		# Find drive letter
+# 		drive_letter = None
+# 		for cdl in check_drive_letters:
+# 			try_path = os.path.join(cdl, 'ARC0 PhD Data')
+# 			if os.path.exists(try_path):
+# 				drive_letter = cdl
+# 				break
+				
+# 		# Quit if can't find drive
+# 		if drive_letter is None:
+# 			return None
+		
+# 		# Join paths
+# 		path = os.path.join(drive_letter, 'ARC0 PhD Data')
+# 		path = wildcard_path(path, f"RP-{rp}*")
+# 		path = wildcard_path(path, f"Data")
+# 		path = wildcard_path(path, f"SMC-{smc}*")
+	
+# 	# Add on additional paths
+# 	for ad in sub_dirs:
+		
+# 		path = wildcard_path(path, ad)
+	
+# 	return path
 
 def calc_sa_conditions(sa_conf, f_rf:float, f_lo:float, print_error:bool=False, remove_duplicates:bool=True) -> list:
 	''' Generates a list of dictionsaries with keys:
@@ -1153,16 +1284,24 @@ def read_rohde_schwarz_csv(filename:str) -> pd.DataFrame:
 	'''
 	
 	# Read file
-	df = pd.read_csv(filename, header=2)
+	df = pd.read_csv(filename, header=2, sep=',')
 	
 	# Use wildcard compare to find unnamed column
 	cols = list(df.columns)
 	ch_unnamed = fnmatch.filter(cols, 'Unnamed*')
 	if len(ch_unnamed) != 1:
-		return None
-	else:
-		ch_unnamed = ch_unnamed[0]
 		
+		# df not in expected form - try reading again with tabs
+		df = pd.read_csv(filename, header=2, sep='\t')
+		cols = list(df.columns)
+		ch_unnamed = fnmatch.filter(cols, 'Unnamed*')
+		
+		# If format is still wrong, return
+		if len(ch_unnamed) != 1:
+			return None
+	
+	ch_unnamed = ch_unnamed[0]
+	
 	# Remove last column (insturments adds extra comma)
 	df = df.drop(ch_unnamed, axis=1)
 	

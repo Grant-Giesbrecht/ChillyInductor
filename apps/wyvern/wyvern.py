@@ -1,14 +1,18 @@
 import sys
+from sys import platform
 import matplotlib
+import copy
+from heimdallr.base import interpret_range
+import ctypes
 matplotlib.use('qtagg')
 
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from pylogfile.base import *
 
 from PyQt6 import QtCore, QtGui, QtWidgets
-from PyQt6.QtGui import QAction, QActionGroup, QDoubleValidator, QIcon, QFontDatabase, QFont
+from PyQt6.QtGui import QAction, QActionGroup, QDoubleValidator, QIcon, QFontDatabase, QFont, QPixmap
 from PyQt6.QtCore import Qt, QSize
-from PyQt6.QtWidgets import QWidget, QTabWidget, QLabel, QGridLayout, QLineEdit, QCheckBox, QSpacerItem, QSizePolicy, QMainWindow, QSlider, QPushButton, QGroupBox
+from PyQt6.QtWidgets import QWidget, QTabWidget, QLabel, QGridLayout, QLineEdit, QCheckBox, QSpacerItem, QSizePolicy, QMainWindow, QSlider, QPushButton, QGroupBox, QListWidget, QFileDialog
 
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg, NavigationToolbar2QT
 from matplotlib.figure import Figure
@@ -58,14 +62,19 @@ log.set_terminal_level("LOWDEBUG")
 parser = argparse.ArgumentParser()
 # parser.add_argument('-h', '--help')
 parser.add_argument('-s', '--subtle', help="Run without naming.", action='store_true')
+parser.add_argument('-d', '--detail', help="Show log details.", action='store_true')
+parser.add_argument('-t', '--theme', help="Change color theme.", action='store_true')
+parser.add_argument('--autopathdetails', help="Print additional information for debugging which paths are found.", action='store_true')
 cli_args = parser.parse_args()
 # print(cli_args)
 # print(cli_args.subtle)
 
+if cli_args.detail:
+	log.str_format.show_detail = True
+
 def get_font(font_ttf_path):
 	
 	abs_path = os.path.abspath(font_ttf_path)
-	print(abs_path)
 	
 	font_id = QFontDatabase.addApplicationFont(abs_path)
 	if font_id == -1:
@@ -77,22 +86,316 @@ def get_font(font_ttf_path):
 # chicago_ff = get_font("./assets/Chicago.ttf")
 # chicago_12 = QFont(chicago_ff, 12)
 
+class DataLoadingManager:
+	''' Class from which MasterData populates itself. Reads data from disk when neccesary. Stores
+	both S-parameter data and HDF sweep data.'''
+	
+	def __init__(self, log:LogPile, conf_file:str=None):
+		
+		self.log = log
+		
+		# Get conf data
+		self.data_conf = {}
+		if conf_file is None:
+			conf_file = os.path.join(".", "wyv_conf.json")
+		self.load_conf(conf_file)
+		
+		# Dictionary s.t. key=filename, value=dict of data
+		self.sweep_data = {}
+		
+		# Dictionary s.t. key=filename, value = dict of data
+		self.sparam_data = {}
+	
+	def load_conf(self, conf_file:str):
+		
+		# Load json file
+		try:
+			with open(conf_file, 'r') as fh:
+				self.data_conf = json.load(fh)
+		except Exception as e:
+			self.log.critical(f"Failed to load configuration file.", detail=f"{e}")
+			return False
+		
+		# Evaluate each sweep source
+		for dss in self.data_conf['sweep_sources']:
+			
+			#For each entry, evaluate wildcards and find actual path
+			full_path = get_general_path(dss['path'], dos_id_folder=True, print_details=cli_args.autopathdetails)
+			
+			# Write log
+			name = dss['chip_name']
+			track = dss['track']
+			if full_path is None:
+				self.log.error(f"Failed to find sweep data source for chip {name}, track {track}.")
+			else:
+				self.log.debug(f"Sweep data source identified for chip {name}, track {track}.", detail=f"Path = {full_path}")
+			
+			# Save full path string, or None for error
+			dss['full_path'] = full_path
+		
+		# Evaluate each sparam source
+		for dss in self.data_conf['sparam_sources']:
+			
+			#For each entry, evaluate wildcards and find actual path
+			cryo_full_path = get_general_path(dss['cryostat_file'], dos_id_folder=True, print_details=cli_args.autopathdetails)
+			
+			# Write log
+			name = dss['chip_name']
+			track = dss['track']
+			if cryo_full_path is None:
+				self.log.error(f"Failed to find s-parameter data source for chip {name}, track {track}.")
+			else:
+				self.log.debug(f"S-parameter data source identified for chip {name}, track {track}.", detail=f"Path = {full_path}")
+			
+			# Save full path string, or None for error
+			dss['cryo_full_path'] = cryo_full_path
+		
+		return True
+	
+	def get_sweep(self, sweep_filename:str):
+		
+		print(sweep_filename)
+		
+		# Load data from file if not already present
+		if sweep_filename not in self.sweep_data:
+			self.log.info(f"Loading sweep data from file: {sweep_filename}")
+			self.import_sweep_file(sweep_filename)
+		
+		# return data if in databank
+		if sweep_filename  in self.sweep_data:
+			return self.sweep_data[sweep_filename]['dataset']
+	
+	def get_sparam(self, sp_filename:str):
+		
+		# Load data from file if not already present
+		if sp_filename not in self.sparam_data:
+			self.log.info(f"Loading s-parameter data from file: {sp_filename}")
+			self.import_sparam_file(sp_filename)
+		
+		# Return data if in databank
+		if sp_filename in self.sparam_data:
+			return self.sparam_data[sp_filename]
+	
+	def import_sweep_file(self, sweep_filename:str):
+		''' Imports sweep data into the DLM's sweep dict from file.'''
+		
+		##--------------------------------------------
+		# Read HDF5 File
+		
+		# Load data from file
+		hdfdata = hdf_to_dict(sweep_filename, to_lists=False)
+		
+		# nd = {}
+		# t_hdfr_0 = time.time()
+		# with h5py.File(sweep_filename, 'r') as fh:
+			
+		# 	# Read primary dataset
+		# 	GROUP = 'dataset'
+		# 	try:
+		# 		nd['freq_rf_GHz'] = fh[GROUP]['freq_rf_GHz'][()]
+		# 		nd['power_rf_dBm'] = fh[GROUP]['power_rf_dBm'][()]
+				
+		# 		nd['waveform_f_Hz'] = fh[GROUP]['waveform_f_Hz'][()]
+		# 		nd['waveform_s_dBm'] = fh[GROUP]['waveform_s_dBm'][()]
+		# 		nd['waveform_rbw_Hz'] = fh[GROUP]['waveform_rbw_Hz'][()]
+				
+		# 		nd['MFLI_V_offset_V'] = fh[GROUP]['MFLI_V_offset_V'][()]
+		# 		nd['requested_Idc_mA'] = fh[GROUP]['requested_Idc_mA'][()]
+		# 		nd['raw_meas_Vdc_V'] = fh[GROUP]['raw_meas_Vdc_V'][()]
+		# 		nd['Idc_mA'] = fh[GROUP]['Idc_mA'][()]
+		# 		nd['detect_normal'] = fh[GROUP]['detect_normal'][()]
+				
+		# 		nd['temperature_K'] = fh[GROUP]['temperature_K'][()]
+		# 	except Exception as e:
+		# 		self.log.error(f"Failed ot load file {sweep_filename}.", detail=f"{e}")
+		# 		return
+		
+		##--------------------------------------------
+		# Generate Mixing Products lists
+
+		
+		hdfdata['dataset']['rf1'] = spectrum_peak_list(hdfdata['dataset']['waveform_f_Hz'], hdfdata['dataset']['waveform_s_dBm'], hdfdata['dataset']['freq_rf_GHz']*1e9)
+		hdfdata['dataset']['rf2'] = spectrum_peak_list(hdfdata['dataset']['waveform_f_Hz'], hdfdata['dataset']['waveform_s_dBm'], hdfdata['dataset']['freq_rf_GHz']*2e9)
+		hdfdata['dataset']['rf3'] = spectrum_peak_list(hdfdata['dataset']['waveform_f_Hz'], hdfdata['dataset']['waveform_s_dBm'], hdfdata['dataset']['freq_rf_GHz']*3e9)
+		hdfdata['dataset']['rf1W'] = dBm2W(hdfdata['dataset']['rf1'])
+		hdfdata['dataset']['rf2W'] = dBm2W(hdfdata['dataset']['rf2'])
+		hdfdata['dataset']['rf3W'] = dBm2W(hdfdata['dataset']['rf3'])
+		
+		##-------------------------------------------
+		# Calculate conversion efficiencies
+		
+		hdfdata['dataset']['total_power'] = hdfdata['dataset']['rf1W'] + hdfdata['dataset']['rf2W'] + hdfdata['dataset']['rf3W']
+		hdfdata['dataset']['ce2'] = hdfdata['dataset']['rf2W']/hdfdata['dataset']['total_power']*100
+		hdfdata['dataset']['ce3'] = hdfdata['dataset']['rf3W']/hdfdata['dataset']['total_power']*100
+		
+		##-------------------------------------------
+		# Generate lists of unique conditions
+
+		hdfdata['dataset']['unique_bias'] = np.unique(hdfdata['dataset']['requested_Idc_mA'])
+		hdfdata['dataset']['unique_pwr'] = np.unique(hdfdata['dataset']['power_rf_dBm'])
+		hdfdata['dataset']['unique_freqs'] = np.unique(hdfdata['dataset']['freq_rf_GHz'])
+		
+		
+		##------------------------------------------
+		# Calculate extra impedance
+		
+		# Estimate system Z
+		expected_Z = hdfdata['dataset']['MFLI_V_offset_V'][1]/(hdfdata['dataset']['requested_Idc_mA'][1]/1e3) #TODO: Do something more general than index 1
+		system_Z = hdfdata['dataset']['MFLI_V_offset_V']/(hdfdata['dataset']['Idc_mA']/1e3)
+		hdfdata['dataset']['extra_z'] = system_Z - expected_Z
+		
+		hdfdata['dataset']['zs_extra_z'] = calc_zscore(hdfdata['dataset']['extra_z'])
+		hdfdata['dataset']['zs_meas_Idc'] = calc_zscore(hdfdata['dataset']['Idc_mA'])
+		
+		##------------------------------------------
+		# Generate Z-scores
+		
+		hdfdata['dataset']['zs_ce2'] = calc_zscore(hdfdata['dataset']['ce2'])
+		hdfdata['dataset']['zs_ce3'] = calc_zscore(hdfdata['dataset']['ce3'])
+		
+		hdfdata['dataset']['zs_rf1'] = calc_zscore(hdfdata['dataset']['rf1'])
+		hdfdata['dataset']['zs_rf2'] = calc_zscore(hdfdata['dataset']['rf2'])
+		hdfdata['dataset']['zs_rf3'] = calc_zscore(hdfdata['dataset']['rf3'])
+		
+		# Save to master databank
+		self.sweep_data[sweep_filename] = hdfdata
+	
+	def import_sparam_file(self, sp_filename:str):
+		''' Imports S-parameter data into the DLM's sparam dict'''
+		
+		try:
+			#TODO: Add CSV and S2P support
+			sparam_data = read_rohde_schwarz_csv(sp_filename)
+		except Exception as e:
+			self.log.error(f"Failed to read S-parameter CSV file. {e}")
+			sys.exit()
+		
+		if sparam_data is None:
+			self.log.error(f"Failed to read S-parameter CSV file '{sp_filename}'.")
+			return
+		
+		nd = {}
+		
+		try:
+			nd['S11'] = sparam_data.S11_real + complex(0, 1)*sparam_data.S11_imag
+		except:
+			nd["S11"] = []
+			
+		try:
+			nd['S21'] = sparam_data.S21_real + complex(0, 1)*sparam_data.S21_imag
+		except:
+			nd['S21'] = []
+			
+		try:
+			nd['S12'] = sparam_data.S12_real + complex(0, 1)*sparam_data.S12_imag
+		except:
+			nd['S12'] = []
+			
+		try:
+			nd['S22'] = sparam_data.S22_real + complex(0, 1)*sparam_data.S22_imag
+		except:
+			nd['S22'] = []
+		
+		nd['S11_dB'] = lin_to_dB(np.abs(nd['S11']))
+		nd['S21_dB'] = lin_to_dB(np.abs(nd['S21']))
+		nd['S12_dB'] = lin_to_dB(np.abs(nd['S12']))
+		nd['S22_dB'] = lin_to_dB(np.abs(nd['S22']))
+		
+		try:
+			nd['freq_GHz'] = sparam_data.freq_Hz/1e9
+		except Exception as e:
+			self.log.error(f"S-parameter data is corrupted. Missing frequency data.", detail=f"{e}. data_struct={sparam_data}")
+
+		# Add dictionary to main databank
+		self.sparam_data[sp_filename] = nd
+
+	def get_sweep_full(self, sweep_filename:str):
+		''' Returns info struct for a sweep file.'''
+		
+		# Load data from file if not already present
+		if sweep_filename not in self.sweep_data:
+			self.log.info(f"Loading sweep data from file: {sweep_filename}")
+			self.import_sweep_file(sweep_filename)
+		
+		# return data if in databank
+		if sweep_filename  in self.sweep_data:
+			return self.sweep_data[sweep_filename]
 
 class MasterData:
-	''' Class to represent all the data analyzed by the application'''
+	''' Class to represent the data currently analyzed/plotted by the application'''
 	
-	def __init__(self):
-		self.clear_all()
-		self.import_hdf()
-		self.import_sparam()
+	def __init__(self, log:LogPile, dlm:DataLoadingManager):
 		
+		# Reinitialize all data as clear
+		self.clear_sparam()
+		self.clear_sweep()
+	
+		self.log = log
+		self.dlm = dlm
+		
+		# Mask of points to eliminate as outliers
 		self.outlier_mask = []
 		
-	def clear_all(self):
+		# datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 1 4mm'])
+		datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 2 43mm'])
+		# datapath = '/Volumes/M5 PERSONAL/data_transfer'
+		if datapath is None:
+			print(f"{Fore.RED}Failed to find data location{Style.RESET_ALL}")
+			# datapath = "C:\\Users\\gmg3\\Documents\\GitHub\\ChillyInductor\\RP-22 Scripts\\SMC-B\\Measurement Scripts\\data"
+			# print("WARNING WARNING REMOVE THIS")
+			sys.exit()
+		else:
+			print(f"{Fore.GREEN}Located data directory at: {Fore.LIGHTBLACK_EX}{datapath}{Style.RESET_ALL}")
+
+		# filename = "RP22B_MP3_t1_31July2024_R4C4T1_r1_autosave.hdf"
+		# filename = "RP22B_MP3_t1_1Aug2024_R4C4T1_r1.hdf"
+		# filename = "RP22B_MP3_t2_8Aug2024_R4C4T1_r1.hdf"
+		# filename = "RP22B_MP3a_t3_19Aug2024_R4C4T2_r1.hdf"
+		filename = "RP22B_MP3a_t2_20Aug2024_R4C4T2_r1.hdf"
+		# filename = "RP22B_MP3a_t4_26Aug2024_R4C4T2_r1.hdf"
+		
+		analysis_file = os.path.join(datapath, filename)
+		
+		self.load_sweep(analysis_file)
+		
+		sp_datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 2 43mm', "Uncalibrated SParam", "Prf -30 dBm"])
+		if sp_datapath is None:
+			print(f"{Fore.RED}Failed to find s-parameter data location{Style.RESET_ALL}")
+			sp_datapath = "M:\\data_transfer\\R4C4T2_Uncal_SParam\\Prf -30 dBm"
+			# sys.exit()
+		else:
+			print(f"{Fore.GREEN}Located s-parameter data directory at: {Fore.LIGHTBLACK_EX}{sp_datapath}{Style.RESET_ALL}")
+		
+		# sp_filename = "Sparam_31July2024_-30dBm_R4C4T1_Wide.csv"
+		sp_filename = "26Aug2024_Ch1ToCryoR_Ch2ToCryoL.csv"
+		
+		sp_analysis_file = os.path.join(sp_datapath, sp_filename)#"Sparam_31July2024_-30dBm_R4C4T1.csv")
+		
+		
+		self.load_sparam(sp_analysis_file)
+
+	def clear_sparam(self):
+		
+		# Names of files loaded
+		self.current_sparam_file = ""
+		
+		# S-Parameter arrays
+		self.S_freq_GHz = []
+		self.S11 = []
+		self.S21 = []
+		self.S12 = []
+		self.S22 = []
+		self.S11_dB = []
+		self.S21_dB = []
+		self.S12_dB = []
+		self.S22_dB = []
+		
+		self._valid_sparam = False
+	
+	def clear_sweep(self):
 		
 		# Names of files loaded
 		self.current_sweep_file = ""
-		self.current_sparam_file = ""
 		
 		# Main sweep data - from file
 		self.power_rf_dBm = []
@@ -117,152 +420,102 @@ class MasterData:
 		self.unique_pwr = []
 		self.unique_freqs = []
 		
-		# S-Parameter arrays
-		self.S_freq_GHz = []
-		self.S11 = []
-		self.S21 = []
-		self.S12 = []
-		self.S22 = []
-		self.S11_dB = []
-		self.S21_dB = []
-		self.S12_dB = []
-		self.S22_dB = []
+		self._valid_sweep = False
 	
-	def import_sparam(self):
-		''' Imports S-parameter data into the master data object'''
+	def load_sparam(self, sp_filename:str):
+		''' Loads S-parameter data from the DLM.'''
 		
-		sp_datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 1 4mm', "VNA Traces"])
-		if sp_datapath is None:
-			print(f"{Fore.RED}Failed to find s-parameter data location{Style.RESET_ALL}")
-			sp_datapath = "M:\\data_transfer\\R4C4T2_Uncal_SParam\\Prf -30 dBm"
-			# sys.exit()
-		else:
-			print(f"{Fore.GREEN}Located s-parameter data directory at: {Fore.LIGHTBLACK_EX}{sp_datapath}{Style.RESET_ALL}")
+		self.log.debug(f"MasterData loading s-parameter file: {sp_filename}")
 		
-		# sp_filename = "Sparam_31July2024_-30dBm_R4C4T1_Wide.csv"
-		sp_filename = "26Aug2024_Ch1ToCryoR_Ch2ToCryoL.csv"
+		# Get data from manager
+		spdict = self.dlm.get_sparam(sp_filename)
 		
-		sp_analysis_file = os.path.join(sp_datapath, sp_filename)#"Sparam_31July2024_-30dBm_R4C4T1.csv")
+		if spdict is None:
+			return
 		
-		try:
-			sparam_data = read_rohde_schwarz_csv(sp_analysis_file)
-		except Exception as e:
-			print(f"Failed to read S-parameter CSV file. {e}")
-			sys.exit()
-
-		self.S11 = sparam_data.S11_real + complex(0, 1)*sparam_data.S11_imag
-		self.S21 = sparam_data.S21_real + complex(0, 1)*sparam_data.S21_imag
-		self.S11_dB = lin_to_dB(np.abs(self.S11))
-		self.S21_dB = lin_to_dB(np.abs(self.S21))
-		self.S_freq_GHz = sparam_data.freq_Hz/1e9
+		# Populate local variables
+		self.S11 = spdict['S11']
+		self.S21 = spdict['S21']
+		self.S12 = spdict['S12']
+		self.S22 = spdict['S22']
+		self.S11_dB = spdict['S11_dB']
+		self.S21_dB = spdict['S21_dB']
+		self.S12_dB = spdict['S12_dB']
+		self.S22_dB = spdict['S22_dB']
+		self.S_freq_GHz = spdict['freq_GHz']
 		
-		self.current_sparam_file = sp_analysis_file
+		self.current_sparam_file = sp_filename
 		
-	def import_hdf(self):
-		''' Imports sweep data into the master data object'''
+		if len(self.S11) == 0 or len(self.S_freq_GHz) == 0:
+			self._valid_sparam = False
 		
-		# datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 1 4mm'])
-		datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 2 43mm'])
-		# datapath = '/Volumes/M5 PERSONAL/data_transfer'
-		if datapath is None:
-			print(f"{Fore.RED}Failed to find data location{Style.RESET_ALL}")
-			datapath = "C:\\Users\\gmg3\\Documents\\GitHub\\ChillyInductor\\RP-22 Scripts\\SMC-B\\Measurement Scripts\\data"
-			print("WARNING WARNING REMOVE THIS")
-			# sys.exit()
-		else:
-			print(f"{Fore.GREEN}Located data directory at: {Fore.LIGHTBLACK_EX}{datapath}{Style.RESET_ALL}")
-
-		# filename = "RP22B_MP3_t1_31July2024_R4C4T1_r1_autosave.hdf"
-		# filename = "RP22B_MP3_t1_1Aug2024_R4C4T1_r1.hdf"
-		# filename = "RP22B_MP3_t2_8Aug2024_R4C4T1_r1.hdf"
-		# filename = "RP22B_MP3a_t3_19Aug2024_R4C4T2_r1.hdf"
-		filename = "RP22B_MP3a_t2_20Aug2024_R4C4T2_r1.hdf"
-		# filename = "RP22B_MP3a_t4_26Aug2024_R4C4T2_r1.hdf"
+		self._valid_sparam = True
+		# all_lists = [self.S11, self.S21, self.S12, self.S22, self.S11_dB, self.S21_dB, , self.S12_dB, self.S22_dB, self.S_freq_GHz]
+	
+		# it = iter(all_lists)
+		# the_len = len(next(it))
+		# if not all(len(l) == the_len for l in it):
+		# 	self._valid_sparam = False
+	
+	def load_sweep(self, sweep_filename:str):
+		''' Loads sweep data from the DLM.'''
 		
-		analysis_file = os.path.join(datapath, filename)
-
+		# Get data from manager
+		swdict = self.dlm.get_sweep(sweep_filename)
 		
-
-		##--------------------------------------------
-		# Read HDF5 File
-
-
-		print("Loading file contents into memory")
-		# log.info("Loading file contents into memory")
-
-		t_hdfr_0 = time.time()
-		with h5py.File(analysis_file, 'r') as fh:
-			
-			# Read primary dataset
-			GROUP = 'dataset'
-			self.freq_rf_GHz = fh[GROUP]['freq_rf_GHz'][()]
-			self.power_rf_dBm = fh[GROUP]['power_rf_dBm'][()]
-			
-			self.waveform_f_Hz = fh[GROUP]['waveform_f_Hz'][()]
-			self.waveform_s_dBm = fh[GROUP]['waveform_s_dBm'][()]
-			self.waveform_rbw_Hz = fh[GROUP]['waveform_rbw_Hz'][()]
-			
-			self.MFLI_V_offset_V = fh[GROUP]['MFLI_V_offset_V'][()]
-			self.requested_Idc_mA = fh[GROUP]['requested_Idc_mA'][()]
-			self.raw_meas_Vdc_V = fh[GROUP]['raw_meas_Vdc_V'][()]
-			self.Idc_mA = fh[GROUP]['Idc_mA'][()]
-			self.detect_normal = fh[GROUP]['detect_normal'][()]
-			
-			self.temperature_K = fh[GROUP]['temperature_K'][()]
-
-		##--------------------------------------------
-		# Generate Mixing Products lists
-
-		self.rf1 = spectrum_peak_list(self.waveform_f_Hz, self.waveform_s_dBm, self.freq_rf_GHz*1e9)
-		self.rf2 = spectrum_peak_list(self.waveform_f_Hz, self.waveform_s_dBm, self.freq_rf_GHz*2e9)
-		self.rf3 = spectrum_peak_list(self.waveform_f_Hz, self.waveform_s_dBm, self.freq_rf_GHz*3e9)
-
-		self.rf1W = dBm2W(self.rf1)
-		self.rf2W = dBm2W(self.rf2)
-		self.rf3W = dBm2W(self.rf3)
+		if swdict is None:
+			return
 		
-		##-------------------------------------------
-		# Calculate conversion efficiencies
+		# populate local variables
+		self.freq_rf_GHz = swdict['freq_rf_GHz']
+		self.power_rf_dBm = swdict['power_rf_dBm']
+		self.waveform_f_Hz = swdict['waveform_f_Hz']
+		self.waveform_s_dBm = swdict['waveform_s_dBm']
+		self.waveform_rbw_Hz = swdict['waveform_rbw_Hz']
+		self.MFLI_V_offset_V = swdict['MFLI_V_offset_V']
+		self.requested_Idc_mA = swdict['requested_Idc_mA']
+		self.raw_meas_Vdc_V = swdict['raw_meas_Vdc_V']
+		self.Idc_mA = swdict['Idc_mA']
+		self.detect_normal = swdict['detect_normal']
+		self.temperature_K = swdict['temperature_K']
+		self.rf1 = swdict['rf1']
+		self.rf2 = swdict['rf2']
+		self.rf3 = swdict['rf3']
+		self.rf1W = swdict['rf1W']
+		self.rf2W = swdict['rf2W']
+		self.rf3W = swdict['rf3W']
+		self.total_power = swdict['total_power']
+		self.ce2 = swdict['ce2']
+		self.ce3 = swdict['ce3']
+		self.unique_bias = swdict['unique_bias']
+		self.unique_pwr = swdict['unique_pwr']
+		self.unique_freqs = swdict['unique_freqs']
+		self.extra_z = swdict['extra_z']
+		self.zs_extra_z = swdict['zs_extra_z']
+		self.zs_meas_Idc = swdict['zs_meas_Idc']
+		self.zs_ce2 = swdict['zs_ce2']
+		self.zs_ce3 = swdict['zs_ce3']
+		self.zs_rf1 = swdict['zs_rf1']
+		self.zs_rf2 = swdict['zs_rf2']
+		self.zs_rf3 = swdict['zs_rf3']
 		
-		self.total_power = self.rf1W + self.rf2W + self.rf3W
-		self.ce2 = self.rf2W/self.total_power*100
-		self.ce3 = self.rf3W/self.total_power*100
-		
-		##-------------------------------------------
-		# Generate lists of unique conditions
-
-		self.unique_bias = np.unique(self.requested_Idc_mA)
-		self.unique_pwr = np.unique(self.power_rf_dBm)
-		self.unique_freqs = np.unique(self.freq_rf_GHz)
-		
-		self.current_sweep_file = analysis_file
-		
-		##------------------------------------------
-		# Calculate extra impedance
-		
-		# Estimate system Z
-		expected_Z = self.MFLI_V_offset_V[1]/(self.requested_Idc_mA[1]/1e3) #TODO: Do something more general than index 1
-		system_Z = self.MFLI_V_offset_V/(self.Idc_mA/1e3)
-		self.extra_z = system_Z - expected_Z
-		
-		self.zs_extra_z = calc_zscore(self.extra_z)
-		self.zs_meas_Idc = calc_zscore(self.Idc_mA)
-		
-		##------------------------------------------
-		# Generate Z-scores
-		
-		self.zs_ce2 = calc_zscore(self.ce2)
-		self.zs_ce3 = calc_zscore(self.ce3)
-		
-		self.zs_rf1 = calc_zscore(self.rf1)
-		self.zs_rf2 = calc_zscore(self.rf2)
-		self.zs_rf3 = calc_zscore(self.rf3)
-		
-		##------------------------------------------
-		# Outlier mask
-		
-		# Just make array of true
 		self.outlier_mask = (self.power_rf_dBm == self.power_rf_dBm)
+		
+		self.current_sweep_file = sweep_filename
+		
+		if len(self.power_rf_dBm) == 0:
+			self._valid_sweep = False
+			return
+		
+		all_lists = [self.freq_rf_GHz, self.power_rf_dBm, self.waveform_f_Hz, self.waveform_s_dBm, self.waveform_rbw_Hz, self.MFLI_V_offset_V, self.requested_Idc_mA, self.raw_meas_Vdc_V, self.Idc_mA, self.detect_normal, self.temperature_K, self.rf1, self.rf2, self.rf3, self.rf1W, self.rf2W, self.rf3W, self.total_power, self.ce2, self.ce3, self.unique_bias, self.unique_freqs, self.unique_pwr, self.extra_z, self.zs_extra_z, self.zs_meas_Idc, self.zs_ce2, self.zs_ce3, self.zs_rf1, self.zs_rf2, self.zs_rf3]
+	
+		it = iter(all_lists)
+		the_len = len(next(it))
+		if not all(len(l) == the_len for l in it):
+			self._valid_sweep = False
+		
+		self._valid_sweep = True
+		
 		
 	def rebuild_outlier_mask(self, ce2_zscore:float, extraz_zscore:float):
 		
@@ -276,8 +529,12 @@ class MasterData:
 		if extraz_zscore is not None:
 			self.outlier_mask = self.outlier_mask & (self.zs_extra_z < extraz_zscore)
 		
-		print(f"Rebuilt outlier mask. Now has {self.outlier_mask.sum()} true values")
-
+	def is_valid_sweep(self):
+		return self._valid_sweep
+	
+	def is_valid_sparam(self):
+		return self._valid_sparam
+		
 ##--------------------------------------------
 # Create GUI
 
@@ -298,10 +555,538 @@ def calc_zscore(data:list):
 GCOND_REMOVE_OUTLIERS = 'remove_outliers'
 GCOND_OUTLIER_ZSCE2 = 'remove_outliers_ce2_zscore'
 GCOND_OUTLIER_ZSEXTRAZ = 'remove_outliers_extraz_zscore'
+GCOND_FREQXAXIS_ISFUND = 'freqxaxis_isfund'
+GCOND_BIASXAXIS_ISMEAS = 'biasxaxis_ismeas'
+GCOND_ADJUST_SLIDER = 'adjust_sliders'
+
+class DataCompareWindow(QMainWindow):
+	
+	def __init__(self, files:list, log:LogPile, dlm:DataLoadingManager):
+		super().__init__()
+		
+		self.setWindowTitle("Data Sweep Comparison")
+		
+		self.files = files
+		self.dlm = dlm
+		self.log = log
+		
+		# Create figure
+		self.fig1, ax_list = plt.subplots(3, 1)
+		self.ax1 = ax_list[0]
+		self.ax2 = ax_list[1]
+		self.ax3 = ax_list[2]
+		
+		# Create widgets
+		self.fig1cvs = FigureCanvas(self.fig1)
+		self.toolbar1 = NavigationToolbar2QT(self.fig1cvs, self)
+		
+		self.render_plot()
+		
+		# Add widgets to parent-widget and set layout
+		self.grid = QtWidgets.QGridLayout()
+		self.grid.addWidget(self.toolbar1, 0, 0)
+		self.grid.addWidget(self.fig1cvs, 1, 0)
+		
+		central_widget = QtWidgets.QWidget()
+		central_widget.setLayout(self.grid)
+		self.setCentralWidget(central_widget)
+	
+	def render_plot(self):
+		
+		self.ax1.cla()
+		self.ax2.cla()
+		self.ax3.cla()
+		
+		markers = []
+		marker_sizes = []
+		colors = []
+		labels = []
+		
+		# Get conf dict for each file
+		conf_list = []
+		for fn in self.files:
+			bfn = os.path.basename(fn) # Strip file name from full path
+			
+			# Access data from DLM
+			full_data = self.dlm.get_sweep_full(fn)
+			
+			try:
+				conf_list.append(json.loads(full_data['info']['configuration'].decode()))
+			except:
+				self.log.warning(f"Failed to load configuration data for file: {bfn}.")
+				continue
+			
+			markers.append('s')
+			marker_sizes.append(10)
+			colors.append((0, 0, 0.7))
+			labels.append(bfn)
+		
+		axs = [self.ax1, self.ax2, self.ax3]
+		
+		# Scan over files
+		for src_idx, conf in enumerate(conf_list):
+			
+			
+			# Scan over parameters
+			data_idx = 0
+			for k in conf.keys():
+				
+				# Get values
+				try:
+					vals = interpret_range(conf[k])
+				except Exception as e:
+					self.log.warning("Interpret range failed. Skipping file in comparison.", detail=f"{e}")
+					continue
+				
+				unit_str = conf[k]['unit']
+				
+				# Plot data
+				axs[data_idx].grid(True)
+				axs[data_idx].scatter(vals, [len(conf_list)-src_idx]*len(vals), [marker_sizes[src_idx]]*len(vals), marker=markers[src_idx], color=colors[src_idx], label=labels[src_idx])
+				axs[data_idx].set_xlabel(f"{k} [{unit_str}]")
+				
+				# Set parameters on last loops
+				if src_idx == len(conf_list) -1:
+					# axs[data_idx].legend()
+					axs[data_idx].set_yticks(list(range(1, len(conf_list)+1)))
+					axs[data_idx].set_yticklabels(reversed(labels))
+				
+				data_idx += 1
+
+		self.fig1.tight_layout()
+		
+		# for (x, y, leglab) in zip(self.x_data, self.y_zscore, self.legend_labels):
+		# 	self.ax1.plot(x, y, label=leglab, linestyle=':', marker='X')
+			
+		# self.ax1.set_ylabel("Z-Score")
+		# self.ax1.legend()
+		# self.ax1.grid(True)
+		# self.ax1.set_xlabel(self.x_label)
+		
+		# if type(self.y_zscore[0]) == list or type(self.y_zscore[0]) == np.ndarray: # 2D list
+			
+		# 	for (x, y, leglab) in zip(self.x_data, self.y_zscore, self.legend_labels):
+		# 		self.ax1.plot(x, y, label=leglab)
+			
+		# 	self.ax1.set_ylabel("Z-Score")
+		# 	self.ax1.legend()
+		# 	self.ax1.grid(True)
+		# 	self.ax1.set_xlabel(self.x_label)
+		# else:
+		# 	self.ax1.plot(self.x_data, self.y_zscore)
+		# 	self.ax1.set_xlabel(self.x_label)
+		# 	self.ax1.set_ylabel(self.legend_labels)
+		# 	self.ax1.grid(True)
+		
+		self.fig1.canvas.draw_idle()
+
+
+class DataSelectWidget(QWidget):
+	
+	def __init__(self, global_conditions:dict, log:LogPile, mdata:MasterData, replot_handle, dataset_changed_handle, show_frame:bool=False):
+		super().__init__()
+		self.mdata = mdata
+		self.log = log
+		self.gcond = global_conditions
+		self.replot_handle = replot_handle
+		self.dataset_changed_handle = dataset_changed_handle
+		
+		##------------ Make filter box ---------------
+		
+		self.filt_box = QGroupBox()
+		self.filt_box.setStyleSheet("QGroupBox{border:0;}")
+		self.filt_box.setFixedWidth(170)
+		
+		self.en_wild_filt_cb = QCheckBox("Enable Filter")
+		self.en_wild_filt_cb.setChecked(True)
+		self.en_wild_filt_cb.stateChanged.connect(self.reinit_file_list)
+		
+		self.filt_label1 = QLabel("Filter text:")
+		
+		self.wild_filt_edit = QLineEdit()
+		try:
+			self.wild_filt_edit.setText(self.mdata.dlm.data_conf["wild_filt_default"])
+		except:
+			self.wild_filt_edit.setText("")
+		self.wild_filt_edit.editingFinished.connect(self.reinit_file_list)
+		self.wild_filt_edit.setFixedWidth(150)
+		
+		self.filt_label2 = QLabel("(* = wildcard)")
+		
+		self.filt_boxgrid = QGridLayout()
+		self.filt_boxgrid.addWidget(self.en_wild_filt_cb, 0, 0)
+		self.filt_boxgrid.addWidget(self.filt_label1, 1, 0)
+		self.filt_boxgrid.addWidget(self.wild_filt_edit, 2, 0)
+		self.filt_boxgrid.addWidget(self.filt_label2, 3, 0)
+		self.filt_box.setLayout(self.filt_boxgrid)
+		
+		##------------ End filter box ---------------
+		
+		self.chip_select_label = QLabel("Chip:")
+		
+		self.chip_select = QListWidget()
+		self.chip_select.setFixedSize(QSize(75, 100))
+		self.chip_select.itemClicked.connect(self.reinit_track_list)
+		
+		self.track_select_label = QLabel("Track:")
+		
+		self.track_select = QListWidget()
+		self.track_select.setFixedSize(QSize(120, 100))
+		self.track_select.itemClicked.connect(self.reinit_file_list)
+		
+		self.sweep_select_label = QLabel("Sweep:")
+		
+		self.dset_select = QListWidget()
+		self.dset_select.setFixedSize(QSize(350, 100))
+		self.dset_select.itemClicked.connect(self.reload_sweep)
+		
+		self.sparam_select_label = QLabel("S-Parameters:")
+		
+		self.sparam_select = QListWidget()
+		self.sparam_select.setFixedSize(QSize(350, 100))
+		self.sparam_select.itemClicked.connect(self.reload_sparam)
+		
+		if cli_args.theme:
+			self.compare_btn = QPushButton("Compare\nDatasets", icon=QIcon("./assets/compare_src_dr.png"))
+		else:
+			self.compare_btn = QPushButton("Compare\nDatasets", icon=QIcon("./assets/compare_src.png"))
+			
+		self.compare_btn.setFixedSize(130, 40)
+		self.compare_btn.clicked.connect(self._compare_datasets)
+		self.compare_btn.setIconSize(QSize(48, 32))
+		
+		self.arrow_label = QLabel()
+		if cli_args.theme:
+			self.arrow_label.setPixmap(QPixmap("./assets/right_arrow_dr.png").scaledToWidth(40))
+		else:
+			self.arrow_label.setPixmap(QPixmap("./assets/right_arrow.png").scaledToWidth(40))
+		
+		self.loadset_btn = QPushButton("Load\nSelected", icon=QIcon("./assets/reload_data.png"))
+		self.loadset_btn.setFixedSize(120, 40)
+		# self.loadset_btn.clicked.connect(self._load_selected)
+		self.loadset_btn.setIconSize(QSize(48, 32))
+		
+		if cli_args.theme:
+			self.loadconf_btn = QPushButton("Load Config\nFile", icon=QIcon("./assets/pick_conf_dr.png"))
+		else:
+			self.loadconf_btn = QPushButton("Load Config\nFile", icon=QIcon("./assets/pick_conf.png"))
+		self.loadconf_btn.setFixedSize(130, 40)
+		self.loadconf_btn.clicked.connect(self._load_conf_file)
+		self.loadconf_btn.setIconSize(QSize(48, 32))
+		
+		self.bottom_spacer = QSpacerItem(10, 10, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
+		self.right_spacer = QSpacerItem(10, 10, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+		
+		self.grid = QGridLayout()
+		
+		self.grid.addWidget(self.filt_box, 0, 0, 3, 1)
+		
+		self.grid.addWidget(self.compare_btn, 1, 1)
+		self.grid.addWidget(self.loadconf_btn, 2, 1)
+		
+		self.grid.addWidget(self.chip_select_label, 0, 2)
+		self.grid.addWidget(self.chip_select, 1, 2, 2, 1)
+		self.grid.addWidget(self.track_select_label, 0, 3)
+		self.grid.addWidget(self.track_select, 1, 3, 2, 1)
+		
+		self.grid.addWidget(self.arrow_label, 1, 4, alignment=QtCore.Qt.AlignmentFlag.AlignBottom)
+		
+		self.grid.addWidget(self.sweep_select_label, 0, 5)
+		self.grid.addWidget(self.dset_select, 1, 5, 2, 1)
+		self.grid.addWidget(self.sparam_select_label, 0, 6)
+		self.grid.addWidget(self.sparam_select, 1, 6, 2, 1)
+		
+		self.grid.addWidget(self.loadset_btn, 1, 7)
+		self.grid.addItem(self.bottom_spacer, 3, 0, 1, 9)
+		self.grid.addItem(self.right_spacer, 0, 8, 3, 1)
+		
+		if show_frame:
+			self.frame = QGroupBox("Data Selector")
+			self.frame.setLayout(self.grid)
+			self.overgrid = QGridLayout()
+			self.overgrid.addWidget(self.frame, 0, 0)
+			self.setLayout(self.overgrid)
+		else:
+			self.setLayout(self.grid)
+		
+		self.reinit_chip_list()
+	
+	def _compare_datasets(self):
+		
+		# Get selected chip and track
+		chip_item = self.chip_select.currentItem()
+		if chip_item is None:
+			return
+		track_item = self.track_select.currentItem()
+		if track_item is None:
+			return
+		
+		# Find matching full path
+		full_path = None
+		for ds in self.mdata.dlm.data_conf['sweep_sources']:
+			
+			# Skip wrong chips
+			if ds['chip_name'] != chip_item.text():
+				continue
+			
+			# Skip wrong tracks
+			if ds['track'] != track_item.text():
+				continue
+			
+			full_path = ds['full_path']
+		
+		# Abort if no path appears
+		if full_path is None:
+			self.log.error(f"Path to data directory not found!")
+			return
+		
+		# Make list of file names
+		file_list = [os.path.join(full_path, self.dset_select.item(x).text()) for x in range(self.dset_select.count())]
+		
+		print(file_list)
+		
+		# Create window
+		self.dcw = DataCompareWindow(file_list, self.log, self.mdata.dlm)
+		self.dcw.show()
+	
+	def _load_conf_file(self):
+		
+		openfile, __ = QFileDialog.getOpenFileName()
+		self.mdata.dlm.load_conf(openfile)
+		
+		self.reinit_chip_list()
+		
+	def reinit_chip_list(self):
+		
+		self.chip_select.clear()
+		
+		# Get list of chips
+		chips = []
+		for ds in self.mdata.dlm.data_conf['sweep_sources']:
+			if ds['chip_name'] not in chips:
+				chips.append(ds['chip_name'])
+				
+				# Update widget
+				self.chip_select.addItem(ds['chip_name'])
+		
+		self.chip_select.setCurrentRow(0)
+		
+		# If chips exist, pick on and reinit track list
+		if len(chips) > 0:
+			self.chip_select.setCurrentRow(0)
+			self.reinit_track_list()
+	
+	def reinit_track_list(self):
+		
+		# Clear tracks
+		self.track_select.clear()
+		
+		# Get selected chip
+		item = self.chip_select.currentItem()
+		if item is None:
+			return
+		
+		item_name = item.text()
+		
+		# Repopulate tracks
+		tracks = []
+		for ds in self.mdata.dlm.data_conf['sweep_sources']:
+			
+			# Skip wrong chips
+			if ds['chip_name'] != item_name:
+				continue
+			
+			if ds['track'] not in tracks:
+				tracks.append(ds['track'])
+				self.track_select.addItem(ds['track'])
+		
+		# If tracks exist, reinit file list
+		if len(tracks) > 0:
+			self.track_select.setCurrentRow(0)
+			self.reinit_file_list()
+	
+	def reinit_file_list(self):
+		
+		# Clear file list
+		self.dset_select.clear()
+		self.sparam_select.clear()
+		
+		# Get selected chip and track
+		chip_item = self.chip_select.currentItem()
+		if chip_item is None:
+			return
+		track_item = self.track_select.currentItem()
+		if track_item is None:
+			return
+		
+		#------ Populate Sweep list --------
+		
+		# Find matching full path
+		full_path = None
+		for ds in self.mdata.dlm.data_conf['sweep_sources']:
+			
+			# Skip wrong chips
+			if ds['chip_name'] != chip_item.text():
+				continue
+			
+			# Skip wrong tracks
+			if ds['track'] != track_item.text():
+				continue
+			
+			full_path = ds['full_path']
+		
+		# Abort if no path appears
+		if full_path is None:
+			self.log.error(f"Path to data directory not found!")
+			return
+		
+		# Get list of files in directory
+		file_list = [f for f in os.listdir(full_path) if os.path.isfile(os.path.join(full_path, f))]
+		
+		# Scan over directory, add all matching files
+		has_items = False
+		for fn in file_list:
+			
+			# Skip files with no extension, or double extensions
+			if fn.count('.') != 1:
+				continue
+			
+			# Skip files with names too short
+			if len(fn) < 5:
+				continue
+			
+			# Check extension
+			if fn[-4:].lower() != ".hdf":
+				continue
+			
+			# Handle wildcard match filtering
+			if self.en_wild_filt_cb.isChecked():
+				
+				# Skip file if doesn't match
+				if wildcard([fn], self.wild_filt_edit.text()) is None:
+					continue
+			
+			has_items = True
+			self.dset_select.addItem(fn)
+		
+		# If dsets exist, pick first
+		if has_items:
+			self.dset_select.setCurrentRow(0)
+			self.reload_sweep()
+		
+		#------ SParam Sweep list --------
+		
+		# Find relevant S-parameter sources
+		has_items = False
+		for sps in self.mdata.dlm.data_conf['sparam_sources']:
+			
+			# Skip wrong chips
+			if sps['chip_name'] != chip_item.text():
+				continue
+			
+			# Skip wrong tracks
+			if sps['track'] != track_item.text():
+				continue
+			
+			# Skip sets with invalid data
+			if sps['cryo_full_path'] is None:
+				continue
+			
+			# Add to list
+			self.sparam_select.addItem(sps['sparam_set_name'])
+			has_items = True
+		
+		# If dsets exist, pick first
+		if has_items:
+			self.sparam_select.setCurrentRow(0)
+			self.reload_sparam()
+	
+	def reload_sparam(self):
+		
+		self.log.lowdebug(f"Reloading s-parameter data")
+		
+		# Get selected file
+		item = self.sparam_select.currentItem()
+		if item is None:
+			return
+		file_name = item.text()
+		
+		self.log.lowdebug(f"Selected S-parameter file: {file_name}")
+		
+		# Find full path for file
+		full_path = None
+		for sps in self.mdata.dlm.data_conf['sparam_sources']:
+			
+			if sps['sparam_set_name'] == file_name:
+				full_path = sps['cryo_full_path']
+				break
+		
+		if full_path is None:
+			self.log.error(f"Cannot reload sparameters - file not found.")
+			return
+		
+		# Realod data
+		self.mdata.load_sparam(full_path)
+		
+		# Replot graphs
+		self.replot_handle()
+		
+	def reload_sweep(self):
+		
+		self.log.lowdebug(f"Reloading sweep data")
+		
+		# Get selected chip and track
+		chip_item = self.chip_select.currentItem()
+		if chip_item is None:
+			return
+		track_item = self.track_select.currentItem()
+		if track_item is None:
+			return
+		
+		# Get selected file
+		item = self.dset_select.currentItem()
+		if item is None:
+			return
+		file_name = item.text()
+		
+		self.log.lowdebug(f"Selected sweep file: {file_name}")
+		
+		# Find full path for file
+		full_path = None
+		for ds in self.mdata.dlm.data_conf['sweep_sources']:
+			
+			# Skip wrong chips
+			if ds['chip_name'] != chip_item.text():
+				continue
+			
+			# Skip wrong tracks
+			if ds['track'] != track_item.text():
+				continue
+			
+			full_path = ds['full_path']
+		
+		if full_path is None:
+			self.log.error(f"Cannot reload sweep data - path not found.")
+			return
+		
+		fullfile = os.path.join(full_path, file_name)
+		
+		# Realod data
+		self.mdata.load_sweep(fullfile)
+		
+		# Update slider values
+		self.dataset_changed_handle()
+		
+		# Replot graphs
+		self.replot_handle()
+	
+	def reanalyze(self):
+		
+		self.log.lowdebug(f"Reanalyzing DataSelectWidget's control settings.")
 
 class OutlierControlWidget(QWidget):
 	
-	def __init__(self, global_conditions:dict, log:LogPile, mdata:MasterData, replot_handle):
+	def __init__(self, global_conditions:dict, log:LogPile, mdata:MasterData, replot_handle, show_frame:bool=False):
 		super().__init__()
 		
 		self.gcond = global_conditions
@@ -360,13 +1145,21 @@ class OutlierControlWidget(QWidget):
 		# self.grid.addWidget(self.zscore_label, 1, 0, alignment=QtCore.Qt.AlignmentFlag.AlignTop)
 		# self.grid.addWidget(self.zscore_edit, 1, 1, alignment=QtCore.Qt.AlignmentFlag.AlignTop)
 		self.grid.addItem(self.bottom_spacer, 3, 0)
-		self.setLayout(self.grid)
+		
+		if show_frame:
+			self.frame = QGroupBox("Outlier Control")
+			self.frame.setLayout(self.grid)
+			self.overgrid = QGridLayout()
+			self.overgrid.addWidget(self.frame, 0, 0)
+			self.setLayout(self.overgrid)
+		else:
+			self.setLayout(self.grid)
 		
 		self.reanalyze()
 		
 	def reanalyze(self):
 		
-		self.log.debug(f"Reanalyzing OutlierControlWidget's control settings.")
+		self.log.lowdebug(f"Reanalyzing OutlierControlWidget's control settings.")
 		
 		# Update enable/disable all 
 		self.gcond[GCOND_REMOVE_OUTLIERS] = self.enable_cb.isChecked()
@@ -553,6 +1346,10 @@ class TabPlotWidget(QWidget):
 		self.plot_data()
 		
 	@abstractmethod
+	def manual_init(self):
+		pass
+	
+	@abstractmethod
 	def render_plot(self):
 		pass
 
@@ -602,18 +1399,16 @@ class HarmGenFreqDomainPlotWidget(TabPlotWidget):
 		loc_mask = (mask_bias & mask_pwr)
 		
 		if self.get_condition(GCOND_REMOVE_OUTLIERS):
-			print(loc_mask)
-			print(self.mdata.outlier_mask)
 			mask = np.array(loc_mask) & np.array(self.mdata.outlier_mask)
-			self.log.debug(f"Removing outliers. Mask had {loc_mask.sum()} vals, now {mask.sum()} vals.")
+			self.log.lowdebug(f"Removing outliers. Mask had {loc_mask.sum()} vals, now {mask.sum()} vals.")
 		else:
-			self.log.debug(f"Ignoring outlier spec")
+			self.log.lowdebug(f"Ignoring outlier spec")
 			mask = loc_mask
 		
 		return mask
 	
 	def render_plot(self):
-		use_fund = self.get_condition('freqxaxis_isfund')
+		use_fund = self.get_condition(GCOND_FREQXAXIS_ISFUND)
 		b = self.get_condition('sel_bias_mA')
 		p = self.get_condition('sel_power_dBm')
 		
@@ -710,12 +1505,21 @@ class CE23FreqDomainPlotWidget(TabPlotWidget):
 		# Filter relevant data
 		mask_bias = (self.mdata.requested_Idc_mA == b)
 		mask_pwr = (self.mdata.power_rf_dBm == p)
-		return (mask_bias & mask_pwr)
+		loc_mask = (mask_bias & mask_pwr)
+	
+		if self.get_condition(GCOND_REMOVE_OUTLIERS):
+			mask = np.array(loc_mask) & np.array(self.mdata.outlier_mask)
+			self.log.lowdebug(f"Removing outliers. Mask had {loc_mask.sum()} vals, now {mask.sum()} vals.")
+		else:
+			self.log.lowdebug(f"Ignoring outlier spec")
+			mask = loc_mask
+		
+		return mask
 	
 	def render_plot(self):
 		b = self.get_condition('sel_bias_mA')
 		p = self.get_condition('sel_power_dBm')
-		use_fund = self.get_condition('freqxaxis_isfund')
+		use_fund = self.get_condition(GCOND_FREQXAXIS_ISFUND)
 		
 		# Filter relevant data
 		mask_bias = (self.mdata.requested_Idc_mA == b)
@@ -725,6 +1529,10 @@ class CE23FreqDomainPlotWidget(TabPlotWidget):
 		# Plot results
 		self.ax1.cla()
 		self.ax2.cla()
+		
+		if not self.mdata.is_valid_sweep():
+			self.log.debug(f"Invalid sweep data. Aborting plot.")
+			return
 		
 		if use_fund:
 			self.ax1.plot(self.mdata.freq_rf_GHz[mask], self.mdata.ce2[mask], linestyle=':', marker='o', markersize=4, color=(0.6, 0, 0.7))
@@ -807,8 +1615,9 @@ class CE23BiasDomainPlotWidget(TabPlotWidget):
 		self.ylims1 = get_graph_lims(self.mdata.ce2, 5)
 		self.ylims2 = get_graph_lims(self.mdata.ce3, 0.5)
 		
-		self.xlimsX = get_graph_lims(self.mdata.requested_Idc_mA, 0.25)
-	
+		self.xlimsXr = get_graph_lims(self.mdata.requested_Idc_mA, 0.25)
+		self.xlimsXm = get_graph_lims(self.mdata.Idc_mA, 0.25)
+		
 	def calc_mask(self):
 		f = self.get_condition('sel_freq_GHz')
 		p = self.get_condition('sel_power_dBm')
@@ -819,12 +1628,10 @@ class CE23BiasDomainPlotWidget(TabPlotWidget):
 		loc_mask = (mask_freq & mask_pwr)
 		
 		if self.get_condition(GCOND_REMOVE_OUTLIERS):
-			print(loc_mask)
-			print(self.mdata.outlier_mask)
 			mask = np.array(loc_mask) & np.array(self.mdata.outlier_mask)
-			self.log.debug(f"Removing outliers. Mask had {loc_mask.sum()} vals, now {mask.sum()} vals.")
+			self.log.lowdebug(f"Removing outliers. Mask had {loc_mask.sum()} vals, now {mask.sum()} vals.")
 		else:
-			self.log.debug(f"Ignoring outlier spec")
+			self.log.lowdebug(f"Ignoring outlier spec")
 			mask = loc_mask
 		
 		return mask
@@ -841,25 +1648,39 @@ class CE23BiasDomainPlotWidget(TabPlotWidget):
 		self.ax1.cla()
 		self.ax2.cla()
 		
-		self.ax1.plot(self.mdata.requested_Idc_mA[mask], self.mdata.ce2[mask], linestyle=':', marker='o', markersize=4, color=(0.6, 0, 0.7))
-		self.ax2.plot(self.mdata.requested_Idc_mA[mask], self.mdata.ce3[mask], linestyle=':', marker='o', markersize=4, color=(0.45, 0.05, 0.1))
+		if not self.mdata.is_valid_sweep():
+			self.log.debug(f"Invalid sweep data. Aborting plot.")
+			return
 		
+		if self.get_condition(GCOND_BIASXAXIS_ISMEAS):
+			self.ax1.plot(self.mdata.Idc_mA[mask], self.mdata.ce2[mask], linestyle=':', marker='o', markersize=4, color=(0.6, 0, 0.7))
+			self.ax2.plot(self.mdata.Idc_mA[mask], self.mdata.ce3[mask], linestyle=':', marker='o', markersize=4, color=(0.45, 0.05, 0.1))
+			self.ax1.set_xlabel("Measured DC Bias (mA)")
+			self.ax2.set_xlabel("Measured DC Bias (mA)")
+		else:
+			self.ax1.plot(self.mdata.requested_Idc_mA[mask], self.mdata.ce2[mask], linestyle=':', marker='o', markersize=4, color=(0.6, 0, 0.7))
+			self.ax2.plot(self.mdata.requested_Idc_mA[mask], self.mdata.ce3[mask], linestyle=':', marker='o', markersize=4, color=(0.45, 0.05, 0.1))
+			self.ax1.set_xlabel("Requested DC Bias (mA)")
+			self.ax2.set_xlabel("Requested DC Bias (mA)")
+			
 		self.ax1.set_title(f"f-fund = {f} GHz, f-harm2 = {rd(2*f)} GHz, p = {p} dBm")
-		self.ax1.set_xlabel("Requested DC Bias (mA)")
 		self.ax1.set_ylabel("2nd Harm. Conversion Efficiency (%)")
 		self.ax1.grid(True)
 		
 		self.ax2.set_title(f"f-fund = {f} GHz, f-harm3 = {rd(3*f)} GHz, p = {p} dBm")
-		self.ax2.set_xlabel("Requested DC Bias (mA)")
 		self.ax2.set_ylabel("3rd Harm. Conversion Efficiency (%)")
 		self.ax2.grid(True)
 		
 		if self.get_condition('fix_scale'):
 			self.ax1.set_ylim(self.ylims1)
-			self.ax1.set_xlim(self.xlimsX)
-			
 			self.ax2.set_ylim(self.ylims2)
-			self.ax2.set_xlim(self.xlimsX)
+			
+			if self.get_condition(GCOND_BIASXAXIS_ISMEAS):
+				self.ax1.set_xlim(self.xlimsXr)
+				self.ax2.set_xlim(self.xlimsXr)
+			else:
+				self.ax1.set_xlim(self.xlimsXm)
+				self.ax2.set_xlim(self.xlimsXm)
 		
 		self.fig1.tight_layout()
 		self.fig2.tight_layout()
@@ -929,7 +1750,16 @@ class IVPlotWidget(TabPlotWidget):
 		# Filter relevant data
 		mask_freq = (self.mdata.freq_rf_GHz == f)
 		mask_pwr = (self.mdata.power_rf_dBm == p)
-		return (mask_freq & mask_pwr)
+		loc_mask = (mask_freq & mask_pwr)
+	
+		if self.get_condition(GCOND_REMOVE_OUTLIERS):
+			mask = np.array(loc_mask) & np.array(self.mdata.outlier_mask)
+			self.log.lowdebug(f"Removing outliers. Mask had {loc_mask.sum()} vals, now {mask.sum()} vals.")
+		else:
+			self.log.lowdebug(f"Ignoring outlier spec")
+			mask = loc_mask
+		
+		return mask
 	
 	def render_plot(self):
 		f = self.get_condition('sel_freq_GHz')
@@ -944,8 +1774,16 @@ class IVPlotWidget(TabPlotWidget):
 		self.ax2t.cla()
 		self.ax2b.cla()
 		
+		if not self.mdata.is_valid_sweep():
+			self.log.debug(f"Invalid sweep data. Aborting plot.")
+			return
+		
 		# Check correct number of points
 		mask_len = np.sum(mask)
+		if (mask_len) == 0:
+			self.log.debug(f"No data met slider conditions. Aborting render.")
+			return
+		
 		# if len(self.mdata.unique_bias) != mask_len:
 		# 	log.warning(f"Cannot display data: Mismatched number of points (freq = {f} GHz, pwr = {p} dBm, mask: {mask_len}, bias: {len(self.mdata.unique_bias)})")
 		# 	self.fig1.canvas.draw_idle()
@@ -1054,6 +1892,10 @@ class SParamSPDPlotWidget(TabPlotWidget):
 		# Plot results
 		self.ax1.cla()
 		
+		if not self.mdata.is_valid_sweep():
+			self.log.debug(f"Invalid sweep data. Aborting plot.")
+			return
+		
 		# Check correct number of points
 		# mask_len = np.sum(mask)
 		# if len(self.self.mdata.unique_bias) != mask_len:
@@ -1084,7 +1926,6 @@ class SParamSPDPlotWidget(TabPlotWidget):
 		self.fig1.canvas.draw_idle()
 		
 		self.plot_is_current = True
-
 
 class HarmGenBiasDomainPlotWidget(TabPlotWidget):
 	
@@ -1119,15 +1960,25 @@ class HarmGenBiasDomainPlotWidget(TabPlotWidget):
 		# Filter relevant data
 		mask_freq = (self.mdata.freq_rf_GHz == f)
 		mask_pwr = (self.mdata.power_rf_dBm == p)
-		return (mask_freq & mask_pwr)
+		loc_mask = (mask_freq & mask_pwr)
+	
+		if self.get_condition(GCOND_REMOVE_OUTLIERS):
+			mask = np.array(loc_mask) & np.array(self.mdata.outlier_mask)
+			self.log.lowdebug(f"Removing outliers. Mask had {loc_mask.sum()} vals, now {mask.sum()} vals.")
+		else:
+			self.log.lowdebug(f"Ignoring outlier spec")
+			mask = loc_mask
+		
+		return mask
 	
 	def manual_init(self):
 		
 		self.init_zscore_data([self.mdata.zs_rf1, self.mdata.zs_rf2, self.mdata.zs_rf3], ['Fundamental', '2nd Harmonic', '3rd Harmonic'], [self.mdata.Idc_mA, self.mdata.Idc_mA, self.mdata.Idc_mA], "Bias Current (mA)")
 		
 		self.ylims1 = get_graph_lims(np.concatenate((self.mdata.rf1, self.mdata.rf2, self.mdata.rf3)), step=10)
-		self.xlims1 = get_graph_lims(self.mdata.Idc_mA, step=0.25)
-			
+		self.xlims1m = get_graph_lims(self.mdata.Idc_mA, step=0.25)
+		self.xlims1r = get_graph_lims(self.mdata.requested_Idc_mA, step=0.25)
+		
 	def render_plot(self):
 		f = self.get_condition('sel_freq_GHz')
 		p = self.get_condition('sel_power_dBm')
@@ -1138,19 +1989,34 @@ class HarmGenBiasDomainPlotWidget(TabPlotWidget):
 		# Plot results
 		self.ax1.cla()
 		
-		self.ax1.plot(self.mdata.Idc_mA[mask], self.mdata.rf1[mask], linestyle=':', marker='o', markersize=4, color=(0, 0.7, 0))
-		self.ax1.plot(self.mdata.Idc_mA[mask], self.mdata.rf2[mask], linestyle=':', marker='o', markersize=4, color=(0, 0, 0.7))
-		self.ax1.plot(self.mdata.Idc_mA[mask], self.mdata.rf3[mask], linestyle=':', marker='o', markersize=4, color=(0.7, 0, 0))
+		if not self.mdata.is_valid_sweep():
+			self.log.debug(f"Invalid sweep data. Aborting plot.")
+			return
+		
+		if self.get_condition(GCOND_BIASXAXIS_ISMEAS):
+			self.ax1.plot(self.mdata.Idc_mA[mask], self.mdata.rf1[mask], linestyle=':', marker='o', markersize=4, color=(0, 0.7, 0))
+			self.ax1.plot(self.mdata.Idc_mA[mask], self.mdata.rf2[mask], linestyle=':', marker='o', markersize=4, color=(0, 0, 0.7))
+			self.ax1.plot(self.mdata.Idc_mA[mask], self.mdata.rf3[mask], linestyle=':', marker='o', markersize=4, color=(0.7, 0, 0))
+			self.ax1.set_xlabel("Measured DC Bias (mA)")
+		else:
+			self.ax1.plot(self.mdata.requested_Idc_mA[mask], self.mdata.rf1[mask], linestyle=':', marker='o', markersize=4, color=(0, 0.7, 0))
+			self.ax1.plot(self.mdata.requested_Idc_mA[mask], self.mdata.rf2[mask], linestyle=':', marker='o', markersize=4, color=(0, 0, 0.7))
+			self.ax1.plot(self.mdata.requested_Idc_mA[mask], self.mdata.rf3[mask], linestyle=':', marker='o', markersize=4, color=(0.7, 0, 0))
+			self.ax1.set_xlabel("Requested DC Bias (mA)")
+			
 		self.ax1.set_title(f"f = {f} GHz, p = {p} dBm")
-		self.ax1.set_xlabel("DC Bias (mA)")
 		self.ax1.set_ylabel("Power (dBm)")
 		self.ax1.legend(["Fundamental", "2nd Harm.", "3rd Harm."])
 		self.ax1.grid(True)
 		
 		if self.get_condition('fix_scale'):
 			self.ax1.set_ylim(self.ylims1)
-			self.ax1.set_xlim(self.xlims1)
-		
+			
+			if self.get_condition(GCOND_BIASXAXIS_ISMEAS):
+				self.ax1.set_xlim(self.xlims1m)
+			else:
+				self.ax1.set_xlim(self.xlims1r)
+				
 		self.fig1.tight_layout()
 		
 		self.fig1.canvas.draw_idle()
@@ -1290,7 +2156,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.mdata = mdata
 		
 		# Initialize global conditions
-		self.gcond = {'sel_freq_GHz': self.mdata.unique_freqs[len(self.mdata.unique_freqs)//2], 'sel_power_dBm': self.mdata.unique_pwr[len(self.mdata.unique_pwr)//2], 'sel_bias_mA': self.mdata.unique_bias[len(self.mdata.unique_bias)//2], 'fix_scale':False, 'freqxaxis_isfund':False, "remove_outliers":True, "remove_outliers_ce2_zscore":10}
+		self.gcond = {'sel_freq_GHz': self.mdata.unique_freqs[len(self.mdata.unique_freqs)//2], 'sel_power_dBm': self.mdata.unique_pwr[len(self.mdata.unique_pwr)//2], 'sel_bias_mA': self.mdata.unique_bias[len(self.mdata.unique_bias)//2], 'fix_scale':False, GCOND_FREQXAXIS_ISFUND:False, GCOND_BIASXAXIS_ISMEAS:True, "remove_outliers":True, "remove_outliers_ce2_zscore":10, GCOND_ADJUST_SLIDER:True}
 		
 		self.gcond_subscribers = []
 		
@@ -1303,7 +2169,8 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.add_menu()
 		
 		# Make a controls widget
-		self.control_widget = OutlierControlWidget(self.gcond, self.log, self.mdata, self.plot_all)
+		self.control_widget = OutlierControlWidget(self.gcond, self.log, self.mdata, self.plot_all, show_frame=True)
+		self.dataselect_widget = DataSelectWidget(self.gcond, self.log, self.mdata, self.plot_all, self.dataset_changed, show_frame=True)
 		
 		# Create tab widget
 		self.tab_widget_widgets = []
@@ -1329,8 +2196,9 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.grid.addWidget(self.control_widget, 0, 0)
 		self.grid.addWidget(self.tab_widget, 0, 1)
 		self.grid.addWidget(self.slider_box, 0, 2)
-		self.grid.addWidget(self.active_file_label, 1, 1, 1, 2)
-		self.grid.addWidget(self.active_spfile_label, 2, 1, 1, 2)
+		self.grid.addWidget(self.dataselect_widget, 1, 0, 1, 3)
+		self.grid.addWidget(self.active_file_label, 2, 1, 1, 2)
+		self.grid.addWidget(self.active_spfile_label, 3, 1, 1, 2)
 		
 		# Set the central widget
 		central_widget = QtWidgets.QWidget()
@@ -1343,6 +2211,13 @@ class HGA1Window(QtWidgets.QMainWindow):
 		''' This will be called before the window closes. Save any stuff etc here.'''
 		
 		pass
+	
+	def get_condition(self, c:str):
+	
+		if c in self.gcond:
+			return self.gcond[c]
+		else:
+			return None
 	
 	def set_gcond(self, key, value):
 		
@@ -1402,12 +2277,10 @@ class HGA1Window(QtWidgets.QMainWindow):
 	
 	def populate_slider_box(self):
 		
-		
 		ng = QtWidgets.QGridLayout()
 		
-		
 		self.freq_slider_hdrlabel = QtWidgets.QLabel()
-		self.freq_slider_hdrlabel.setText("Frequency (GHz)")
+		self.freq_slider_hdrlabel.setText("Frequency\n(GHz)")
 		
 		self.freq_slider_vallabel = QtWidgets.QLabel()
 		self.freq_slider_vallabel.setText("VOID (GHz)")
@@ -1422,7 +2295,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.freq_slider.setSliderPosition(0)
 		
 		self.pwr_slider_hdrlabel = QtWidgets.QLabel()
-		self.pwr_slider_hdrlabel.setText("Power (dBm)")
+		self.pwr_slider_hdrlabel.setText("Power\n(dBm)")
 		
 		self.pwr_slider_vallabel = QtWidgets.QLabel()
 		self.pwr_slider_vallabel.setText("VOID (dBm)")
@@ -1437,7 +2310,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.pwr_slider.setSliderPosition(0)
 		
 		self.bias_slider_hdrlabel = QtWidgets.QLabel()
-		self.bias_slider_hdrlabel.setText("Bias (mA)")
+		self.bias_slider_hdrlabel.setText("Bias\n(mA)")
 		
 		self.bias_slider_vallabel = QtWidgets.QLabel()
 		self.bias_slider_vallabel.setText("VOID (mA)")
@@ -1488,10 +2361,58 @@ class HGA1Window(QtWidgets.QMainWindow):
 		
 		self.slider_box.setLayout(ng)
 		
+		# Copy of mdata vals so if mdata is reloaded to a new file, the
+		# old values can be read one more time to readjust sliders to appropriate position
+		self.slider_unique_bias = copy.deepcopy(self.mdata.unique_bias)
+		self.slider_unique_pwr = copy.deepcopy(self.mdata.unique_pwr)
+		self.slider_unique_freqs = copy.deepcopy(self.mdata.unique_freqs)
+		
 		# Trigger all slider callbacks
 		self.update_bias(self.bias_slider.value())
 		self.update_freq(self.freq_slider.value())
 		self.update_pwr(self.pwr_slider.value())
+	
+	def dataset_changed(self):
+		''' Call when the dataset changes. It will readjust the slider positions to something valid for the new dataset.'''
+		
+		# Get old values to match
+		try:
+			prev_bias = self.slider_unique_bias[self.bias_slider.value()]
+			prev_pwr = self.slider_unique_pwr[self.pwr_slider.value()]
+			prev_freq = self.slider_unique_freqs[self.freq_slider.value()]
+		except:
+			# If this function gets called during init and before any datasets are loaded, just skip it.
+			return
+		
+		# Update slider limits
+		self.bias_slider.setMaximum(len(self.mdata.unique_bias)-1)
+		self.pwr_slider.setMaximum(len(self.mdata.unique_pwr)-1)
+		self.freq_slider.setMaximum(len(self.mdata.unique_freqs)-1)
+		
+		# Move sliders to closest match positions
+		if self.get_condition(GCOND_ADJUST_SLIDER):
+			self.bias_slider.setSliderPosition(np.argmin(np.abs(self.mdata.unique_bias - prev_bias)))
+			self.freq_slider.setSliderPosition(np.argmin(np.abs(self.mdata.unique_freqs - prev_freq)))
+			self.pwr_slider.setSliderPosition(np.argmin(np.abs(self.mdata.unique_pwr - prev_pwr)))
+		else:
+			self.bias_slider.setSliderPosition(0)
+			self.freq_slider.setSliderPosition(0)
+			self.pwr_slider.setSliderPosition(0)
+		
+		# Copy of mdata vals so if mdata is reloaded to a new file, the
+		# old values can be read one more time to readjust sliders to appropriate position
+		self.slider_unique_bias = copy.deepcopy(self.mdata.unique_bias)
+		self.slider_unique_pwr = copy.deepcopy(self.mdata.unique_pwr)
+		self.slider_unique_freqs = copy.deepcopy(self.mdata.unique_freqs)
+		
+		# Trigger all slider callbacks
+		self.update_bias(self.bias_slider.value())
+		self.update_freq(self.freq_slider.value())
+		self.update_pwr(self.pwr_slider.value())
+		
+		# Reinitialize all widgets (this will fix their autolims and recalculate z-scores)
+		for gcs in self.gcond_subscribers:
+			gcs.manual_init()
 	
 	def _set_max_ce2(self):
 		
@@ -1569,6 +2490,12 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.graph_menu = self.bar.addMenu("Graph")
 		self.graph_menu.triggered[QAction].connect(self._process_graph_menu)
 		
+		self.adjust_sliders_act = QAction("Preserve Sliders", self, checkable=True)
+		self.adjust_sliders_act.setShortcut("Ctrl+;")
+		self.adjust_sliders_act.setChecked(True)
+		self.set_gcond(GCOND_ADJUST_SLIDER, self.adjust_sliders_act.isChecked())
+		self.graph_menu.addAction(self.adjust_sliders_act)
+		
 		self.fix_scales_act = QAction("Fix Scales", self, checkable=True)
 		self.fix_scales_act.setShortcut("Ctrl+F")
 		self.fix_scales_act.setChecked(True)
@@ -1586,13 +2513,32 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.freqxaxis_harm_act.setChecked(True)
 		self.freqxaxis_harm_act.setShortcut("Shift+X")
 		self.freqxaxis_fund_act.setShortcut("Ctrl+Shift+X")
-		self.set_gcond('freqxaxis_isfund', self.freqxaxis_fund_act.isChecked())
+		self.set_gcond(GCOND_FREQXAXIS_ISFUND, self.freqxaxis_fund_act.isChecked())
 		self.freqxaxis_graph_menu.addAction(self.freqxaxis_fund_act)
 		self.freqxaxis_graph_menu.addAction(self.freqxaxis_harm_act)
 		self.freqxaxis_group.addAction(self.freqxaxis_fund_act)
 		self.freqxaxis_group.addAction(self.freqxaxis_harm_act)
 		
-			# END Graph Menu: Freq-axis sub menu -------------
+			# Graph Menu: Bias-axis sub menu -------------
+		
+		
+		
+		self.biasxaxis_graph_menu = self.graph_menu.addMenu("Bias X-Axis")
+		
+		self.biasxaxis_group = QActionGroup(self)
+		
+		self.biasxaxis_req_act = QAction("Show Requested", self, checkable=True)
+		self.biasxaxis_meas_act = QAction("Show Measured", self, checkable=True)
+		self.biasxaxis_meas_act.setChecked(True)
+		self.biasxaxis_req_act.setShortcut("Shift+B")
+		self.biasxaxis_meas_act.setShortcut("Ctrl+Shift+B")
+		self.set_gcond(GCOND_BIASXAXIS_ISMEAS, self.biasxaxis_meas_act.isChecked())
+		self.biasxaxis_graph_menu.addAction(self.biasxaxis_req_act)
+		self.biasxaxis_graph_menu.addAction(self.biasxaxis_meas_act)
+		self.biasxaxis_group.addAction(self.biasxaxis_req_act)
+		self.biasxaxis_group.addAction(self.biasxaxis_meas_act)
+		
+			# END Graph Menu: Bias-axis sub menu -------------
 		
 		self.zscore_act = QAction("Show Active Z-Score", self)
 		self.zscore_act.setShortcut("Shift+Z")
@@ -1622,8 +2568,14 @@ class HGA1Window(QtWidgets.QMainWindow):
 		if q.text() == "Fix Scales":
 			self.set_gcond('fix_scale', self.fix_scales_act.isChecked())
 			self.plot_all()
+		elif q.text() == "Preserve Sliders":
+			self.set_gcond(GCOND_ADJUST_SLIDER, self.adjust_sliders_act.isChecked())
+			self.plot_all()
 		elif q.text() == "Show Fundamental" or q.text() == "Show Harmonics":
-			self.set_gcond('freqxaxis_isfund', self.freqxaxis_fund_act.isChecked())
+			self.set_gcond(GCOND_FREQXAXIS_ISFUND, self.freqxaxis_fund_act.isChecked())
+			self.plot_all()
+		elif q.text() == "Show Requested" or q.text() == "Show Measured":
+			self.set_gcond(GCOND_BIASXAXIS_ISMEAS, self.biasxaxis_meas_act.isChecked())
 			self.plot_all()
 		elif q.text() == "Show Active Z-Score":
 			self.plot_active_zscore()
@@ -1634,17 +2586,33 @@ class HGA1Window(QtWidgets.QMainWindow):
 			self.set_gcond('sparam_show_sum', self.sparam_showsum_act.isChecked())
 			self.plot_all()
 
-
-
-master_data = MasterData()
+dlm = DataLoadingManager(log, conf_file=os.path.join(".", "wyv_conf.json"))
+master_data = MasterData(log, dlm)
 app = QtWidgets.QApplication(sys.argv)
+app.setStyle(f"Fusion")
+app.setWindowIcon(QIcon("./assets/icon.png"))
 
 chicago_ff = get_font("./assets/Chicago.ttf")
 menlo_ff = get_font("./assets/Menlo-Regular.ttf")
-app.setStyleSheet(f"""
-QWidget {{
-	font-family: '{menlo_ff}';
-}}""")
+if cli_args.theme:
+	app.setStyleSheet(f"""
+	QWidget {{
+		font-family: '{chicago_ff}';
+	}}""")
+else:
+	app.setStyleSheet(f"""
+	QWidget {{
+		font-family: '{menlo_ff}';
+	}}""")
+
+if platform == "win32":
+	# Manually override app ID to tell windows to use the Window Icon in the taskbar
+	myappid = 'giesbrecht.wyvern.main.v0' # arbitrary string
+	ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
 w = HGA1Window(log, master_data, app)
 app.exec()
+
+#TODO: When bias is set to show requested, the fixed scale doesnt work. Look at max-CE2 in 8Aug dataset.
+#TODO: When you turn off the filter, it loads the wrong types of datasets and crashes!
+
