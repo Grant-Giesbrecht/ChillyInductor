@@ -17,5 +17,7 @@ classifiers = [
 dependencies = [
 	'pandas >= 2.0.0',
 	'matplotlib >= 3.9.1',
-	'inputimeout >= 1.0.0'
+	'inputimeout >= 1.0.0',
+	'PyQt6 >= 6.0.0',
+	'scikit-rf >= 1.0.0'
 ]
