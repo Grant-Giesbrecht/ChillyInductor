@@ -30,9 +30,13 @@ if datapath is None:
 	sys.exit()
 else:
 	print(f"{Fore.GREEN}Located data directory at: {Fore.LIGHTBLACK_EX}{datapath}{Style.RESET_ALL}")
-	
+
+sp_filename = os.path.join(datapath, filename)
 try:
-	data = read_rohde_schwarz_csv(os.path.join(datapath, filename))
+	if sp_filename[-4:].lower() == '.csv':
+		data = read_rohde_schwarz_csv(sp_filename)
+	else:
+		data = read_s2p(sp_filename)
 except Exception as e:
 	print(f"Failed to read CSV file. {e}")
 

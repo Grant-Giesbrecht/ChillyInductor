@@ -29,8 +29,11 @@ c = 3e8
 #------------------------------------------------------------
 # Import Data
 
-datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R3C4*B', 'Track 1 4mm', 'VNA Traces'])
-filename = "25June2024_Mid.csv"
+datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C1*E', 'Track 2*', 's_p*', '9Sept*', 'narrow'])
+filename = "cryostat.s2p"
+
+# datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R3C4*B', 'Track 1 4mm', 'VNA Traces'])
+# filename = "25June2024_Mid.csv"
 
 # datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 2 43mm', 'Uncalibrated SParam', 'Prf -30 dBm'])
 # filename = "26Aug2024_Ch1ToCryoL_CryoRTerm.csv"
@@ -44,11 +47,16 @@ if datapath is None:
 	sys.exit()
 else:
 	print(f"{Fore.GREEN}Located data directory at: {Fore.LIGHTBLACK_EX}{datapath}{Style.RESET_ALL}")
-	
+
+sp_filename = os.path.join(datapath, filename)
 try:
-	data = read_rohde_schwarz_csv(os.path.join(datapath, filename))
+	if sp_filename[-4:].lower() == '.csv':
+		data = read_rohde_schwarz_csv(sp_filename)
+	else:
+		data = read_s2p(sp_filename)
 except Exception as e:
 	print(f"Failed to read CSV file. {e}")
+	sys.exit()
 
 #------------------------------------------------------------
 # Define Functions
@@ -80,13 +88,13 @@ def on_pick(event):
 S11 = data.S11_real + complex(0, 1)*data.S11_imag
 S21 = data.S21_real + complex(0, 1)*data.S21_imag
 
-fig, ax = plt.subplots(1, 1, figsize=(12, 10))
-# ax = axes[0]
+fig, (ax1, ax2) = plt.subplots(1, 2, figsize=(12, 10))
+# ax1 = axes[0]
 # ax2 = axes[1]
 fig.subplots_adjust(left=0.065, bottom=0.35, top=0.99, right=0.85)
 
-# ax.plot(data.freq_Hz/1e9, lin_to_dB(np.abs(S11)), linestyle='--', marker='.', markersize=2, color=(0.7, 0, 0), label='S_11', picker=10)
-# ax.plot(data.freq_Hz/1e9, lin_to_dB(np.abs(S21)), linestyle='--', marker='.', markersize=2, color=(0, 0, 0.7), label="S_21", picker=10)
+# ax1.plot(data.freq_Hz/1e9, lin_to_dB(np.abs(S11)), linestyle='--', marker='.', markersize=2, color=(0.7, 0, 0), label='S_11', picker=10)
+# ax1.plot(data.freq_Hz/1e9, lin_to_dB(np.abs(S21)), linestyle='--', marker='.', markersize=2, color=(0, 0, 0.7), label="S_21", picker=10)
 
 plt.xlabel("Frequency (GHz)")
 plt.ylabel("S-Parameters (dB)")
@@ -146,27 +154,40 @@ def update_model_LC():
 	# Calculate reflection coefficient
 	gamma = (zin - zl)/(zin + zl)
 	
+	phase_gamma_deg = np.angle(gamma)*180/np.pi
+	
 	# Calculate S11 in dB
 	s11_dB = lin_to_dB(np.abs(gamma))
 	
 	# Update axes
-	ax.cla()
-	ax.plot(data.freq_Hz/1e9, lin_to_dB(np.abs(S11)), linestyle='--', marker='.', markersize=2, color=(0.7, 0, 0), label='S_11', picker=10)
-	ax.plot(sim_freqs/1e9, s11_dB, linestyle='-', color=(0.7, 0.7, 0.3), linewidth=0.5, marker='o', markersize=1.5)
+	ax1.cla()
+	ax1.plot(data.freq_Hz/1e9, lin_to_dB(np.abs(S11)), linestyle='--', marker='.', markersize=2, color=(0.7, 0, 0), label='S_11', picker=10)
+	ax1.plot(sim_freqs/1e9, s11_dB, linestyle='-', color=(0.7, 0.7, 0.3), linewidth=0.5, marker='o', markersize=1.5)
 	
-	ax.set_xlabel("Frequency (GHz)")
-	ax.set_ylabel("S-Parameters (dB)")
-	ax.grid(True)
-	ax.legend(['Measured', 'Simulated'])
+	ax1.set_xlabel("Frequency (GHz)")
+	ax1.set_ylabel("S-Parameters (dB)")
+	ax1.grid(True)
+	ax1.legend(['Measured', 'Simulated'])
+	
+	ax2.cla()
+	ax2.plot(data.freq_Hz/1e9, np.angle(S11)*180/np.pi, linestyle='--', marker='.', markersize=2, color=(0.7, 0, 0), label='S_11', picker=10)
+	ax2.plot(sim_freqs/1e9, phase_gamma_deg, linestyle='-', color=(0.7, 0.7, 0.3), linewidth=0.5, marker='o', markersize=1.5)
+	
+	ax2.set_xlabel("Frequency (GHz)")
+	ax2.set_ylabel("Phase (deg)")
+	ax2.grid(True)
+	ax2.legend(['Measured', 'Simulated'])
 	
 	if conditions['ZOOM'] != 1:
 		span = (FREQ_MAX - FREQ_MIN)/1e9
 		new_span = span/conditions['ZOOM']
 		fstart = conditions['ZOOM_CENTER']/1e9-new_span/2
 		fend = conditions['ZOOM_CENTER']/1e9+new_span/2
-		ax.set_xlim([fstart, fend])
+		ax1.set_xlim([fstart, fend])
+		ax2.set_xlim([fstart, fend])
 	
-	ax.set_ylim([-60, 10])
+	ax1.set_ylim([-60, 10])
+	ax2.set_ylim([-180, 180])
 	
 	# Update slider positions
 	slider_Vp.eventson = False
@@ -197,27 +218,40 @@ def update_model_ZV():
 	# Calculate reflection coefficient
 	gamma = (zin - zl)/(zin + zl)
 	
+	phase_gamma_deg = np.angle(gamma)*180/np.pi
+	
 	# Calculate S11 in dB
 	s11_dB = lin_to_dB(np.abs(gamma))
 	
 	# Update axes
-	ax.cla()
-	ax.plot(data.freq_Hz/1e9, lin_to_dB(np.abs(S11)), linestyle='--', marker='.', markersize=2, color=(0.7, 0, 0), label='S_11', picker=10)
-	ax.plot(sim_freqs/1e9, s11_dB, linestyle='-', color=(0.7, 0.7, 0.3), linewidth=0.5, marker='o', markersize=1.5)
+	ax1.cla()
+	ax1.plot(data.freq_Hz/1e9, lin_to_dB(np.abs(S11)), linestyle='--', marker='.', markersize=2, color=(0.7, 0, 0), label='S_11', picker=10)
+	ax1.plot(sim_freqs/1e9, s11_dB, linestyle='-', color=(0.7, 0.7, 0.3), linewidth=0.5, marker='o', markersize=1.5)
 	
-	ax.set_xlabel("Frequency (GHz)")
-	ax.set_ylabel("S-Parameters (dB)")
-	ax.grid(True)
-	ax.legend(['Measured', 'Simulated'])
+	ax1.set_xlabel("Frequency (GHz)")
+	ax1.set_ylabel("S-Parameters (dB)")
+	ax1.grid(True)
+	ax1.legend(['Measured', 'Simulated'])
+	
+	ax2.cla()
+	ax2.plot(data.freq_Hz/1e9, np.angle(S11)*180/np.pi, linestyle='--', marker='.', markersize=2, color=(0.7, 0, 0), label='S_11', picker=10)
+	ax2.plot(sim_freqs/1e9, phase_gamma_deg, linestyle='-', color=(0.7, 0.7, 0.3), linewidth=0.5, marker='o', markersize=1.5)
+	
+	ax2.set_xlabel("Frequency (GHz)")
+	ax2.set_ylabel("Phase (deg)")
+	ax2.grid(True)
+	ax2.legend(['Measured', 'Simulated'])
 	
 	if conditions['ZOOM'] != 1:
 		span = (FREQ_MAX - FREQ_MIN)/1e9
 		new_span = span/conditions['ZOOM']
 		fstart = conditions['ZOOM_CENTER']/1e9-new_span/2
 		fend = conditions['ZOOM_CENTER']/1e9+new_span/2
-		ax.set_xlim([fstart, fend])
+		ax1.set_xlim([fstart, fend])
+		ax2.set_xlim([fstart, fend])
 	
-	ax.set_ylim([-60, 10])
+	ax1.set_ylim([-60, 10])
+	ax2.set_ylim([-180, 180])
 	
 	print(f"")
 	
