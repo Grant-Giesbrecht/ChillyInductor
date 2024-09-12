@@ -253,6 +253,7 @@ for f_rf in freq_rf:
 			
 			# Set offset voltage
 			Voffset = current_set_res * idc/1e3
+			log.debug(f"Selected offset voltage {Voffset} V from current_set_res={current_set_res} Ohms and idc={idc} mA")
 			mfli.set_offset(Voffset)
 			mfli.set_output_enable(True)
 			
@@ -268,7 +269,7 @@ for f_rf in freq_rf:
 			v_cs_read = np.abs(dmm.trigger_and_read())
 			
 			log.info(f"Measured bias current at {v_cs_read/cs_res*1e3} mA", detail=f"V_current_sense_read = {v_cs_read} V, CS-resistor = {cs_res} ohms.")
-			if np.abs((v_cs_read/cs_res*1e3) - idc)/idc > 0.2 and idc != 0:
+			if (idc != 0) and (np.abs((v_cs_read/cs_res*1e3) - idc)/idc > 0.2):
 				log.warning(f"Measured Idc missed target by more than 20%. (Error = {np.abs((v_cs_read/cs_res*1e3) - idc)/idc*100} %)")
 			
 			# Read temperature
