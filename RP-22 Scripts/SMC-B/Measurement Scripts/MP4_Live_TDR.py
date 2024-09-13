@@ -10,6 +10,7 @@ from ganymede import *
 import datetime
 from pathlib import Path
 import argparse
+import matplotlib.pyplot as plt
 
 # Set directories for data and sweep configuration
 DATA_DIRECTORY = "data"
@@ -57,9 +58,17 @@ while True:
 		wav = csa.get_waveform(4)
 		log.debug(f"Measured waveform.")
 		
+		print(wav['x'])
+		print(wav['y'])
+		plt.plot(wav['x'], wav['y'])
+		plt.show()
+		
 		# Get path
 		words = usr_input.split('/')
 		words.insert(0, "dataset")
+		
+		if 'rho' in words or 'gamma' in words:
+			wav['y_units'] = 'reflection coef'
 		
 		log.info(f"Saving TDR waveform to location: {usr_input}")
 		
@@ -83,9 +92,10 @@ while True:
 # Get operator notes
 sweep_name = input("Sweep name:")
 op_notes = input("Operator notes:")
+avg_points = input("Averaging points number: ")
+hpoints = input("Number of horizontal points: ")
 
-
-dataset['info'] = {"operator_notes": op_notes, "source_script": "MP4_Live_TDR.py"}
+dataset['info'] = {"operator_notes": op_notes, "source_script": "MP4_Live_TDR.py", 'averaging_points':avg_points, 'horiz_points':hpoints}
 
 print(f"Saving data...")
 
