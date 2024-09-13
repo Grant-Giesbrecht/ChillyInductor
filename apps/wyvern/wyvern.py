@@ -2034,6 +2034,109 @@ class HarmGenBiasDomainPlotWidget(TabPlotWidget):
 		
 		self.plot_is_current = True
 
+class SpectrumPIDomainPlotWidget(TabPlotWidget):
+	
+	def __init__(self, global_conditions:dict, log:LogPile, mdata:MasterData):
+		super().__init__(global_conditions, log, mdata)
+		
+		# Conditions dictionaries
+		self.conditions = {'rounding_step1': 0.1, 'rounding_step2': 0.01}
+		
+		self.manual_init()
+		
+		# Create figure
+		self.fig1, self.ax1 = plt.subplots(1, 1)
+		
+		# Estimate system Z
+		expected_Z = self.mdata.MFLI_V_offset_V[1]/(self.mdata.requested_Idc_mA[1]/1e3) #TODO: Do something more general than index 1
+		system_Z = self.mdata.MFLI_V_offset_V/(mdata.Idc_mA/1e3)
+		self.extra_z = system_Z - expected_Z
+		
+		self.render_plot()
+		
+		# Create widgets
+		self.fig1c = FigureCanvas(self.fig1)
+		self.toolbar1 = NavigationToolbar2QT(self.fig1c, self)
+		
+		# Add widgets to parent-widget and set layout
+		self.grid = QtWidgets.QGridLayout()
+		self.grid.addWidget(self.toolbar1, 0, 0)
+		self.grid.addWidget(self.fig1c, 1, 0)
+		self.setLayout(self.grid)
+	
+	def manual_init(self):
+		pass
+		# self.init_zscore_data([self.mdata.zs_rf1, self.mdata.zs_rf2, self.mdata.zs_rf3], ['Fundamental', '2nd Harmonic', '3rd Harmonic'], [self.mdata.freq_rf_GHz, self.mdata.freq_rf_GHz, self.mdata.freq_rf_GHz], "Frequency (GHz)")
+		
+		# self.ylims1 = get_graph_lims(np.concatenate((self.mdata.rf1, self.mdata.rf2, self.mdata.rf3)), step=10)
+		# self.xlims1 = get_graph_lims(self.mdata.freq_rf_GHz, step=0.5)
+		
+	def calc_mask(self):
+		b = self.get_condition('sel_bias_mA')
+		p = self.get_condition('sel_power_dBm')
+		f = self.get_condition('sel_freq_GHz')
+		
+		# Filter relevant data
+		mask_bias = (self.mdata.requested_Idc_mA == b)
+		mask_pwr = (self.mdata.power_rf_dBm == p)
+		mask_freq = (self.mdata.freq_rf_GHz == f)
+		loc_mask = (mask_bias & mask_pwr & mask_freq)
+		
+		if self.get_condition(GCOND_REMOVE_OUTLIERS):
+			mask = np.array(loc_mask) & np.array(self.mdata.outlier_mask)
+			self.log.lowdebug(f"Removing outliers. Mask had {loc_mask.sum()} vals, now {mask.sum()} vals.")
+		else:
+			self.log.lowdebug(f"Ignoring outlier spec")
+			mask = loc_mask
+		
+		return mask
+	
+	def render_plot(self):
+		use_fund = self.get_condition(GCOND_FREQXAXIS_ISFUND)
+		b = self.get_condition('sel_bias_mA')
+		p = self.get_condition('sel_power_dBm')
+		f = self.get_condition('sel_freq_GHz')
+		
+		# Filter relevant data
+		mask = self.calc_mask()
+			
+		# Plot results
+		self.ax1.cla()
+		
+		# Check correct number of points
+		mask_len = np.sum(mask)
+		if mask_len != 1:
+			self.log.debug(f"Cannot complete Spectrum plot. Exactly 1 data point must match (number of matches: {mask_len})")
+			self.fig1.canvas.draw_idle()
+			return
+		
+		# if len(self.mdata.unique_freqs) != mask_len:
+		# 	log.warning(f"Cannot display data: Mismatched number of points (bias = {b} mA, pwr = {p} dBm, mask: {mask_len}, freq: {len(self.mdata.unique_freqs)})")
+		# 	self.fig1.canvas.draw_idle()
+		# 	return
+		
+		self.ax1.plot(self.mdata.waveform_f_Hz[mask], self.mdata.waveform_s_dBm[mask], linestyle=':', marker='o', markersize=4, color=(0, 0.7, 0))
+		self.ax1.plot(self.mdata.waveform_f_Hz[mask], self.mdata.waveform_s_dBm[mask], linestyle=':', marker='o', markersize=4, color=(0, 0, 0.7))
+		self.ax1.plot(self.mdata.waveform_f_Hz[mask], self.mdata.waveform_s_dBm[mask], linestyle=':', marker='o', markersize=4, color=(0.7, 0, 0))
+		self.ax1.set_xlabel("Frequency (GHz)")
+		self.ax1.set_title(f"Bias = {b} mA, p = {p} dBm, f = {f} GHz")
+		self.ax1.set_ylabel("Power (dBm)")
+		self.ax1.legend(["Fundamental", "2nd Harm.", "3rd Harm."])
+		self.ax1.grid(True)
+		
+		# if self.get_condition('fix_scale'):
+		# 	self.ax1.set_ylim(self.ylims1)
+		# 	if use_fund:
+		# 		self.ax1.set_xlim(self.xlims1)
+		# 	else:
+		# 		self.ax1.set_xlim((self.xlims1[0], self.xlims1[1]*3))
+		self.fig1.tight_layout()
+		
+		self.fig1.canvas.draw_idle()
+		
+		self.plot_is_current = True
+
+
 class BiasDomainTabWidget(QTabWidget):
 	
 	def __init__(self, global_conditions:dict, main_window):
@@ -2116,6 +2219,40 @@ class FrequencyDomainTabWidget(QTabWidget):
 		if self._is_active:
 			self.object_list[self.currentIndex()].set_active(True)
 	
+class PointInspecterDomainTabWidget(QTabWidget):
+	
+	def __init__(self, global_conditions:dict, main_window):
+		super().__init__()
+		
+		self._is_active = False
+		
+		self.gcond = global_conditions
+		self.main_window = main_window
+		self.object_list = []
+		
+		#------------ Spectrum widget
+		
+		self.object_list.append(SpectrumPIDomainPlotWidget(self.gcond, self.main_window.log, self.main_window.mdata))
+		self.main_window.gcond_subscribers.append(self.object_list[-1])
+		self.addTab(self.object_list[-1], "Spectrum")
+		
+		self.currentChanged.connect(self.update_active_tab)
+	
+	def set_active(self, b:bool):
+		self._is_active = b
+		self.update_active_tab()
+	
+	def update_active_tab(self):
+		
+		# Set all objects to inactive
+		for obj in self.object_list:
+			obj.set_active(False)
+		
+		# Set only the active widget to active
+		if self._is_active:
+			self.object_list[self.currentIndex()].set_active(True)
+
+
 class SPDTabWidget(QTabWidget):
 	''' S-Parameter Domain Tab Widget'''
 	
@@ -2474,6 +2611,9 @@ class HGA1Window(QtWidgets.QMainWindow):
 		
 		self.tab_widget_widgets.append(FrequencyDomainTabWidget(self.gcond, self))
 		self.tab_widget.addTab(self.tab_widget_widgets[-1], "Main Sweep - Frequency Domain")
+		
+		self.tab_widget_widgets.append(PointInspecterDomainTabWidget(self.gcond, self))
+		self.tab_widget.addTab(self.tab_widget_widgets[-1], "Main Sweep - Single Point")
 		
 		self.tab_widget_widgets.append(SPDTabWidget(self.gcond, self))
 		self.tab_widget.addTab(self.tab_widget_widgets[-1], "S-Parameters")
