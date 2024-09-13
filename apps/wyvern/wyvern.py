@@ -34,6 +34,9 @@ import argparse
 log = LogPile()
 log.set_terminal_level("LOWDEBUG")
 
+import matplotlib as mpl
+mpl.rcParams['axes.formatter.useoffset'] = False
+
 # TODO: Important
 #
 # * Tests show if only the presently displayed graph is rendered, when the sliders are adjusted, the update speed is far better (no kidding).
@@ -2036,6 +2039,11 @@ class HarmGenBiasDomainPlotWidget(TabPlotWidget):
 
 class SpectrumPIDomainPlotWidget(TabPlotWidget):
 	
+	ZOOM_MODE_FULL = 0
+	ZOOM_MODE_FUND = 1
+	ZOOM_MODE_2H = 2
+	ZOOM_MODE_3H = 3
+	
 	def __init__(self, global_conditions:dict, log:LogPile, mdata:MasterData):
 		super().__init__(global_conditions, log, mdata)
 		
@@ -2046,6 +2054,8 @@ class SpectrumPIDomainPlotWidget(TabPlotWidget):
 		
 		# Create figure
 		self.fig1, self.ax1 = plt.subplots(1, 1)
+		self.default_xlims = None
+		self.zoom_mode = SpectrumPIDomainPlotWidget.ZOOM_MODE_FULL
 		
 		# Estimate system Z
 		expected_Z = self.mdata.MFLI_V_offset_V[1]/(self.mdata.requested_Idc_mA[1]/1e3) #TODO: Do something more general than index 1
@@ -2058,11 +2068,96 @@ class SpectrumPIDomainPlotWidget(TabPlotWidget):
 		self.fig1c = FigureCanvas(self.fig1)
 		self.toolbar1 = NavigationToolbar2QT(self.fig1c, self)
 		
+		self.zoom_span_label = QLabel("Zoom Span: kHz")
+		# self.zoom_span_label.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
+		self.zoom_span_label.setFixedWidth(120)
+		
+		self.zoom_span_edit = QLineEdit()
+		self.zoom_span_edit.setText("100")
+		self.zoom_span_edit.setValidator(QDoubleValidator())
+		self.zoom_span_edit.setFixedWidth(50)
+		self.zoom_span_edit.editingFinished.connect(self._reapply_zoom)
+		
+		# self.right_spacer = QSpacerItem(10, 10, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+		
+		# Make buttons
+		self.fund_btn = QPushButton("Fundamental", parent=self)
+		self.fund_btn.setFixedSize(100, 25)
+		self.fund_btn.clicked.connect(self._zoom_fund)
+		
+		self.f2h_btn = QPushButton("2nd Harmonic", parent=self)
+		self.f2h_btn.setFixedSize(100, 25)
+		self.f2h_btn.clicked.connect(self._zoom_2h)
+		
+		self.f3h_btn = QPushButton("3rd Harmonic", parent=self)
+		self.f3h_btn.setFixedSize(100, 25)
+		self.f3h_btn.clicked.connect(self._zoom_3h)
+		
+		self.reset_btn = QPushButton("Full Span", parent=self)
+		self.reset_btn.setFixedSize(100, 25)
+		self.reset_btn.clicked.connect(self._zoom_reset)
+		
 		# Add widgets to parent-widget and set layout
 		self.grid = QtWidgets.QGridLayout()
-		self.grid.addWidget(self.toolbar1, 0, 0)
-		self.grid.addWidget(self.fig1c, 1, 0)
+		self.grid.addWidget(self.toolbar1, 0, 0, 1, 7)
+		self.grid.addWidget(self.fig1c, 1, 0, 1, 7)
+		
+		
+		self.grid.addWidget(self.zoom_span_label, 2, 0)
+		self.grid.addWidget(self.zoom_span_edit, 2, 1)
+		
+		# self.grid.addItem(self.right_spacer, 2, 0, 6)
+		
+		self.grid.addWidget(self.fund_btn, 2, 3)
+		self.grid.addWidget(self.f2h_btn, 2, 4)
+		self.grid.addWidget(self.f3h_btn, 2, 5)
+		self.grid.addWidget(self.reset_btn, 2, 6)
+		
+		
 		self.setLayout(self.grid)
+	
+	def _reapply_zoom(self):
+		
+		if self.zoom_mode == SpectrumPIDomainPlotWidget.ZOOM_MODE_FULL:
+			self._zoom_reset()
+		elif self.zoom_mode == SpectrumPIDomainPlotWidget.ZOOM_MODE_FUND:
+			self._zoom_fund()
+		elif self.zoom_mode == SpectrumPIDomainPlotWidget.ZOOM_MODE_2H:
+			self._zoom_2h()
+		elif self.zoom_mode == SpectrumPIDomainPlotWidget.ZOOM_MODE_3H:
+			self._zoom_3h()
+	
+	def _zoom_freq(self, f_center_GHz:float):
+		
+		try:
+			span_kHz = float(self.zoom_span_edit.text())
+		except Exception as e:
+			self.log.warning(f"Failed to interpret textbox. Defaulting to 10 kHz.", detail=f"{e}")
+			span_kHz = 10
+		half_span_GHz = span_kHz/2e6
+		self.ax1.set_xlim([f_center_GHz-half_span_GHz, f_center_GHz+half_span_GHz])
+		self.fig1.canvas.draw_idle()
+	
+	def _zoom_fund(self):
+		f = self.get_condition('sel_freq_GHz')
+		self._zoom_freq(f)
+		self.zoom_mode = SpectrumPIDomainPlotWidget.ZOOM_MODE_FUND
+	
+	def _zoom_2h(self):
+		f = self.get_condition('sel_freq_GHz')
+		self._zoom_freq(2*f)
+		self.zoom_mode = SpectrumPIDomainPlotWidget.ZOOM_MODE_2H
+		
+	def _zoom_3h(self):
+		f = self.get_condition('sel_freq_GHz')
+		self._zoom_freq(3*f)
+		self.zoom_mode = SpectrumPIDomainPlotWidget.ZOOM_MODE_3H
+		
+	def _zoom_reset(self):
+		self.zoom_mode = SpectrumPIDomainPlotWidget.ZOOM_MODE_FULL
+		if self.default_xlims is not None:
+			self.ax1.set_xlim(self.default_xlims)
+			self.fig1.canvas.draw_idle()
 	
 	def manual_init(self):
 		pass
@@ -2115,14 +2210,12 @@ class SpectrumPIDomainPlotWidget(TabPlotWidget):
 		# 	self.fig1.canvas.draw_idle()
 		# 	return
 		
-		self.ax1.plot(self.mdata.waveform_f_Hz[mask], self.mdata.waveform_s_dBm[mask], linestyle=':', marker='o', markersize=4, color=(0, 0.7, 0))
-		self.ax1.plot(self.mdata.waveform_f_Hz[mask], self.mdata.waveform_s_dBm[mask], linestyle=':', marker='o', markersize=4, color=(0, 0, 0.7))
-		self.ax1.plot(self.mdata.waveform_f_Hz[mask], self.mdata.waveform_s_dBm[mask], linestyle=':', marker='o', markersize=4, color=(0.7, 0, 0))
+		self.ax1.plot(np.array(self.mdata.waveform_f_Hz[mask])/1e9, self.mdata.waveform_s_dBm[mask], linestyle=':', marker='o', markersize=4, color=(0.7, 0, 0))
 		self.ax1.set_xlabel("Frequency (GHz)")
 		self.ax1.set_title(f"Bias = {b} mA, p = {p} dBm, f = {f} GHz")
 		self.ax1.set_ylabel("Power (dBm)")
-		self.ax1.legend(["Fundamental", "2nd Harm.", "3rd Harm."])
 		self.ax1.grid(True)
+		self.default_xlims = self.ax1.get_xlim()
 		
 		# if self.get_condition('fix_scale'):
 		# 	self.ax1.set_ylim(self.ylims1)
