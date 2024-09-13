@@ -527,7 +527,7 @@ class MasterData:
 		self._valid_sweep = True
 		
 		
-	def rebuild_outlier_mask(self, ce2_zscore:float, extraz_zscore:float):
+	def rebuild_outlier_mask(self, ce2_zscore:float, extraz_zscore:float, extraz_val:float, rf1_val:float):
 		
 		# Process CE2
 		if ce2_zscore is not None:
@@ -535,9 +535,17 @@ class MasterData:
 		else:
 			self.outlier_mask = (self.zs_ce2 == self.zs_ce2)
 		
-		# Process extra-z
+		# Process extra-z (Zscore)
 		if extraz_zscore is not None:
 			self.outlier_mask = self.outlier_mask & (self.zs_extra_z < extraz_zscore)
+		
+		# Process extra-z (value)
+		if extraz_val is not None:
+			self.outlier_mask = self.outlier_mask & (self.extra_z < extraz_val)
+		
+		# Process rf1 (value)
+		if rf1_val is not None:
+			self.outlier_mask = self.outlier_mask & (self.rf1 > rf1_val)
 		
 	def is_valid_sweep(self):
 		return self._valid_sweep
@@ -565,6 +573,8 @@ def calc_zscore(data:list):
 GCOND_REMOVE_OUTLIERS = 'remove_outliers'
 GCOND_OUTLIER_ZSCE2 = 'remove_outliers_ce2_zscore'
 GCOND_OUTLIER_ZSEXTRAZ = 'remove_outliers_extraz_zscore'
+GCOND_OUTLIER_VALEXTRAZ = 'remove_outliers_extraz_val'
+GCOND_OUTLIER_VALRF1 = 'remove_outliers_rf1_val'
 GCOND_FREQXAXIS_ISFUND = 'freqxaxis_isfund'
 GCOND_BIASXAXIS_ISMEAS = 'biasxaxis_ismeas'
 GCOND_ADJUST_SLIDER = 'adjust_sliders'
@@ -1109,46 +1119,92 @@ class OutlierControlWidget(QWidget):
 		self.replot_handle = replot_handle
 		
 		self.enable_cb = QCheckBox("Remove Outliers")
+		self.enable_cb.setChecked(True)
 		self.enable_cb.stateChanged.connect(self.reanalyze)
 		
 
-			#-------- CE 2 subgroup
+			#-------- CE 2 subgroup (Zscore)
 			
 		self.ce2_gbox = QGroupBox("CE2")
 		
-		self.zscore_ce2_cb = QCheckBox("Enable")
+		self.zscore_ce2_cb = QCheckBox("En")
 		self.zscore_ce2_cb.stateChanged.connect(self.reanalyze)
 		
 		self.zscore_ce2_label = QLabel("Z-Score < ")
 		self.zscore_ce2_edit = QLineEdit()
 		self.zscore_ce2_edit.setValidator(QDoubleValidator())
 		self.zscore_ce2_edit.setText("10")
+		self.zscore_ce2_edit.setFixedWidth(40)
 		self.zscore_ce2_edit.editingFinished.connect(self.reanalyze)
 		
 		self.ce2_gboxgrid = QGridLayout()
-		self.ce2_gboxgrid.addWidget(self.zscore_ce2_cb, 0, 0, 1, 2)
-		self.ce2_gboxgrid.addWidget(self.zscore_ce2_label, 1, 0)
-		self.ce2_gboxgrid.addWidget(self.zscore_ce2_edit, 1, 1)
+		self.ce2_gboxgrid.addWidget(self.zscore_ce2_label, 0, 0)
+		self.ce2_gboxgrid.addWidget(self.zscore_ce2_edit, 0, 1)
+		self.ce2_gboxgrid.addWidget(self.zscore_ce2_cb, 0, 2)
 		self.ce2_gbox.setLayout(self.ce2_gboxgrid)
 			
-			#------------- Extra Z subgroup
+			#------------- Extra Z subgroup (Zscore)
 		
 		self.extraz_gbox = QGroupBox("Extra Impedance")
 		
-		self.zscore_extraz_cb = QCheckBox("Enable")
+		self.zscore_extraz_cb = QCheckBox("En")
 		self.zscore_extraz_cb.stateChanged.connect(self.reanalyze)
 		
 		self.zscore_extraz_label = QLabel("Z-Score < ")
 		self.zscore_extraz_edit = QLineEdit()
 		self.zscore_extraz_edit.setValidator(QDoubleValidator())
 		self.zscore_extraz_edit.setText("2")
+		self.zscore_extraz_edit.setFixedWidth(40)
 		self.zscore_extraz_edit.editingFinished.connect(self.reanalyze)
 		
+		self.val_extraz_cb = QCheckBox("En")
+		self.val_extraz_cb.stateChanged.connect(self.reanalyze)
+		
+		self.val_extraz_label = QLabel("Value (Ω) < ")
+		self.val_extraz_edit = QLineEdit()
+		self.val_extraz_edit.setValidator(QDoubleValidator())
+		self.val_extraz_edit.setText("20")
+		self.val_extraz_edit.setFixedWidth(40)
+		self.val_extraz_edit.editingFinished.connect(self.reanalyze)
+		
+		# self.extraz_gboxgrid = QGridLayout()
+		# self.extraz_gboxgrid.addWidget(self.zscore_extraz_cb, 0, 0, 1, 2)
+		# self.extraz_gboxgrid.addWidget(self.zscore_extraz_label, 1, 0)
+		# self.extraz_gboxgrid.addWidget(self.zscore_extraz_edit, 1, 1)
+		# self.extraz_gbox.setLayout(self.extraz_gboxgrid)
+		
 		self.extraz_gboxgrid = QGridLayout()
-		self.extraz_gboxgrid.addWidget(self.zscore_extraz_cb, 0, 0, 1, 2)
+		self.extraz_gboxgrid.addWidget(self.val_extraz_label, 0, 0)
+		self.extraz_gboxgrid.addWidget(self.val_extraz_edit, 0, 1)
+		self.extraz_gboxgrid.addWidget(self.val_extraz_cb, 0, 2)
+		
 		self.extraz_gboxgrid.addWidget(self.zscore_extraz_label, 1, 0)
 		self.extraz_gboxgrid.addWidget(self.zscore_extraz_edit, 1, 1)
+		self.extraz_gboxgrid.addWidget(self.zscore_extraz_cb, 1, 2)
+		
 		self.extraz_gbox.setLayout(self.extraz_gboxgrid)
+		
+			#------------- Extra Z subgroup
+		
+		self.rf1_gbox = QGroupBox("Harmonic Power")
+		
+		self.val_rf1_cb = QCheckBox("En")
+		self.val_rf1_cb.stateChanged.connect(self.reanalyze)
+		
+		self.val_rf1_label = QLabel("Fund (dBm) > ")
+		self.val_rf1_edit = QLineEdit()
+		self.val_rf1_edit.setValidator(QDoubleValidator())
+		self.val_rf1_edit.setText("-40")
+		self.val_rf1_edit.setFixedWidth(40)
+		self.val_rf1_edit.editingFinished.connect(self.reanalyze)
+		
+		self.rf1_gboxgrid = QGridLayout()
+		self.rf1_gboxgrid.addWidget(self.val_rf1_label, 0, 0)
+		self.rf1_gboxgrid.addWidget(self.val_rf1_edit, 0, 1)
+		self.rf1_gboxgrid.addWidget(self.val_rf1_cb, 0, 2)
+		self.rf1_gbox.setLayout(self.rf1_gboxgrid)
+		
+			#------------- End subgroups
 		
 		self.bottom_spacer = QSpacerItem(10, 10, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
 		
@@ -1156,9 +1212,10 @@ class OutlierControlWidget(QWidget):
 		self.grid.addWidget(self.enable_cb, 0, 0, 1, 2, alignment=QtCore.Qt.AlignmentFlag.AlignTop)
 		self.grid.addWidget(self.ce2_gbox, 1, 0)
 		self.grid.addWidget(self.extraz_gbox, 2, 0)
+		self.grid.addWidget(self.rf1_gbox, 3, 0)
 		# self.grid.addWidget(self.zscore_label, 1, 0, alignment=QtCore.Qt.AlignmentFlag.AlignTop)
 		# self.grid.addWidget(self.zscore_edit, 1, 1, alignment=QtCore.Qt.AlignmentFlag.AlignTop)
-		self.grid.addItem(self.bottom_spacer, 3, 0)
+		self.grid.addItem(self.bottom_spacer, 4, 0)
 		
 		if show_frame:
 			self.frame = QGroupBox("Outlier Control")
@@ -1178,7 +1235,7 @@ class OutlierControlWidget(QWidget):
 		# Update enable/disable all 
 		self.gcond[GCOND_REMOVE_OUTLIERS] = self.enable_cb.isChecked()
 		
-		# Update CE2 spec
+		# Update CE2 spec (Zscore)
 		try:
 			if self.zscore_ce2_cb.isChecked():
 				self.gcond[GCOND_OUTLIER_ZSCE2] = float(self.zscore_ce2_edit.text())
@@ -1189,18 +1246,40 @@ class OutlierControlWidget(QWidget):
 			self.zscore_edit.setText("10")
 			self.gcond[GCOND_OUTLIER_ZSCE2] = 10
 			
-		# Update extra z spec
+		# Update extra z spec (Zscore)
 		try:
 			if self.zscore_extraz_cb.isChecked():
 				self.gcond[GCOND_OUTLIER_ZSEXTRAZ] = float(self.zscore_extraz_edit.text())
 			else:
 				self.gcond[GCOND_OUTLIER_ZSEXTRAZ] = None
 		except Exception as e:
-			self.log.warning("Failed to interpret CE2 Z-score value. Defaulting to 2.", detail=f"{e}")
+			self.log.warning("Failed to interpret extra-Z Z-score value. Defaulting to 2.", detail=f"{e}")
 			self.zscore_edit.setText("2")
 			self.gcond[GCOND_OUTLIER_ZSEXTRAZ] = 2
 		
-		self.mdata.rebuild_outlier_mask(self.gcond[GCOND_OUTLIER_ZSCE2], self.gcond[GCOND_OUTLIER_ZSEXTRAZ])
+		# Update extra z spec (value)
+		try:
+			if self.val_extraz_cb.isChecked():
+				self.gcond[GCOND_OUTLIER_VALEXTRAZ] = float(self.val_extraz_edit.text())
+			else:
+				self.gcond[GCOND_OUTLIER_VALEXTRAZ] = None
+		except Exception as e:
+			self.log.warning("Failed to interpret extra-Z value for outlier removal. Defaulting to 20.", detail=f"{e}")
+			self.zscore_edit.setText("20")
+			self.gcond[GCOND_OUTLIER_VALEXTRAZ] = 20
+		
+		# Update extra z spec (value)
+		try:
+			if self.val_rf1_cb.isChecked():
+				self.gcond[GCOND_OUTLIER_VALRF1] = float(self.val_rf1_edit.text())
+			else:
+				self.gcond[GCOND_OUTLIER_VALRF1] = None
+		except Exception as e:
+			self.log.warning("Failed to interpret RF1 value for outlier removal. Defaulting to -40 dBm.", detail=f"{e}")
+			self.zscore_edit.setText("-40")
+			self.gcond[GCOND_OUTLIER_VALRF1] = -40
+		
+		self.mdata.rebuild_outlier_mask(self.gcond[GCOND_OUTLIER_ZSCE2], self.gcond[GCOND_OUTLIER_ZSEXTRAZ], self.gcond[GCOND_OUTLIER_VALEXTRAZ], self.gcond[GCOND_OUTLIER_VALRF1])
 		
 		# Replot all graph
 		self.replot_handle()
@@ -2073,7 +2152,7 @@ class SpectrumPIDomainPlotWidget(TabPlotWidget):
 		self.zoom_span_label.setFixedWidth(120)
 		
 		self.zoom_span_edit = QLineEdit()
-		self.zoom_span_edit.setText("100")
+		self.zoom_span_edit.setText("10")
 		self.zoom_span_edit.setValidator(QDoubleValidator())
 		self.zoom_span_edit.setFixedWidth(50)
 		self.zoom_span_edit.editingFinished.connect(self._reapply_zoom)
@@ -2397,7 +2476,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.mdata = mdata
 		
 		# Initialize global conditions
-		self.gcond = {'sel_freq_GHz': self.mdata.unique_freqs[len(self.mdata.unique_freqs)//2], 'sel_power_dBm': self.mdata.unique_pwr[len(self.mdata.unique_pwr)//2], 'sel_bias_mA': self.mdata.unique_bias[len(self.mdata.unique_bias)//2], 'fix_scale':False, GCOND_FREQXAXIS_ISFUND:False, GCOND_BIASXAXIS_ISMEAS:True, "remove_outliers":True, "remove_outliers_ce2_zscore":10, GCOND_ADJUST_SLIDER:True}
+		self.gcond = {'sel_freq_GHz': self.mdata.unique_freqs[len(self.mdata.unique_freqs)//2], 'sel_power_dBm': self.mdata.unique_pwr[len(self.mdata.unique_pwr)//2], 'sel_bias_mA': self.mdata.unique_bias[len(self.mdata.unique_bias)//2], 'fix_scale':False, GCOND_FREQXAXIS_ISFUND:False, GCOND_BIASXAXIS_ISMEAS:True, "remove_outliers":True, "remove_outliers_ce2_zscore":10, GCOND_OUTLIER_ZSEXTRAZ:None, GCOND_OUTLIER_VALEXTRAZ: None, GCOND_ADJUST_SLIDER:True}
 		
 		self.gcond_subscribers = []
 		
