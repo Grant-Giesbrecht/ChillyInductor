@@ -131,7 +131,7 @@ dmypy.json
 .pyre/
 
 # Data files
-
+*.png
 *.pkl
 .DS_Store
 /RP-22 Scripts/Measurement Scripts/data
