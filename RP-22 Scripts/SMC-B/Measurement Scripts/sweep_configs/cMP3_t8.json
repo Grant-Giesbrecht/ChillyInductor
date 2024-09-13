@@ -10,13 +10,13 @@
 	"power_RF":{
 		"type": "list",
 		"unit": "dBm",
-		"values": [-25, -23, -21, -19, -17, -16, -15, -14, -13]
+		"values": [-30, -25, -23, -21, -19, -17, -15, -13]
 	},
 	"dc_current_mA":{
 		"type":"range",
 		"unit": "mA",
-		"start": 0.05,
-		"step": 0.1,
+		"start": 0.0,
+		"step": 0.025,
 		"end": 1.5
 	},
 	"spectrum_analyzer":[
@@ -27,12 +27,6 @@
 			"mixing_products_order": 2,
 			"lo_harmonics": 3,
 			"rf_harmonics": 3
-		},
-		{
-			"mode": "fixed",
-			"freq_start_Hz": 100e6,
-			"freq_end_Hz": 4.2e9,
-			"RBW_Hz": 100e3
 		}
 	]
 }
