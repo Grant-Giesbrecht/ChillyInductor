@@ -10,7 +10,7 @@
 	"power_RF":{
 		"type": "list",
 		"unit": "dBm",
-		"values": [-25, -23, -21, -19, -17, -16, -15, -14, -13]
+		"values": [-30, -25, -23, -21, -19, -17, -15, -13]
 	},
 	"dc_current_mA":{
 		"type":"range",
