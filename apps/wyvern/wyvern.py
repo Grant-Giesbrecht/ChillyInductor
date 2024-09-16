@@ -684,6 +684,33 @@ class StatusBar(QStatusBar):
 	def __init__(self):
 		super().__init__()
 		
+		self.loadfile_label = QLabel("Disk (Sweep):")
+		self.addPermanentWidget(self.loadfile_label)
+		
+		# Set layout
+		self.loadfile_pb = QProgressBar(self)
+		self.loadfile_pb.setRange(0,1)
+		self.loadfile_pb.setFixedWidth(100)
+		self.addPermanentWidget(self.loadfile_pb)
+		
+		self.loadspfile_label = QLabel("Disk (SParam):")
+		self.addPermanentWidget(self.loadspfile_label)
+		
+		# Set layout
+		self.loadspfile_pb = QProgressBar(self)
+		self.loadspfile_pb.setRange(0,1)
+		self.loadspfile_pb.setFixedWidth(100)
+		self.addPermanentWidget(self.loadspfile_pb)
+		
+		self.ram_label = QLabel("RAM (Dataset):")
+		self.addPermanentWidget(self.ram_label)
+		
+		# Set layout
+		self.ram_pb = QProgressBar(self)
+		self.ram_pb.setRange(0,1)
+		self.ram_pb.setFixedWidth(100)
+		self.addPermanentWidget(self.ram_pb)
+		
 		self.render_label = QLabel("Rendering:")
 		self.addPermanentWidget(self.render_label)
 		
@@ -693,32 +720,11 @@ class StatusBar(QStatusBar):
 		self.render_pb.setFixedWidth(100)
 		self.addPermanentWidget(self.render_pb)
 		
-		self.ram_label = QLabel("Loading Data from RAM:")
-		self.addPermanentWidget(self.ram_label)
 		
-		# Set layout
-		self.ram_pb = QProgressBar(self)
-		self.ram_pb.setRange(0,1)
-		self.ram_pb.setFixedWidth(100)
-		self.addPermanentWidget(self.ram_pb)
 		
-		self.loadfile_label = QLabel("Loading sweep File:")
-		self.addPermanentWidget(self.loadfile_label)
 		
-		# Set layout
-		self.loadfile_pb = QProgressBar(self)
-		self.loadfile_pb.setRange(0,1)
-		self.loadfile_pb.setFixedWidth(100)
-		self.addPermanentWidget(self.loadfile_pb)
 		
-		self.loadspfile_label = QLabel("Loading S-Param File:")
-		self.addPermanentWidget(self.loadspfile_label)
 		
-		# Set layout
-		self.loadspfile_pb = QProgressBar(self)
-		self.loadspfile_pb.setRange(0,1)
-		self.loadspfile_pb.setFixedWidth(100)
-		self.addPermanentWidget(self.loadspfile_pb)
 		
 		# # Make frame
 		# self.frame = QGroupBox()
@@ -747,6 +753,12 @@ class StatusBar(QStatusBar):
 			self.ram_pb.setRange(0,0)
 		else:
 			self.ram_pb.setRange(0,1)
+	
+	def setRendering(self, status:bool):
+		if status:
+			self.render_pb.setRange(0,0)
+		else:
+			self.render_pb.setRange(0,1)
 	
 			
 
@@ -1625,6 +1637,17 @@ class TabPlotWidget(QWidget):
 	def render_plot(self):
 		pass
 
+def updateRenderPB(func):
+	def wrapper(*args, **kwargs):
+		if args[0].mdata.dlm.main_window is not None:
+			args[0].mdata.dlm.main_window.status_bar.setRendering(True)
+			args[0].mdata.dlm.main_window.app.processEvents()
+		func(*args, **kwargs)
+		if args[0].mdata.dlm.main_window is not None:
+			args[0].mdata.dlm.main_window.status_bar.setRendering(False)
+		
+	return wrapper
+
 class HarmGenFreqDomainPlotWidget(TabPlotWidget):
 	
 	def __init__(self, global_conditions:dict, log:LogPile, mdata:MasterData):
@@ -1679,6 +1702,7 @@ class HarmGenFreqDomainPlotWidget(TabPlotWidget):
 		
 		return mask
 	
+	@updateRenderPB
 	def render_plot(self):
 		use_fund = self.get_condition(GCOND_FREQXAXIS_ISFUND)
 		b = self.get_condition('sel_bias_mA')
@@ -1788,6 +1812,7 @@ class CE23FreqDomainPlotWidget(TabPlotWidget):
 		
 		return mask
 	
+	@updateRenderPB
 	def render_plot(self):
 		b = self.get_condition('sel_bias_mA')
 		p = self.get_condition('sel_power_dBm')
@@ -1908,6 +1933,7 @@ class CE23BiasDomainPlotWidget(TabPlotWidget):
 		
 		return mask
 	
+	@updateRenderPB
 	def render_plot(self):
 		
 		f = self.get_condition('sel_freq_GHz')
@@ -2033,6 +2059,7 @@ class IVPlotWidget(TabPlotWidget):
 		
 		return mask
 	
+	@updateRenderPB
 	def render_plot(self):
 		f = self.get_condition('sel_freq_GHz')
 		p = self.get_condition('sel_power_dBm')
@@ -2152,6 +2179,7 @@ class SParamSPDPlotWidget(TabPlotWidget):
 		
 		# self.ylims = [np.floor(umin/rstep)*rstep, np.ceil(umax/rstep)*rstep]
 	
+	@updateRenderPB
 	def render_plot(self):
 		# f = self.get_condition('sel_freq_GHz')
 		# p = self.get_condition('sel_power_dBm')
@@ -2250,7 +2278,8 @@ class HarmGenBiasDomainPlotWidget(TabPlotWidget):
 		self.ylims1 = get_graph_lims(np.concatenate((self.mdata.rf1, self.mdata.rf2, self.mdata.rf3)), step=10)
 		self.xlims1m = get_graph_lims(self.mdata.Idc_mA, step=0.25)
 		self.xlims1r = get_graph_lims(self.mdata.requested_Idc_mA, step=0.25)
-		
+	
+	@updateRenderPB
 	def render_plot(self):
 		f = self.get_condition('sel_freq_GHz')
 		p = self.get_condition('sel_power_dBm')
@@ -2444,6 +2473,7 @@ class SpectrumPIDomainPlotWidget(TabPlotWidget):
 		
 		return mask
 	
+	@updateRenderPB
 	def render_plot(self):
 		use_fund = self.get_condition(GCOND_FREQXAXIS_ISFUND)
 		b = self.get_condition('sel_bias_mA')

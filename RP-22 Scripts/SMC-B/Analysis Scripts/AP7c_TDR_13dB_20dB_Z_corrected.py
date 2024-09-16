@@ -18,7 +18,7 @@ from jarnsaxa import *
 #------------------------------------------------------------
 # Import Data
 
-# datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 1 4mm'])
+# datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 1 4mm', 'tdr'])
 # if datapath is None:
 # 	print(f"{Fore.RED}Failed to find data location{Style.RESET_ALL}")
 # 	sys.exit()
@@ -26,6 +26,9 @@ from jarnsaxa import *
 # 	print(f"{Fore.GREEN}Located data directory at: {Fore.LIGHTBLACK_EX}{datapath}{Style.RESET_ALL}")
 
 # filename = "MP4_13Aug2024_R4C4T1_r1.hdf"
+# use_old_tdr_file_format = True
+# Z0x = 49.5
+# # Z0x = 50
 
 datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C1*E', 'Track 2 43mm', 'tdr'])
 if datapath is None:
@@ -35,8 +38,9 @@ else:
 	print(f"{Fore.GREEN}Located data directory at: {Fore.LIGHTBLACK_EX}{datapath}{Style.RESET_ALL}")
 
 filename = "RP22B_MP4_13Sept2024_R4C1T2.hdf"
-
-
+use_old_tdr_file_format = False
+Z0x = 49.4
+# Z0x = 50
 
 analysis_file = os.path.join(datapath, filename)
 
@@ -96,9 +100,13 @@ display_name = '13-dB'
 
 # fig1 = plt.figure(1, figsize=(8, 10))
 
-srcy = (data['dataset']['atten13dB']['open']['Z']['y'])
-src = data['dataset']['atten13dB']['open']['Z']
-# plt.subplot(4, 1, 1)
+if use_old_tdr_file_format:
+	srcy = (data['dataset']['atten13dB']['open']['y'])
+	src = data['dataset']['atten13dB']['open']
+else:
+	srcy = (data['dataset']['atten13dB']['open']['Z']['y'])
+	src = data['dataset']['atten13dB']['open']['Z']
+
 ax1_1.plot(np.array(src['x'])*1e9, srcy, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
 ax1_1.set_xlabel("Time (ns)")
 ax1_1.set_ylabel("Impedance (Ohms)")
@@ -107,8 +115,12 @@ ax1_1.set_title("Cable Open-Circuit")
 # ax1_1.set_xlim(XLIM)
 # ax1_1.set_ylim(YLIM1)
 
-srcy = (data['dataset']['atten13dB']['match']['Z']['y'])
-src = data['dataset']['atten13dB']['match']['Z']
+if use_old_tdr_file_format:
+	srcy = (data['dataset']['atten13dB']['50_term']['y'])
+	src = data['dataset']['atten13dB']['50_term']
+else:
+	srcy = (data['dataset']['atten13dB']['match']['Z']['y'])
+	src = data['dataset']['atten13dB']['match']['Z']
 # plt.subplot(4, 1, 2)
 ax1_2.plot(np.array(src['x'])*1e9, srcy, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
 ax1_2.set_xlabel("Time (ns)")
@@ -118,8 +130,12 @@ ax1_2.set_title("Cable 50-Ohm Termination")
 # ax1_2.set_xlim(XLIM)
 # ax1_2.set_ylim(YLIM1)
 
-srcy = (data['dataset']['atten13dB']['CryoR_MatchL']['Z']['y'])
-src = data['dataset']['atten13dB']['CryoR_MatchL']['Z']
+if use_old_tdr_file_format:
+	srcy = (data['dataset']['atten13dB']['50_term']['y'])
+	src = data['dataset']['atten13dB']['50_term']
+else:
+	srcy = (data['dataset']['atten13dB']['CryoR_MatchL']['Z']['y'])
+	src = data['dataset']['atten13dB']['CryoR_MatchL']['Z']
 # plt.subplot(4, 1, 3)
 ax1_3.plot(np.array(src['x'])*1e9, srcy, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
 ax1_3.set_xlabel("Time (ns)")
@@ -129,8 +145,12 @@ ax1_3.set_title("Cable Cryostat-R")
 # ax1_3.set_xlim(XLIM)
 # ax1_3.set_ylim(YLIM1)
 
-srcy = (data['dataset']['atten13dB']['CryoL_MatchR']['Z']['y'])
-src = data['dataset']['atten13dB']['CryoL_MatchR']['Z']
+if use_old_tdr_file_format:
+	srcy = (data['dataset']['atten13dB']['cryostat_left']['opposite_50_term']['y'])
+	src = data['dataset']['atten13dB']['cryostat_left']['opposite_50_term']
+else:
+	srcy = (data['dataset']['atten13dB']['CryoL_MatchR']['Z']['y'])
+	src = data['dataset']['atten13dB']['CryoL_MatchR']['Z']
 # plt.subplot(4, 1, 4)
 ax1_4.plot(np.array(src['x'])*1e9, srcy, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
 ax1_4.set_xlabel("Time (ns)")
@@ -150,8 +170,12 @@ display_name = '20-dB'
 
 fig1 = plt.figure(1, figsize=(8, 10))
 
-srcy = (data['dataset']['atten20dB']['open']['Z']['y'])
-src = data['dataset']['atten20dB']['open']['Z']
+if use_old_tdr_file_format:
+	srcy = (data['dataset']['atten20dB']['open']['y'])
+	src = data['dataset']['atten20dB']['open']
+else:
+	srcy = (data['dataset']['atten20dB']['open']['Z']['y'])
+	src = data['dataset']['atten20dB']['open']['Z']
 # ax1_1.subplot(4, 1, 1)
 ax1_1.plot(np.array(src['x'])*1e9, srcy, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
 ax1_1.set_xlabel("Time (ns)")
@@ -162,8 +186,12 @@ ax1_1.set_title("Cable Open-Circuit")
 # ax1_1.set_ylim(YLIM1)
 ax1_1.legend()
 
-srcy = gamma_to_Z(data['dataset']['atten20dB']['match']['Z']['y'])
-src = data['dataset']['atten20dB']['match']['Z']
+if use_old_tdr_file_format:
+	srcy = (data['dataset']['atten20dB']['50_term']['y'])
+	src = data['dataset']['atten20dB']['50_term']
+else:
+	srcy = (data['dataset']['atten20dB']['match']['Z']['y'])
+	src = data['dataset']['atten20dB']['match']['Z']
 # ax1_2.subplot(4, 1, 2)
 ax1_2.plot(np.array(src['x'])*1e9, srcy, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
 ax1_2.set_xlabel("Time (ns)")
@@ -174,8 +202,12 @@ ax1_2.set_title("Cable 50-Ohm Termination")
 # ax1_2.set_ylim(YLIM1)
 ax1_2.legend()
 
-srcy = (data['dataset']['atten20dB']['CryoR_MatchL']['Z']['y'])
-src = data['dataset']['atten20dB']['CryoR_MatchL']['Z']
+if use_old_tdr_file_format:
+	srcy = (data['dataset']['atten20dB']['cryostat']['opposite_50_term']['y'])
+	src = data['dataset']['atten20dB']['cryostat']['opposite_50_term']
+else:
+	srcy = (data['dataset']['atten20dB']['CryoR_MatchL']['Z']['y'])
+	src = data['dataset']['atten20dB']['CryoR_MatchL']['Z']
 # plt.subplot(4, 1, 3)
 ax1_3.plot(np.array(src['x'])*1e9, srcy, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
 ax1_3.set_xlabel("Time (ns)")
@@ -186,8 +218,12 @@ ax1_3.set_title("Cable Cryostat-R")
 # ax1_3.set_ylim(YLIM1)
 ax1_3.legend()
 
-srcy = (data['dataset']['atten20dB']['CryoL_MatchR']['Z']['y'])
-src = data['dataset']['atten20dB']['CryoL_MatchR']['Z']
+if use_old_tdr_file_format:
+	srcy = (data['dataset']['atten20dB']['cryostat_left']['opposite_50_term']['y'])
+	src = data['dataset']['atten20dB']['cryostat_left']['opposite_50_term']
+else:
+	srcy = (data['dataset']['atten20dB']['CryoL_MatchR']['Z']['y'])
+	src = data['dataset']['atten20dB']['CryoL_MatchR']['Z']
 # plt.subplot(4, 1, 4)
 ax1_4.plot(np.array(src['x'])*1e9, srcy, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
 ax1_4.set_xlabel("Time (ns)")
@@ -210,13 +246,16 @@ fig1.tight_layout()
 display_name = '13-dB'
 atten_dB = 13
 
-Z0x = 49.4
-# Z0x = 50
+
 
 # fig1 = plt.figure(1, figsize=(8, 10))
 
-srcy = (data['dataset']['atten13dB']['open']['Z']['y'])
-src = data['dataset']['atten13dB']['open']['Z']
+if use_old_tdr_file_format:
+	srcy = (data['dataset']['atten13dB']['open']['y'])
+	src = data['dataset']['atten13dB']['open']
+else:
+	srcy = (data['dataset']['atten13dB']['open']['Z']['y'])
+	src = data['dataset']['atten13dB']['open']['Z']
 # plt.subplot(4, 1, 1)
 ax2_1.plot(np.array(src['x'])*1e9, atten_tdr_transform(srcy, atten_dB, Z0x), linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
 ax2_1.set_xlabel("Time (ns)")
@@ -226,8 +265,12 @@ ax2_1.set_title("Corrected: Cable Open-Circuit")
 # ax2_1.set_xlim(XLIM)
 ax2_1.set_ylim(YLIM2T)
 
-srcy = (data['dataset']['atten13dB']['match']['Z']['y'])
-src = data['dataset']['atten13dB']['match']['Z']
+if use_old_tdr_file_format:
+	srcy = (data['dataset']['atten13dB']['50_term']['y'])
+	src = data['dataset']['atten13dB']['50_term']
+else:
+	srcy = (data['dataset']['atten13dB']['match']['Z']['y'])
+	src = data['dataset']['atten13dB']['match']['Z']
 # plt.subplot(4, 1, 2)
 ax2_2.plot(np.array(src['x'])*1e9, atten_tdr_transform(srcy, atten_dB, Z0x), linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
 ax2_2.set_xlabel("Time (ns)")
@@ -237,8 +280,12 @@ ax2_2.set_title("Corrected: Cable 50-Ohm Termination")
 # ax2_2.set_xlim(XLIM)
 ax2_2.set_ylim(YLIM2T)
 
-srcy = (data['dataset']['atten13dB']['CryoR_MatchL']['Z']['y'])
-src = data['dataset']['atten13dB']['CryoR_MatchL']['Z']
+if use_old_tdr_file_format:
+	srcy = (data['dataset']['atten13dB']['cryostat']['opposite_50_term']['y'])
+	src = data['dataset']['atten13dB']['cryostat']['opposite_50_term']
+else:
+	srcy = (data['dataset']['atten13dB']['CryoR_MatchL']['Z']['y'])
+	src = data['dataset']['atten13dB']['CryoR_MatchL']['Z']
 # plt.subplot(4, 1, 3)
 ax2_3.plot(np.array(src['x'])*1e9, atten_tdr_transform(srcy, atten_dB, Z0x), linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
 ax2_3.set_xlabel("Time (ns)")
@@ -248,8 +295,12 @@ ax2_3.set_title("Corrected: Cable Cryostat-R")
 # ax2_3.set_xlim(XLIM)
 ax2_3.set_ylim(YLIM2B)
 
-srcy = (data['dataset']['atten13dB']['CryoL_MatchR']['Z']['y'])
-src = data['dataset']['atten13dB']['CryoL_MatchR']['Z']
+if use_old_tdr_file_format:
+	srcy = (data['dataset']['atten13dB']['cryostat_left']['opposite_50_term']['y'])
+	src = data['dataset']['atten13dB']['cryostat_left']['opposite_50_term']
+else:
+	srcy = (data['dataset']['atten13dB']['CryoL_MatchR']['Z']['y'])
+	src = data['dataset']['atten13dB']['CryoL_MatchR']['Z']
 # plt.subplot(4, 1, 4)
 ax2_4.plot(np.array(src['x'])*1e9, atten_tdr_transform(srcy, atten_dB, Z0x), linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
 ax2_4.set_xlabel("Time (ns)")
@@ -270,8 +321,12 @@ atten_dB = 20
 
 fig1 = plt.figure(1, figsize=(8, 10))
 
-srcy = (data['dataset']['atten20dB']['open']['Z']['y'])
-src = data['dataset']['atten20dB']['open']['Z']
+if use_old_tdr_file_format:
+	srcy = (data['dataset']['atten20dB']['open']['y'])
+	src = data['dataset']['atten20dB']['open']
+else:
+	srcy = (data['dataset']['atten20dB']['open']['Z']['y'])
+	src = data['dataset']['atten20dB']['open']['Z']
 # ax2_1.subplot(4, 1, 1)
 ax2_1.plot(np.array(src['x'])*1e9, atten_tdr_transform(srcy, atten_dB, Z0x), linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
 ax2_1.set_xlabel("Time (ns)")
@@ -282,8 +337,12 @@ ax2_1.set_title("Corrected: Cable Open-Circuit")
 ax2_1.set_ylim(YLIM2T)
 ax2_1.legend()
 
-srcy = (data['dataset']['atten20dB']['match']['Z']['y'])
-src = data['dataset']['atten20dB']['match']['Z']
+if use_old_tdr_file_format:
+	srcy = (data['dataset']['atten20dB']['50_term']['y'])
+	src = data['dataset']['atten20dB']['50_term']
+else:
+	srcy = (data['dataset']['atten20dB']['match']['Z']['y'])
+	src = data['dataset']['atten20dB']['match']['Z']
 # ax2_2.subplot(4, 1, 2)
 ax2_2.plot(np.array(src['x'])*1e9, atten_tdr_transform(srcy, atten_dB, Z0x), linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
 ax2_2.set_xlabel("Time (ns)")
@@ -294,8 +353,12 @@ ax2_2.set_title("Corrected: Cable 50-Ohm Termination")
 ax2_2.set_ylim(YLIM2T)
 ax2_2.legend()
 
-srcy = (data['dataset']['atten20dB']['CryoR_MatchL']['Z']['y'])
-src = data['dataset']['atten20dB']['CryoR_MatchL']['Z']
+if use_old_tdr_file_format:
+	srcy = (data['dataset']['atten20dB']['cryostat']['opposite_50_term']['y'])
+	src = data['dataset']['atten20dB']['cryostat']['opposite_50_term']
+else:
+	srcy = (data['dataset']['atten20dB']['CryoR_MatchL']['Z']['y'])
+	src = data['dataset']['atten20dB']['CryoR_MatchL']['Z']
 # plt.subplot(4, 1, 3)
 ax2_3.plot(np.array(src['x'])*1e9, atten_tdr_transform(srcy, atten_dB, Z0x), linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
 ax2_3.set_xlabel("Time (ns)")
@@ -306,8 +369,12 @@ ax2_3.set_title("Corrected: Cable Cryostat-R")
 ax2_3.set_ylim(YLIM2B)
 ax2_3.legend()
 
-srcy = (data['dataset']['atten20dB']['CryoL_MatchR']['Z']['y'])
-src = data['dataset']['atten20dB']['CryoL_MatchR']['Z']
+if use_old_tdr_file_format:
+	srcy = (data['dataset']['atten20dB']['cryostat_left']['opposite_50_term']['y'])
+	src = data['dataset']['atten20dB']['cryostat_left']['opposite_50_term']
+else:
+	srcy = (data['dataset']['atten20dB']['CryoL_MatchR']['Z']['y'])
+	src = data['dataset']['atten20dB']['CryoL_MatchR']['Z']
 # plt.subplot(4, 1, 4)
 ax2_4.plot(np.array(src['x'])*1e9, atten_tdr_transform(srcy, atten_dB, Z0x), linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
 ax2_4.set_xlabel("Time (ns)")

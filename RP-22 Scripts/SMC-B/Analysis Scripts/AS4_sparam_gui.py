@@ -22,15 +22,15 @@ DEFAULT_VP = 0.3
 PHYS_LEN = 0.5
 
 log = LogPile()
-log.set_terminal_level(DEBUG)
+log.set_terminal_level("DEBUG")
 
 c = 3e8
 
 #------------------------------------------------------------
 # Import Data
 
-datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C1*E', 'Track 2*', 's_p*', '9Sept*', 'narrow'])
-filename = "cryostat.s2p"
+# datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C1*E', 'Track 2*', 's_p*', '9Sept*', 'narrow'])
+# filename = "cryostat.s2p"
 
 # datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R3C4*B', 'Track 1 4mm', 'VNA Traces'])
 # filename = "25June2024_Mid.csv"
@@ -38,8 +38,8 @@ filename = "cryostat.s2p"
 # datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 2 43mm', 'Uncalibrated SParam', 'Prf -30 dBm'])
 # filename = "26Aug2024_Ch1ToCryoL_CryoRTerm.csv"
 
-# datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 1 4mm', 'VNA Traces'])
-# filename = "Sparam_31July2024_-30dBm_R4C4T1_Wide.csv"
+datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 1 4mm', 'VNA Traces'])
+filename = "Sparam_31July2024_-30dBm_R4C4T1_Wide.csv"
 
 
 if datapath is None:
