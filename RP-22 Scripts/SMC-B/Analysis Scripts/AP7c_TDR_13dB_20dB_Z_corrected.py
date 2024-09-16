@@ -84,7 +84,7 @@ def gamma_to_Z(gvals:list):
 XLIM = [42, 62]
 YLIM1 = [45, 55]
 YLIM2T = [0, 400]
-YLIM2B = [40, 80]
+YLIM2B = [0, 100]
 
 fig1, (ax1_1, ax1_2, ax1_3, ax1_4) = plt.subplots(4, 1, figsize=(8, 10))
 fig2, (ax2_1, ax2_2, ax2_3, ax2_4) = plt.subplots(4, 1, figsize=(8, 10))
@@ -96,8 +96,8 @@ display_name = '13-dB'
 
 # fig1 = plt.figure(1, figsize=(8, 10))
 
-srcy = gamma_to_Z(data['dataset']['atten13dB']['open']['gamma']['y'])
-src = data['dataset']['atten13dB']['open']['gamma']
+srcy = (data['dataset']['atten13dB']['open']['Z']['y'])
+src = data['dataset']['atten13dB']['open']['Z']
 # plt.subplot(4, 1, 1)
 ax1_1.plot(np.array(src['x'])*1e9, srcy, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
 ax1_1.set_xlabel("Time (ns)")
@@ -107,8 +107,8 @@ ax1_1.set_title("Cable Open-Circuit")
 # ax1_1.set_xlim(XLIM)
 # ax1_1.set_ylim(YLIM1)
 
-srcy = gamma_to_Z(data['dataset']['atten13dB']['match']['gamma']['y'])
-src = data['dataset']['atten13dB']['match']['gamma']
+srcy = (data['dataset']['atten13dB']['match']['Z']['y'])
+src = data['dataset']['atten13dB']['match']['Z']
 # plt.subplot(4, 1, 2)
 ax1_2.plot(np.array(src['x'])*1e9, srcy, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
 ax1_2.set_xlabel("Time (ns)")
@@ -118,8 +118,8 @@ ax1_2.set_title("Cable 50-Ohm Termination")
 # ax1_2.set_xlim(XLIM)
 # ax1_2.set_ylim(YLIM1)
 
-srcy = gamma_to_Z(data['dataset']['atten13dB']['CryoR_MatchL']['gamma']['y'])
-src = data['dataset']['atten13dB']['CryoR_MatchL']['gamma']
+srcy = (data['dataset']['atten13dB']['CryoR_MatchL']['Z']['y'])
+src = data['dataset']['atten13dB']['CryoR_MatchL']['Z']
 # plt.subplot(4, 1, 3)
 ax1_3.plot(np.array(src['x'])*1e9, srcy, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
 ax1_3.set_xlabel("Time (ns)")
@@ -129,8 +129,8 @@ ax1_3.set_title("Cable Cryostat-R")
 # ax1_3.set_xlim(XLIM)
 # ax1_3.set_ylim(YLIM1)
 
-srcy = gamma_to_Z(data['dataset']['atten13dB']['CryoL_MatchR']['gamma']['y'])
-src = data['dataset']['atten13dB']['CryoL_MatchR']['gamma']
+srcy = (data['dataset']['atten13dB']['CryoL_MatchR']['Z']['y'])
+src = data['dataset']['atten13dB']['CryoL_MatchR']['Z']
 # plt.subplot(4, 1, 4)
 ax1_4.plot(np.array(src['x'])*1e9, srcy, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
 ax1_4.set_xlabel("Time (ns)")
@@ -150,8 +150,8 @@ display_name = '20-dB'
 
 fig1 = plt.figure(1, figsize=(8, 10))
 
-srcy = gamma_to_Z(data['dataset']['atten20dB']['open']['gamma']['y'])
-src = data['dataset']['atten20dB']['open']['gamma']
+srcy = (data['dataset']['atten20dB']['open']['Z']['y'])
+src = data['dataset']['atten20dB']['open']['Z']
 # ax1_1.subplot(4, 1, 1)
 ax1_1.plot(np.array(src['x'])*1e9, srcy, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
 ax1_1.set_xlabel("Time (ns)")
@@ -162,8 +162,8 @@ ax1_1.set_title("Cable Open-Circuit")
 # ax1_1.set_ylim(YLIM1)
 ax1_1.legend()
 
-srcy = gamma_to_Z(data['dataset']['atten20dB']['match']['gamma']['y'])
-src = data['dataset']['atten20dB']['match']['gamma']
+srcy = gamma_to_Z(data['dataset']['atten20dB']['match']['Z']['y'])
+src = data['dataset']['atten20dB']['match']['Z']
 # ax1_2.subplot(4, 1, 2)
 ax1_2.plot(np.array(src['x'])*1e9, srcy, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
 ax1_2.set_xlabel("Time (ns)")
@@ -174,8 +174,8 @@ ax1_2.set_title("Cable 50-Ohm Termination")
 # ax1_2.set_ylim(YLIM1)
 ax1_2.legend()
 
-srcy = gamma_to_Z(data['dataset']['atten20dB']['CryoR_MatchL']['gamma']['y'])
-src = data['dataset']['atten20dB']['CryoR_MatchL']['gamma']
+srcy = (data['dataset']['atten20dB']['CryoR_MatchL']['Z']['y'])
+src = data['dataset']['atten20dB']['CryoR_MatchL']['Z']
 # plt.subplot(4, 1, 3)
 ax1_3.plot(np.array(src['x'])*1e9, srcy, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
 ax1_3.set_xlabel("Time (ns)")
@@ -186,8 +186,8 @@ ax1_3.set_title("Cable Cryostat-R")
 # ax1_3.set_ylim(YLIM1)
 ax1_3.legend()
 
-srcy = gamma_to_Z(data['dataset']['atten20dB']['CryoL_MatchR']['gamma']['y'])
-src = data['dataset']['atten20dB']['CryoL_MatchR']['gamma']
+srcy = (data['dataset']['atten20dB']['CryoL_MatchR']['Z']['y'])
+src = data['dataset']['atten20dB']['CryoL_MatchR']['Z']
 # plt.subplot(4, 1, 4)
 ax1_4.plot(np.array(src['x'])*1e9, srcy, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
 ax1_4.set_xlabel("Time (ns)")
@@ -210,51 +210,54 @@ fig1.tight_layout()
 display_name = '13-dB'
 atten_dB = 13
 
+Z0x = 49.4
+# Z0x = 50
+
 # fig1 = plt.figure(1, figsize=(8, 10))
 
-srcy = gamma_to_Z(data['dataset']['atten13dB']['open']['gamma']['y'])
-src = data['dataset']['atten13dB']['open']['gamma']
+srcy = (data['dataset']['atten13dB']['open']['Z']['y'])
+src = data['dataset']['atten13dB']['open']['Z']
 # plt.subplot(4, 1, 1)
-ax2_1.plot(np.array(src['x'])*1e9, atten_tdr_transform(srcy, atten_dB, 50), linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
+ax2_1.plot(np.array(src['x'])*1e9, atten_tdr_transform(srcy, atten_dB, Z0x), linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
 ax2_1.set_xlabel("Time (ns)")
 ax2_1.set_ylabel("Impedance (Ohms)")
 ax2_1.grid(True)
 ax2_1.set_title("Corrected: Cable Open-Circuit")
 # ax2_1.set_xlim(XLIM)
-# ax2_1.set_ylim(YLIM2T)
+ax2_1.set_ylim(YLIM2T)
 
-srcy = gamma_to_Z(data['dataset']['atten13dB']['match']['gamma']['y'])
-src = data['dataset']['atten13dB']['match']['gamma']
+srcy = (data['dataset']['atten13dB']['match']['Z']['y'])
+src = data['dataset']['atten13dB']['match']['Z']
 # plt.subplot(4, 1, 2)
-ax2_2.plot(np.array(src['x'])*1e9, atten_tdr_transform(srcy, atten_dB, 50), linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
+ax2_2.plot(np.array(src['x'])*1e9, atten_tdr_transform(srcy, atten_dB, Z0x), linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
 ax2_2.set_xlabel("Time (ns)")
 ax2_2.set_ylabel("Impedance (Ohms)")
 ax2_2.grid(True)
 ax2_2.set_title("Corrected: Cable 50-Ohm Termination")
 # ax2_2.set_xlim(XLIM)
-# ax2_2.set_ylim(YLIM2T)
+ax2_2.set_ylim(YLIM2T)
 
-srcy = gamma_to_Z(data['dataset']['atten13dB']['CryoR_MatchL']['gamma']['y'])
-src = data['dataset']['atten13dB']['CryoR_MatchL']['gamma']
+srcy = (data['dataset']['atten13dB']['CryoR_MatchL']['Z']['y'])
+src = data['dataset']['atten13dB']['CryoR_MatchL']['Z']
 # plt.subplot(4, 1, 3)
-ax2_3.plot(np.array(src['x'])*1e9, atten_tdr_transform(srcy, atten_dB, 50), linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
+ax2_3.plot(np.array(src['x'])*1e9, atten_tdr_transform(srcy, atten_dB, Z0x), linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
 ax2_3.set_xlabel("Time (ns)")
 ax2_3.set_ylabel("Impedance (Ohms)")
 ax2_3.grid(True)
 ax2_3.set_title("Corrected: Cable Cryostat-R")
 # ax2_3.set_xlim(XLIM)
-# ax2_3.set_ylim(YLIM2B)
+ax2_3.set_ylim(YLIM2B)
 
-srcy = gamma_to_Z(data['dataset']['atten13dB']['CryoL_MatchR']['gamma']['y'])
-src = data['dataset']['atten13dB']['CryoL_MatchR']['gamma']
+srcy = (data['dataset']['atten13dB']['CryoL_MatchR']['Z']['y'])
+src = data['dataset']['atten13dB']['CryoL_MatchR']['Z']
 # plt.subplot(4, 1, 4)
-ax2_4.plot(np.array(src['x'])*1e9, atten_tdr_transform(srcy, atten_dB, 50), linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
+ax2_4.plot(np.array(src['x'])*1e9, atten_tdr_transform(srcy, atten_dB, Z0x), linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
 ax2_4.set_xlabel("Time (ns)")
 ax2_4.set_ylabel("Impedance (Ohms)")
 ax2_4.grid(True)
 ax2_4.set_title("Corrected: Cable Cryostat-L")
 # ax2_4.set_xlim(XLIM)
-# ax2_4.set_ylim(YLIM2B)
+ax2_4.set_ylim(YLIM2B)
 
 # fig1.suptitle("13 dB Attenuator")
 fig1.tight_layout()
@@ -267,52 +270,52 @@ atten_dB = 20
 
 fig1 = plt.figure(1, figsize=(8, 10))
 
-srcy = gamma_to_Z(data['dataset']['atten20dB']['open']['gamma']['y'])
-src = data['dataset']['atten20dB']['open']['gamma']
+srcy = (data['dataset']['atten20dB']['open']['Z']['y'])
+src = data['dataset']['atten20dB']['open']['Z']
 # ax2_1.subplot(4, 1, 1)
-ax2_1.plot(np.array(src['x'])*1e9, atten_tdr_transform(srcy, atten_dB, 50), linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
+ax2_1.plot(np.array(src['x'])*1e9, atten_tdr_transform(srcy, atten_dB, Z0x), linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
 ax2_1.set_xlabel("Time (ns)")
 ax2_1.set_ylabel("Impedance (Ohms)")
 ax2_1.grid(True)
 ax2_1.set_title("Corrected: Cable Open-Circuit")
 # ax2_1.set_xlim(XLIM)
-# ax2_1.set_ylim(YLIM2T)
+ax2_1.set_ylim(YLIM2T)
 ax2_1.legend()
 
-srcy = gamma_to_Z(data['dataset']['atten20dB']['match']['gamma']['y'])
-src = data['dataset']['atten20dB']['match']['gamma']
+srcy = (data['dataset']['atten20dB']['match']['Z']['y'])
+src = data['dataset']['atten20dB']['match']['Z']
 # ax2_2.subplot(4, 1, 2)
-ax2_2.plot(np.array(src['x'])*1e9, atten_tdr_transform(srcy, atten_dB, 50), linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
+ax2_2.plot(np.array(src['x'])*1e9, atten_tdr_transform(srcy, atten_dB, Z0x), linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
 ax2_2.set_xlabel("Time (ns)")
 ax2_2.set_ylabel("Impedance (Ohms)")
 ax2_2.grid(True)
 ax2_2.set_title("Corrected: Cable 50-Ohm Termination")
 # ax2_2.set_xlim(XLIM)
-# ax2_2.set_ylim(YLIM2T)
+ax2_2.set_ylim(YLIM2T)
 ax2_2.legend()
 
-srcy = gamma_to_Z(data['dataset']['atten20dB']['CryoR_MatchL']['gamma']['y'])
-src = data['dataset']['atten20dB']['CryoR_MatchL']['gamma']
+srcy = (data['dataset']['atten20dB']['CryoR_MatchL']['Z']['y'])
+src = data['dataset']['atten20dB']['CryoR_MatchL']['Z']
 # plt.subplot(4, 1, 3)
-ax2_3.plot(np.array(src['x'])*1e9, atten_tdr_transform(srcy, atten_dB, 50), linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
+ax2_3.plot(np.array(src['x'])*1e9, atten_tdr_transform(srcy, atten_dB, Z0x), linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
 ax2_3.set_xlabel("Time (ns)")
 ax2_3.set_ylabel("Impedance (Ohms)")
 ax2_3.grid(True)
 ax2_3.set_title("Corrected: Cable Cryostat-R")
 # ax2_3.set_xlim(XLIM)
-# ax2_3.set_ylim(YLIM2B)
+ax2_3.set_ylim(YLIM2B)
 ax2_3.legend()
 
-srcy = gamma_to_Z(data['dataset']['atten20dB']['CryoL_MatchR']['gamma']['y'])
-src = data['dataset']['atten20dB']['CryoL_MatchR']['gamma']
+srcy = (data['dataset']['atten20dB']['CryoL_MatchR']['Z']['y'])
+src = data['dataset']['atten20dB']['CryoL_MatchR']['Z']
 # plt.subplot(4, 1, 4)
-ax2_4.plot(np.array(src['x'])*1e9, atten_tdr_transform(srcy, atten_dB, 50), linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
+ax2_4.plot(np.array(src['x'])*1e9, atten_tdr_transform(srcy, atten_dB, Z0x), linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
 ax2_4.set_xlabel("Time (ns)")
 ax2_4.set_ylabel("Impedance (Ohms)")
 ax2_4.grid(True)
 ax2_4.set_title("Corrected: Cable Cryostat-L")
 # ax2_4.set_xlim(XLIM)
-# ax2_4.set_ylim(YLIM2B)
+ax2_4.set_ylim(YLIM2B)
 ax2_4.legend()
 
 # fig1.suptitle("20 dB Attenuator")

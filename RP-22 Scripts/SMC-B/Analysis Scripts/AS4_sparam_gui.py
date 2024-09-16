@@ -157,7 +157,7 @@ def update_model_LC():
 	phase_gamma_deg = np.angle(gamma)*180/np.pi
 	
 	# Calculate S11 in dB
-	s11_dB = lin_to_dB(np.abs(gamma))
+	s11_dB = lin_to_dB(np.abs(gamma), True)
 	
 	# Update axes
 	ax1.cla()
@@ -221,7 +221,7 @@ def update_model_ZV():
 	phase_gamma_deg = np.angle(gamma)*180/np.pi
 	
 	# Calculate S11 in dB
-	s11_dB = lin_to_dB(np.abs(gamma))
+	s11_dB = lin_to_dB(np.abs(gamma), True)
 	
 	# Update axes
 	ax1.cla()
