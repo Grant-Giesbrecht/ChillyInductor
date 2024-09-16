@@ -14,7 +14,7 @@ from pylogfile.base import *
 from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtGui import QAction, QActionGroup, QDoubleValidator, QIcon, QFontDatabase, QFont, QPixmap
 from PyQt6.QtCore import Qt, QSize
-from PyQt6.QtWidgets import QWidget, QTabWidget, QLabel, QGridLayout, QLineEdit, QCheckBox, QSpacerItem, QSizePolicy, QMainWindow, QSlider, QPushButton, QGroupBox, QListWidget, QFileDialog, QProgressBar
+from PyQt6.QtWidgets import QWidget, QTabWidget, QLabel, QGridLayout, QLineEdit, QCheckBox, QSpacerItem, QSizePolicy, QMainWindow, QSlider, QPushButton, QGroupBox, QListWidget, QFileDialog, QProgressBar, QStatusBar
 
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg, NavigationToolbar2QT
 from matplotlib.figure import Figure
@@ -95,15 +95,19 @@ class DataLoadingManager:
 	''' Class from which MasterData populates itself. Reads data from disk when neccesary. Stores
 	both S-parameter data and HDF sweep data.'''
 	
-	def __init__(self, log:LogPile, conf_file:str=None):
+	def __init__(self, log:LogPile, conf_file:str=None, main_window=None):
 		
 		self.log = log
+		self.main_window = main_window
 		
 		# Get conf data
 		self.data_conf = {}
 		if conf_file is None:
 			conf_file = os.path.join(".", "wyv_conf.json")
 		self.load_conf(conf_file)
+		
+		# This mutex is used to protect sweep_data and sparam_data
+		self.data_mtx = threading.Lock()
 		
 		# Dictionary s.t. key=filename, value=dict of data
 		self.sweep_data = {}
@@ -159,27 +163,66 @@ class DataLoadingManager:
 	
 	def get_sweep(self, sweep_filename:str):
 		
-		print(sweep_filename)
+		# CHeck if file needs to be read
+		read_file = False
+		with self.data_mtx:
 		
-		# Load data from file if not already present
-		if sweep_filename not in self.sweep_data:
-			self.log.info(f"Loading sweep data from file: {sweep_filename}")
-			self.import_sweep_file(sweep_filename)
+			self.log.lowdebug(f"DLM Checking if file '{sweep_filename}' is loaded.")
 		
-		# return data if in databank
-		if sweep_filename  in self.sweep_data:
-			return self.sweep_data[sweep_filename]['dataset']
+			# Load data from file if not already present
+			if sweep_filename not in self.sweep_data:
+				self.log.info(f"Loading sweep data from file: {sweep_filename}")
+				read_file = True
+		
+		# Start thread to read file if requested
+		if read_file:
+			print("  -> Starting sweep import thread")
+			
+			if self.main_window is not None:
+				self.main_window.status_bar.setLoadingFile(True)
+				self.main_window.app.processEvents()
+			
+			self.data_mtx.acquire()
+			self.import_thread = ImportSweepThread(self, sweep_filename)
+			self.import_thread.taskFinished.connect(self.sweepLoadFinished)
+			self.import_thread.start()
+			# self.import_sweep_file(sweep_filename)
+		
+		# Access and return data
+		with self.data_mtx:
+			print(f"  -> Accessing loaded data")
+			# return data if in databank
+			if sweep_filename in self.sweep_data:
+				return self.sweep_data[sweep_filename]['dataset']
+	
+	def sweepLoadFinished(self):
+		
+		if self.main_window is not None:
+			self.main_window.status_bar.setLoadingFile(False)
+			self.main_window.app.processEvents()
 	
 	def get_sparam(self, sp_filename:str):
 		
-		# Load data from file if not already present
-		if sp_filename not in self.sparam_data:
-			self.log.info(f"Loading s-parameter data from file: {sp_filename}")
-			self.import_sparam_file(sp_filename)
+		# Check if file needs to be read
+		read_file = False
+		with self.data_mtx:
+			
+			# Load data from file if not already present
+			if sp_filename not in self.sparam_data:
+				self.log.info(f"Loading s-parameter data from file: {sp_filename}")
+				read_file = True
 		
-		# Return data if in databank
-		if sp_filename in self.sparam_data:
-			return self.sparam_data[sp_filename]
+		# Start thread to read file if requested
+		if read_file:
+			self.import_thread = ImportSparamThread(self, sp_filename)
+			self.import_thread.start()
+			# self.import_sparam_file(sp_filename)
+		
+		# Access and returnn data
+		with self.data_mtx:
+			# Return data if in databank
+			if sp_filename in self.sparam_data:
+				return self.sparam_data[sp_filename]
 	
 	def import_sweep_file(self, sweep_filename:str):
 		''' Imports sweep data into the DLM's sweep dict from file.'''
@@ -264,60 +307,67 @@ class DataLoadingManager:
 		
 		# Save to master databank
 		self.sweep_data[sweep_filename] = hdfdata
+		
+		if self.main_window is not None:
+			self.main_window.status_bar.setLoadingFile(False)
+		
+		print("    --> Finished loading data")
+		
+		self.data_mtx.release()
 	
 	def import_sparam_file(self, sp_filename:str):
 		''' Imports S-parameter data into the DLM's sparam dict'''
-		
-		try:
-			if sp_filename[-4:].lower() == '.csv':
-				sparam_data = read_rohde_schwarz_csv(sp_filename)
-			else:
+		with self.data_mtx:
+			try:
+				if sp_filename[-4:].lower() == '.csv':
+					sparam_data = read_rohde_schwarz_csv(sp_filename)
+				else:
+					
+					# Read S-parameters
+					sparam_data = read_s2p(sp_filename)
+					
+			except Exception as e:
+				self.log.error(f"Failed to read S-parameter CSV file. {e}")
+				sys.exit()
+			
+			if sparam_data is None:
+				self.log.error(f"Failed to read S-parameter CSV file '{sp_filename}'.")
+				return
+			
+			nd = {}
+			
+			try:
+				nd['S11'] = sparam_data.S11_real + complex(0, 1)*sparam_data.S11_imag
+			except:
+				nd["S11"] = []
 				
-				# Read S-parameters
-				sparam_data = read_s2p(sp_filename)
+			try:
+				nd['S21'] = sparam_data.S21_real + complex(0, 1)*sparam_data.S21_imag
+			except:
+				nd['S21'] = []
 				
-		except Exception as e:
-			self.log.error(f"Failed to read S-parameter CSV file. {e}")
-			sys.exit()
-		
-		if sparam_data is None:
-			self.log.error(f"Failed to read S-parameter CSV file '{sp_filename}'.")
-			return
-		
-		nd = {}
-		
-		try:
-			nd['S11'] = sparam_data.S11_real + complex(0, 1)*sparam_data.S11_imag
-		except:
-			nd["S11"] = []
+			try:
+				nd['S12'] = sparam_data.S12_real + complex(0, 1)*sparam_data.S12_imag
+			except:
+				nd['S12'] = []
+				
+			try:
+				nd['S22'] = sparam_data.S22_real + complex(0, 1)*sparam_data.S22_imag
+			except:
+				nd['S22'] = []
 			
-		try:
-			nd['S21'] = sparam_data.S21_real + complex(0, 1)*sparam_data.S21_imag
-		except:
-			nd['S21'] = []
+			nd['S11_dB'] = lin_to_dB(np.abs(nd['S11']))
+			nd['S21_dB'] = lin_to_dB(np.abs(nd['S21']))
+			nd['S12_dB'] = lin_to_dB(np.abs(nd['S12']))
+			nd['S22_dB'] = lin_to_dB(np.abs(nd['S22']))
 			
-		try:
-			nd['S12'] = sparam_data.S12_real + complex(0, 1)*sparam_data.S12_imag
-		except:
-			nd['S12'] = []
-			
-		try:
-			nd['S22'] = sparam_data.S22_real + complex(0, 1)*sparam_data.S22_imag
-		except:
-			nd['S22'] = []
-		
-		nd['S11_dB'] = lin_to_dB(np.abs(nd['S11']))
-		nd['S21_dB'] = lin_to_dB(np.abs(nd['S21']))
-		nd['S12_dB'] = lin_to_dB(np.abs(nd['S12']))
-		nd['S22_dB'] = lin_to_dB(np.abs(nd['S22']))
-		
-		try:
-			nd['freq_GHz'] = sparam_data.freq_Hz/1e9
-		except Exception as e:
-			self.log.error(f"S-parameter data is corrupted. Missing frequency data.", detail=f"{e}. data_struct={sparam_data}")
+			try:
+				nd['freq_GHz'] = sparam_data.freq_Hz/1e9
+			except Exception as e:
+				self.log.error(f"S-parameter data is corrupted. Missing frequency data.", detail=f"{e}. data_struct={sparam_data}")
 
-		# Add dictionary to main databank
-		self.sparam_data[sp_filename] = nd
+			# Add dictionary to main databank
+			self.sparam_data[sp_filename] = nd
 
 	def get_sweep_full(self, sweep_filename:str):
 		''' Returns info struct for a sweep file.'''
@@ -331,6 +381,33 @@ class DataLoadingManager:
 		if sweep_filename  in self.sweep_data:
 			return self.sweep_data[sweep_filename]
 
+class ImportSweepThread(QtCore.QThread):
+		
+	taskFinished = QtCore.pyqtSignal()
+	
+	def __init__(self, dlm:DataLoadingManager, sweep_filename:str):
+		super().__init__()
+		self.dlm = dlm
+		self.sweep_filename = sweep_filename
+	
+	def run(self):
+		print("  [[Sweep import thread running]]")
+		self.dlm.import_sweep_file(self.sweep_filename)
+		self.taskFinished.emit()
+
+class ImportSparamThread(QtCore.QThread):
+	
+	taskFinished = QtCore.pyqtSignal()
+	
+	def __init__(self, dlm:DataLoadingManager, sweep_filename:str):
+		super().__init__()
+		self.dlm = dlm
+		self.sweep_filename = sweep_filename
+	
+	def run(self):
+		self.dlm.import_sparam_file(self.sweep_filename)
+		self.taskFinished.emit()
+
 class MasterData:
 	''' Class to represent the data currently analyzed/plotted by the application'''
 	
@@ -342,6 +419,7 @@ class MasterData:
 	
 		self.log = log
 		self.dlm = dlm
+		self.main_window = None
 		
 		# Mask of points to eliminate as outliers
 		self.outlier_mask = []
@@ -383,6 +461,11 @@ class MasterData:
 		
 		
 		self.load_sparam(sp_analysis_file)
+
+	def add_main_window(self, main_window):
+		
+		self.main_window = main_window
+		self.dlm.main_window = main_window
 
 	def clear_sparam(self):
 		
@@ -579,44 +662,45 @@ GCOND_FREQXAXIS_ISFUND = 'freqxaxis_isfund'
 GCOND_BIASXAXIS_ISMEAS = 'biasxaxis_ismeas'
 GCOND_ADJUST_SLIDER = 'adjust_sliders'
 
-class StatusBar(QWidget):
+class StatusBar(QStatusBar):
 
 	def __init__(self):
 		super().__init__()
 		
-		self.grid = QGridLayout()
+		self.loadfile_label = QLabel("Loading File:")
+		self.addPermanentWidget(self.loadfile_label)
 		
+		# Set layout
 		self.loadfile_pb = QProgressBar(self)
 		self.loadfile_pb.setRange(0,1)
-		self.grid.addWidget(self.loadfile_pb, 0, 1)
-		button = QPushButton("Start", self)
-		self.grid.addWidget(button, 0, 0)
+		self.addPermanentWidget(self.loadfile_pb)
 		
-		self.frame = QGroupBox()
-		self.frame.setLayout(self.grid)
-		self.overgrid = QGridLayout()
-		self.overgrid.addWidget(self.frame, 0, 0)
-		self.setLayout(self.overgrid)
+		# # Make frame
+		# self.frame = QGroupBox()
+		# self.frame.setLayout(self.grid)
+		# self.overgrid = QGridLayout()
+		# self.overgrid.addWidget(self.frame, 0, 0)
+		# self.setLayout(self.overgrid)
+
+		# self.myLongTask = TaskThread()
+		# self.myLongTask.taskFinished.connect(self.end_loadfile)
 		
-		button.clicked.connect(self.onStart)
-
-		self.myLongTask = TaskThread()
-		self.myLongTask.taskFinished.connect(self.onFinished)
-		
-	def start_loadfile(self): 
-		self.loadfile_pb.setRange(0,0)
-		self.myLongTask.start()
-
-	def end_loadfile(self):
-		# Stop the pulsation
-		self.loadfile_pb.setRange(0,1)
+	def setLoadingFile(self, status:bool):
+		print("SET LOADING FILE")
+		if status:
+			print("  -> ON")
+			self.loadfile_pb.setRange(0,0)
+		else:
+			print("  -> OFF")
+			self.loadfile_pb.setRange(0,1)
+			
 
 
-class TaskThread(QtCore.QThread):
-	taskFinished = QtCore.pyqtSignal()
-	def run(self):
-		time.sleep(3)
-		self.taskFinished.emit() 
+# class TaskThread(QtCore.QThread):
+# 	taskFinished = QtCore.pyqtSignal()
+# 	def run(self):
+# 		time.sleep(3)
+# 		self.taskFinished.emit() 
 
 class DataCompareWindow(QMainWindow):
 	
@@ -2979,6 +3063,8 @@ if platform == "win32":
 	ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
 w = HGA1Window(log, master_data, app)
+w.mdata.add_main_window(w)
+
 app.exec()
 
 #TODO: When bias is set to show requested, the fixed scale doesnt work. Look at max-CE2 in 8Aug dataset.
