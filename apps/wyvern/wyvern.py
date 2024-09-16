@@ -176,7 +176,7 @@ class DataLoadingManager:
 		
 		# Start thread to read file if requested
 		if read_file:
-			print("  -> Starting sweep import thread")
+			self.log.lowdebug(f"Creating thread to read file from disk.")
 			
 			if self.main_window is not None:
 				self.main_window.status_bar.setLoadingFile(True)
@@ -184,22 +184,18 @@ class DataLoadingManager:
 			
 			self.data_mtx.acquire()
 			self.import_thread = ImportSweepThread(self, sweep_filename)
-			self.import_thread.taskFinished.connect(self.sweepLoadFinished)
+			self.import_thread.taskFinished.connect(self.fileLoadFinished)
 			self.import_thread.start()
-			# self.import_sweep_file(sweep_filename)
+			
 		
 		# Access and return data
 		with self.data_mtx:
-			print(f"  -> Accessing loaded data")
+			
+			self.log.lowdebug(f"Accessing loaded sweep.")
+			
 			# return data if in databank
 			if sweep_filename in self.sweep_data:
 				return self.sweep_data[sweep_filename]['dataset']
-	
-	def sweepLoadFinished(self):
-		
-		if self.main_window is not None:
-			self.main_window.status_bar.setLoadingFile(False)
-			self.main_window.app.processEvents()
 	
 	def get_sparam(self, sp_filename:str):
 		
@@ -214,49 +210,49 @@ class DataLoadingManager:
 		
 		# Start thread to read file if requested
 		if read_file:
+			
+			self.log.lowdebug(f"Creating thread to read file from disk.")
+			
+			if self.main_window is not None:
+				self.main_window.status_bar.setLoadingSPFile(True)
+				self.main_window.app.processEvents()
+			
+			self.data_mtx.acquire()
 			self.import_thread = ImportSparamThread(self, sp_filename)
+			self.import_thread.taskFinished.connect(self.spfileLoadFinished)
 			self.import_thread.start()
-			# self.import_sparam_file(sp_filename)
 		
 		# Access and returnn data
 		with self.data_mtx:
+			
+			self.log.lowdebug(f"Accessing loaded sweep.")
+			
 			# Return data if in databank
 			if sp_filename in self.sparam_data:
 				return self.sparam_data[sp_filename]
 	
+	def fileLoadFinished(self):
+		
+		if self.main_window is not None:
+			self.main_window.status_bar.setLoadingFile(False)
+			self.main_window.app.processEvents()
+	
+	def spfileLoadFinished(self):
+		
+		if self.main_window is not None:
+			self.main_window.status_bar.setLoadingSPFile(False)
+			self.main_window.app.processEvents()
+	
 	def import_sweep_file(self, sweep_filename:str):
 		''' Imports sweep data into the DLM's sweep dict from file.'''
+		
+		self.log.lowdebug(f"Reading file from disk: {sweep_filename}")
 		
 		##--------------------------------------------
 		# Read HDF5 File
 		
 		# Load data from file
 		hdfdata = hdf_to_dict(sweep_filename, to_lists=False)
-		
-		# nd = {}
-		# t_hdfr_0 = time.time()
-		# with h5py.File(sweep_filename, 'r') as fh:
-			
-		# 	# Read primary dataset
-		# 	GROUP = 'dataset'
-		# 	try:
-		# 		nd['freq_rf_GHz'] = fh[GROUP]['freq_rf_GHz'][()]
-		# 		nd['power_rf_dBm'] = fh[GROUP]['power_rf_dBm'][()]
-				
-		# 		nd['waveform_f_Hz'] = fh[GROUP]['waveform_f_Hz'][()]
-		# 		nd['waveform_s_dBm'] = fh[GROUP]['waveform_s_dBm'][()]
-		# 		nd['waveform_rbw_Hz'] = fh[GROUP]['waveform_rbw_Hz'][()]
-				
-		# 		nd['MFLI_V_offset_V'] = fh[GROUP]['MFLI_V_offset_V'][()]
-		# 		nd['requested_Idc_mA'] = fh[GROUP]['requested_Idc_mA'][()]
-		# 		nd['raw_meas_Vdc_V'] = fh[GROUP]['raw_meas_Vdc_V'][()]
-		# 		nd['Idc_mA'] = fh[GROUP]['Idc_mA'][()]
-		# 		nd['detect_normal'] = fh[GROUP]['detect_normal'][()]
-				
-		# 		nd['temperature_K'] = fh[GROUP]['temperature_K'][()]
-		# 	except Exception as e:
-		# 		self.log.error(f"Failed ot load file {sweep_filename}.", detail=f"{e}")
-		# 		return
 		
 		##--------------------------------------------
 		# Generate Mixing Products lists
@@ -311,63 +307,69 @@ class DataLoadingManager:
 		if self.main_window is not None:
 			self.main_window.status_bar.setLoadingFile(False)
 		
-		print("    --> Finished loading data")
+		self.log.lowdebug(f"Finished reading file '{sweep_filename}'.")
 		
 		self.data_mtx.release()
 	
 	def import_sparam_file(self, sp_filename:str):
 		''' Imports S-parameter data into the DLM's sparam dict'''
-		with self.data_mtx:
-			try:
-				if sp_filename[-4:].lower() == '.csv':
-					sparam_data = read_rohde_schwarz_csv(sp_filename)
-				else:
-					
-					# Read S-parameters
-					sparam_data = read_s2p(sp_filename)
-					
-			except Exception as e:
-				self.log.error(f"Failed to read S-parameter CSV file. {e}")
-				sys.exit()
-			
-			if sparam_data is None:
-				self.log.error(f"Failed to read S-parameter CSV file '{sp_filename}'.")
-				return
-			
-			nd = {}
-			
-			try:
-				nd['S11'] = sparam_data.S11_real + complex(0, 1)*sparam_data.S11_imag
-			except:
-				nd["S11"] = []
+		
+		self.log.lowdebug(f"Reading file from disk: {sp_filename}")
+		
+		try:
+			if sp_filename[-4:].lower() == '.csv':
+				sparam_data = read_rohde_schwarz_csv(sp_filename)
+			else:
 				
-			try:
-				nd['S21'] = sparam_data.S21_real + complex(0, 1)*sparam_data.S21_imag
-			except:
-				nd['S21'] = []
+				# Read S-parameters
+				sparam_data = read_s2p(sp_filename)
 				
-			try:
-				nd['S12'] = sparam_data.S12_real + complex(0, 1)*sparam_data.S12_imag
-			except:
-				nd['S12'] = []
-				
-			try:
-				nd['S22'] = sparam_data.S22_real + complex(0, 1)*sparam_data.S22_imag
-			except:
-				nd['S22'] = []
+		except Exception as e:
+			self.log.error(f"Failed to read S-parameter CSV file. {e}")
+			sys.exit()
+		
+		if sparam_data is None:
+			self.log.error(f"Failed to read S-parameter CSV file '{sp_filename}'.")
+			return
+		
+		nd = {}
+		
+		try:
+			nd['S11'] = sparam_data.S11_real + complex(0, 1)*sparam_data.S11_imag
+		except:
+			nd["S11"] = []
 			
-			nd['S11_dB'] = lin_to_dB(np.abs(nd['S11']))
-			nd['S21_dB'] = lin_to_dB(np.abs(nd['S21']))
-			nd['S12_dB'] = lin_to_dB(np.abs(nd['S12']))
-			nd['S22_dB'] = lin_to_dB(np.abs(nd['S22']))
+		try:
+			nd['S21'] = sparam_data.S21_real + complex(0, 1)*sparam_data.S21_imag
+		except:
+			nd['S21'] = []
 			
-			try:
-				nd['freq_GHz'] = sparam_data.freq_Hz/1e9
-			except Exception as e:
-				self.log.error(f"S-parameter data is corrupted. Missing frequency data.", detail=f"{e}. data_struct={sparam_data}")
+		try:
+			nd['S12'] = sparam_data.S12_real + complex(0, 1)*sparam_data.S12_imag
+		except:
+			nd['S12'] = []
+			
+		try:
+			nd['S22'] = sparam_data.S22_real + complex(0, 1)*sparam_data.S22_imag
+		except:
+			nd['S22'] = []
+		
+		nd['S11_dB'] = lin_to_dB(np.abs(nd['S11']))
+		nd['S21_dB'] = lin_to_dB(np.abs(nd['S21']))
+		nd['S12_dB'] = lin_to_dB(np.abs(nd['S12']))
+		nd['S22_dB'] = lin_to_dB(np.abs(nd['S22']))
+		
+		try:
+			nd['freq_GHz'] = sparam_data.freq_Hz/1e9
+		except Exception as e:
+			self.log.error(f"S-parameter data is corrupted. Missing frequency data.", detail=f"{e}. data_struct={sparam_data}")
 
-			# Add dictionary to main databank
-			self.sparam_data[sp_filename] = nd
+		# Add dictionary to main databank
+		self.sparam_data[sp_filename] = nd
+		
+		self.log.lowdebug(f"Finished reading file '{sp_filename}'.")
+		
+		self.data_mtx.release()
 
 	def get_sweep_full(self, sweep_filename:str):
 		''' Returns info struct for a sweep file.'''
@@ -526,6 +528,10 @@ class MasterData:
 		if spdict is None:
 			return
 		
+		if self.main_window is not None:
+			self.main_window.status_bar.setLoadingRAM(True)
+			self.main_window.app.processEvents()
+		
 		# Populate local variables
 		self.S11 = spdict['S11']
 		self.S21 = spdict['S21']
@@ -543,6 +549,10 @@ class MasterData:
 			self._valid_sparam = False
 		
 		self._valid_sparam = True
+		
+		if self.main_window is not None:
+			self.main_window.status_bar.setLoadingRAM(False)
+			
 		# all_lists = [self.S11, self.S21, self.S12, self.S22, self.S11_dB, self.S21_dB, , self.S12_dB, self.S22_dB, self.S_freq_GHz]
 	
 		# it = iter(all_lists)
@@ -558,6 +568,10 @@ class MasterData:
 		
 		if swdict is None:
 			return
+		
+		if self.main_window is not None:
+			self.main_window.status_bar.setLoadingRAM(True)
+			self.main_window.app.processEvents()
 		
 		# populate local variables
 		self.freq_rf_GHz = swdict['freq_rf_GHz']
@@ -608,6 +622,9 @@ class MasterData:
 			self._valid_sweep = False
 		
 		self._valid_sweep = True
+		
+		if self.main_window is not None:
+			self.main_window.status_bar.setLoadingRAM(False)
 		
 		
 	def rebuild_outlier_mask(self, ce2_zscore:float, extraz_zscore:float, extraz_val:float, rf1_val:float):
@@ -667,13 +684,41 @@ class StatusBar(QStatusBar):
 	def __init__(self):
 		super().__init__()
 		
-		self.loadfile_label = QLabel("Loading File:")
+		self.render_label = QLabel("Rendering:")
+		self.addPermanentWidget(self.render_label)
+		
+		# Set layout
+		self.render_pb = QProgressBar(self)
+		self.render_pb.setRange(0,1)
+		self.render_pb.setFixedWidth(100)
+		self.addPermanentWidget(self.render_pb)
+		
+		self.ram_label = QLabel("Loading Data from RAM:")
+		self.addPermanentWidget(self.ram_label)
+		
+		# Set layout
+		self.ram_pb = QProgressBar(self)
+		self.ram_pb.setRange(0,1)
+		self.ram_pb.setFixedWidth(100)
+		self.addPermanentWidget(self.ram_pb)
+		
+		self.loadfile_label = QLabel("Loading sweep File:")
 		self.addPermanentWidget(self.loadfile_label)
 		
 		# Set layout
 		self.loadfile_pb = QProgressBar(self)
 		self.loadfile_pb.setRange(0,1)
+		self.loadfile_pb.setFixedWidth(100)
 		self.addPermanentWidget(self.loadfile_pb)
+		
+		self.loadspfile_label = QLabel("Loading S-Param File:")
+		self.addPermanentWidget(self.loadspfile_label)
+		
+		# Set layout
+		self.loadspfile_pb = QProgressBar(self)
+		self.loadspfile_pb.setRange(0,1)
+		self.loadspfile_pb.setFixedWidth(100)
+		self.addPermanentWidget(self.loadspfile_pb)
 		
 		# # Make frame
 		# self.frame = QGroupBox()
@@ -686,13 +731,23 @@ class StatusBar(QStatusBar):
 		# self.myLongTask.taskFinished.connect(self.end_loadfile)
 		
 	def setLoadingFile(self, status:bool):
-		print("SET LOADING FILE")
 		if status:
-			print("  -> ON")
 			self.loadfile_pb.setRange(0,0)
 		else:
-			print("  -> OFF")
 			self.loadfile_pb.setRange(0,1)
+	
+	def setLoadingSPFile(self, status:bool):
+		if status:
+			self.loadspfile_pb.setRange(0,0)
+		else:
+			self.loadspfile_pb.setRange(0,1)
+	
+	def setLoadingRAM(self, status:bool):
+		if status:
+			self.ram_pb.setRange(0,0)
+		else:
+			self.ram_pb.setRange(0,1)
+	
 			
 
 
