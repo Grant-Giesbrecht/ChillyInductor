@@ -14,7 +14,7 @@ from pylogfile.base import *
 from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtGui import QAction, QActionGroup, QDoubleValidator, QIcon, QFontDatabase, QFont, QPixmap
 from PyQt6.QtCore import Qt, QSize
-from PyQt6.QtWidgets import QWidget, QTabWidget, QLabel, QGridLayout, QLineEdit, QCheckBox, QSpacerItem, QSizePolicy, QMainWindow, QSlider, QPushButton, QGroupBox, QListWidget, QFileDialog
+from PyQt6.QtWidgets import QWidget, QTabWidget, QLabel, QGridLayout, QLineEdit, QCheckBox, QSpacerItem, QSizePolicy, QMainWindow, QSlider, QPushButton, QGroupBox, QListWidget, QFileDialog, QProgressBar
 
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg, NavigationToolbar2QT
 from matplotlib.figure import Figure
@@ -579,6 +579,45 @@ GCOND_FREQXAXIS_ISFUND = 'freqxaxis_isfund'
 GCOND_BIASXAXIS_ISMEAS = 'biasxaxis_ismeas'
 GCOND_ADJUST_SLIDER = 'adjust_sliders'
 
+class StatusBar(QWidget):
+
+	def __init__(self):
+		super().__init__()
+		
+		self.grid = QGridLayout()
+		
+		self.loadfile_pb = QProgressBar(self)
+		self.loadfile_pb.setRange(0,1)
+		self.grid.addWidget(self.loadfile_pb, 0, 1)
+		button = QPushButton("Start", self)
+		self.grid.addWidget(button, 0, 0)
+		
+		self.frame = QGroupBox()
+		self.frame.setLayout(self.grid)
+		self.overgrid = QGridLayout()
+		self.overgrid.addWidget(self.frame, 0, 0)
+		self.setLayout(self.overgrid)
+		
+		button.clicked.connect(self.onStart)
+
+		self.myLongTask = TaskThread()
+		self.myLongTask.taskFinished.connect(self.onFinished)
+		
+	def start_loadfile(self): 
+		self.loadfile_pb.setRange(0,0)
+		self.myLongTask.start()
+
+	def end_loadfile(self):
+		# Stop the pulsation
+		self.loadfile_pb.setRange(0,1)
+
+
+class TaskThread(QtCore.QThread):
+	taskFinished = QtCore.pyqtSignal()
+	def run(self):
+		time.sleep(3)
+		self.taskFinished.emit() 
+
 class DataCompareWindow(QMainWindow):
 	
 	def __init__(self, files:list, log:LogPile, dlm:DataLoadingManager):
@@ -705,7 +744,8 @@ class DataCompareWindow(QMainWindow):
 		# 	self.ax1.grid(True)
 		
 		self.fig1.canvas.draw_idle()
-
+		
+		
 
 class DataSelectWidget(QWidget):
 	
@@ -2512,6 +2552,10 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.active_spfile_label.setText(f"Active S-Parameter File: {self.mdata.current_sparam_file}")
 		self.active_spfile_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
 		
+		# progress bar
+		self.status_bar = StatusBar()
+		
+		
 		# Place each widget
 		self.grid.addWidget(self.control_widget, 0, 0)
 		self.grid.addWidget(self.tab_widget, 0, 1)
@@ -2519,6 +2563,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.grid.addWidget(self.dataselect_widget, 1, 0, 1, 3)
 		self.grid.addWidget(self.active_file_label, 2, 1, 1, 2)
 		self.grid.addWidget(self.active_spfile_label, 3, 1, 1, 2)
+		self.grid.addWidget(self.status_bar, 4, 0, 1, 3)
 		
 		# Set the central widget
 		central_widget = QtWidgets.QWidget()
