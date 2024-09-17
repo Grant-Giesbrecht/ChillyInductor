@@ -100,6 +100,8 @@ class DataLoadingManager:
 		self.log = log
 		self.main_window = main_window
 		
+		self.use_legacy_peakdetect = False
+		
 		# Get conf data
 		self.data_conf = {}
 		if conf_file is None:
@@ -113,6 +115,11 @@ class DataLoadingManager:
 		self.sweep_data = {}
 		
 		# Dictionary s.t. key=filename, value = dict of data
+		self.sparam_data = {}
+	
+	def clear_data(self):
+		''' Erases all loaded data, forcing data to be re-read from disk.'''
+		self.sweep_data = {}
 		self.sparam_data = {}
 	
 	def load_conf(self, conf_file:str):
@@ -256,11 +263,26 @@ class DataLoadingManager:
 		
 		##--------------------------------------------
 		# Generate Mixing Products lists
-
 		
-		hdfdata['dataset']['rf1'] = spectrum_peak_list(hdfdata['dataset']['waveform_f_Hz'], hdfdata['dataset']['waveform_s_dBm'], hdfdata['dataset']['freq_rf_GHz']*1e9)
-		hdfdata['dataset']['rf2'] = spectrum_peak_list(hdfdata['dataset']['waveform_f_Hz'], hdfdata['dataset']['waveform_s_dBm'], hdfdata['dataset']['freq_rf_GHz']*2e9)
-		hdfdata['dataset']['rf3'] = spectrum_peak_list(hdfdata['dataset']['waveform_f_Hz'], hdfdata['dataset']['waveform_s_dBm'], hdfdata['dataset']['freq_rf_GHz']*3e9)
+		data_out = list_search_spectrum_peak_harms(hdfdata['dataset']['waveform_f_Hz'], hdfdata['dataset']['waveform_s_dBm'], hdfdata['dataset']['freq_rf_GHz']*1e9, nharms=3, scan_bw_Hz=500, harm_scan_points=7)
+		
+		if not self.use_legacy_peakdetect:
+			hdfdata['dataset']['rf1'] = data_out[1][0]
+			hdfdata['dataset']['rf2'] = data_out[1][1]
+			hdfdata['dataset']['rf3'] = data_out[1][2]
+			
+			hdfdata['dataset']['freqmeas_rf1'] = data_out[0][0]
+			hdfdata['dataset']['freqmeas_rf2'] = data_out[0][1]
+			hdfdata['dataset']['freqmeas_rf3'] = data_out[0][2]
+		else:
+			hdfdata['dataset']['rf1'] = spectrum_peak_list(hdfdata['dataset']['waveform_f_Hz'], hdfdata['dataset']['waveform_s_dBm'], hdfdata['dataset']['freq_rf_GHz']*1e9)
+			hdfdata['dataset']['rf2'] = spectrum_peak_list(hdfdata['dataset']['waveform_f_Hz'], hdfdata['dataset']['waveform_s_dBm'], hdfdata['dataset']['freq_rf_GHz']*2e9)
+			hdfdata['dataset']['rf3'] = spectrum_peak_list(hdfdata['dataset']['waveform_f_Hz'], hdfdata['dataset']['waveform_s_dBm'], hdfdata['dataset']['freq_rf_GHz']*3e9)
+			
+			hdfdata['dataset']['freqmeas_rf1'] = []
+			hdfdata['dataset']['freqmeas_rf2'] = []
+			hdfdata['dataset']['freqmeas_rf3'] = []
+			
 		hdfdata['dataset']['rf1W'] = dBm2W(hdfdata['dataset']['rf1'])
 		hdfdata['dataset']['rf2W'] = dBm2W(hdfdata['dataset']['rf2'])
 		hdfdata['dataset']['rf3W'] = dBm2W(hdfdata['dataset']['rf3'])
@@ -2498,7 +2520,7 @@ class SpectrumPIDomainPlotWidget(TabPlotWidget):
 		# 	self.fig1.canvas.draw_idle()
 		# 	return
 		
-		self.ax1.plot(np.array(self.mdata.waveform_f_Hz[mask])/1e9, self.mdata.waveform_s_dBm[mask], linestyle=':', marker='o', markersize=4, color=(0.7, 0, 0))
+		self.ax1.plot(np.array(self.mdata.waveform_f_Hz[mask])/1e9, self.mdata.waveform_s_dBm[mask], linestyle=':', marker='o', markersize=4, color=(0, 0.55, 0.75))
 		self.ax1.set_xlabel("Frequency (GHz)")
 		self.ax1.set_title(f"Bias = {b} mA, p = {p} dBm, f = {f} GHz")
 		self.ax1.set_ylabel("Power (dBm)")
@@ -3039,6 +3061,11 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.set_gcond('fix_scale', self.fix_scales_act.isChecked())
 		self.graph_menu.addAction(self.fix_scales_act)
 		
+		self.legacy_peak_act = QAction("Legacy Peak Detection", self, checkable=True)
+		# self.fix_scales_act.setShortcut("Ctrl+Shift+")
+		self.legacy_peak_act.setChecked(self.mdata.dlm.use_legacy_peakdetect)
+		self.graph_menu.addAction(self.legacy_peak_act)
+		
 			# Graph Menu: Freq-axis sub menu -------------
 		
 		self.freqxaxis_graph_menu = self.graph_menu.addMenu("Frequency X-Axis")
@@ -3116,6 +3143,10 @@ class HGA1Window(QtWidgets.QMainWindow):
 			self.plot_all()
 		elif q.text() == "Show Active Z-Score":
 			self.plot_active_zscore()
+		elif q.text() == "Legacy Peak Detection":
+			self.mdata.dlm.use_legacy_peakdetect = self.legacy_peak_act.isChecked()
+			self.mdata.dlm.clear_data()
+			self.dataselect_widget.reload_sweep()
 	
 	def _process_sparam_menu(self, q):
 		
