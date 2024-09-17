@@ -1318,13 +1318,14 @@ class DataSelectWidget(QWidget):
 
 class OutlierControlWidget(QWidget):
 	
-	def __init__(self, global_conditions:dict, log:LogPile, mdata:MasterData, replot_handle, show_frame:bool=False):
+	def __init__(self, global_conditions:dict, log:LogPile, mdata:MasterData, replot_handle, reinit_handle, show_frame:bool=False):
 		super().__init__()
 		
 		self.gcond = global_conditions
 		self.log = log
 		self.mdata = mdata
 		self.replot_handle = replot_handle
+		self.reinit_handle = reinit_handle
 		
 		self.enable_cb = QCheckBox("Remove Outliers")
 		self.enable_cb.setChecked(True)
@@ -1488,6 +1489,9 @@ class OutlierControlWidget(QWidget):
 			self.gcond[GCOND_OUTLIER_VALRF1] = -40
 		
 		self.mdata.rebuild_outlier_mask(self.gcond[GCOND_OUTLIER_ZSCE2], self.gcond[GCOND_OUTLIER_ZSEXTRAZ], self.gcond[GCOND_OUTLIER_VALEXTRAZ], self.gcond[GCOND_OUTLIER_VALRF1])
+		
+		# Reinitialize all auto-lims
+		self.reinit_handle()
 		
 		# Replot all graph
 		self.replot_handle()
@@ -1695,11 +1699,20 @@ class HarmGenFreqDomainPlotWidget(TabPlotWidget):
 		self.grid.addWidget(self.fig1c, 1, 0)
 		self.setLayout(self.grid)
 	
-	def manual_init(self):
+	def manual_init(self, is_reinit:bool=False):
 		self.init_zscore_data([self.mdata.zs_rf1, self.mdata.zs_rf2, self.mdata.zs_rf3], ['Fundamental', '2nd Harmonic', '3rd Harmonic'], [self.mdata.freq_rf_GHz, self.mdata.freq_rf_GHz, self.mdata.freq_rf_GHz], "Frequency (GHz)")
 		
-		self.ylims1 = get_graph_lims(np.concatenate((self.mdata.rf1, self.mdata.rf2, self.mdata.rf3)), step=10)
-		self.xlims1 = get_graph_lims(self.mdata.freq_rf_GHz, step=0.5)
+		if is_reinit:
+			if self.get_condition(GCOND_REMOVE_OUTLIERS):
+				mask = np.array(self.mdata.outlier_mask)
+			if not np.any(mask):
+				self.log.warning(f"No points matched when calculating mask for graph limits. Aborting graph limit calculation.")
+				return
+		else:
+			mask = np.full(len(self.mdata.rf3), True)
+		
+		self.ylims1 = get_graph_lims(np.concatenate((self.mdata.rf1[mask], self.mdata.rf2[mask], self.mdata.rf3[mask])), step=10)
+		self.xlims1 = get_graph_lims(self.mdata.freq_rf_GHz[mask], step=0.5)
 		
 	def calc_mask(self):
 		b = self.get_condition('sel_bias_mA')
@@ -1802,14 +1815,23 @@ class CE23FreqDomainPlotWidget(TabPlotWidget):
 		self.grid.addWidget(self.fig2c, 1, 1)
 		self.setLayout(self.grid)
 	
-	def manual_init(self):
+	def manual_init(self, is_reinit:bool=False):
 		
 		self.init_zscore_data([self.mdata.zs_ce2, self.mdata.zs_ce3], ["2f0 Conversion Efficiency", "3f0 Conversion Efficiency"], [self.mdata.freq_rf_GHz, self.mdata.freq_rf_GHz], "Frequency (GHz)")
 		
-		self.ylims1 = get_graph_lims(self.mdata.ce2, 5)
-		self.ylims2 = get_graph_lims(self.mdata.ce3, 0.5)
+		if is_reinit:
+			if self.get_condition(GCOND_REMOVE_OUTLIERS):
+				mask = np.array(self.mdata.outlier_mask)
+			if not np.any(mask):
+				self.log.warning(f"No points matched when calculating mask for graph limits. Aborting graph limit calculation.")
+				return
+		else:
+			mask = np.full(len(self.mdata.ce2), True)
 		
-		self.xlimsX = get_graph_lims(self.mdata.freq_rf_GHz, 0.5)
+		self.ylims1 = get_graph_lims(self.mdata.ce2[mask], 5)
+		self.ylims2 = get_graph_lims(self.mdata.ce3[mask], 0.5)
+		
+		self.xlimsX = get_graph_lims(self.mdata.freq_rf_GHz[mask], 0.5)
 	
 	def calc_mask(self):
 		b = self.get_condition('sel_bias_mA')
@@ -1920,15 +1942,24 @@ class CE23BiasDomainPlotWidget(TabPlotWidget):
 		self.grid.addWidget(self.fig2c, 1, 1)
 		self.setLayout(self.grid)
 	
-	def manual_init(self):
+	def manual_init(self, is_reinit:bool=False):
 		
 		self.init_zscore_data([self.mdata.zs_ce2, self.mdata.zs_ce3], ["2f0 Conversion Efficiency", "3f0 Conversion Efficiency"], [self.mdata.requested_Idc_mA, self.mdata.requested_Idc_mA], "Bias Current (mA)")
 		
-		self.ylims1 = get_graph_lims(self.mdata.ce2, 5)
-		self.ylims2 = get_graph_lims(self.mdata.ce3, 0.5)
+		if is_reinit:
+			if self.get_condition(GCOND_REMOVE_OUTLIERS):
+				mask = np.array(self.mdata.outlier_mask)
+			if not np.any(mask):
+				self.log.warning(f"No points matched when calculating mask for graph limits. Aborting graph limit calculation.")
+				return
+		else:
+			mask = np.full(len(self.mdata.ce2), True)
 		
-		self.xlimsXr = get_graph_lims(self.mdata.requested_Idc_mA, 0.25)
-		self.xlimsXm = get_graph_lims(self.mdata.Idc_mA, 0.25)
+		self.ylims1 = get_graph_lims(self.mdata.ce2[mask], 5)
+		self.ylims2 = get_graph_lims(self.mdata.ce3[mask], 0.5)
+		
+		self.xlimsXr = get_graph_lims(self.mdata.requested_Idc_mA[mask], 0.25)
+		self.xlimsXm = get_graph_lims(self.mdata.Idc_mA[mask], 0.25)
 		
 	def calc_mask(self):
 		f = self.get_condition('sel_freq_GHz')
@@ -2037,7 +2068,7 @@ class IVPlotWidget(TabPlotWidget):
 		self.grid.addWidget(self.fig2c, 1, 1)
 		self.setLayout(self.grid)
 		
-	def manual_init(self):
+	def manual_init(self, is_reinit:bool=False):
 		
 		# # Estimate system Z
 		# expected_Z = self.mdata.MFLI_V_offset_V[1]/(self.mdata.requested_Idc_mA[1]/1e3) #TODO: Do something more general than index 1
@@ -2049,10 +2080,19 @@ class IVPlotWidget(TabPlotWidget):
 		
 		self.init_zscore_data( [self.mdata.zs_extra_z, self.mdata.zs_meas_Idc], ['Extra Impedance', 'Measured Idc'], [self.mdata.requested_Idc_mA, self.mdata.requested_Idc_mA], 'Requested DC Bias (mA)' )
 		
-		self.ylim1 = get_graph_lims(self.mdata.Idc_mA, 0.25)
-		self.ylim2 = get_graph_lims(self.mdata.extra_z, 50)
-		self.xlimT = get_graph_lims(self.mdata.requested_Idc_mA, 0.25)
-		self.xlim1b = get_graph_lims(self.mdata.MFLI_V_offset_V, 0.1)
+		if is_reinit:
+			if self.get_condition(GCOND_REMOVE_OUTLIERS):
+				mask = np.array(self.mdata.outlier_mask)
+			if not np.any(mask):
+				self.log.warning(f"No points matched when calculating mask for graph limits. Aborting graph limit calculation.")
+				return
+		else:
+			mask = np.full(len(self.mdata.Idc_mA), True)
+		
+		self.ylim1 = get_graph_lims(self.mdata.Idc_mA[mask], 0.25)
+		self.ylim2 = get_graph_lims(self.mdata.extra_z[mask], 50)
+		self.xlimT = get_graph_lims(self.mdata.requested_Idc_mA[mask], 0.25)
+		self.xlim1b = get_graph_lims(self.mdata.MFLI_V_offset_V[mask], 0.1)
 		self.xlim2b = self.ylim1
 		
 	
@@ -2182,7 +2222,7 @@ class SParamSPDPlotWidget(TabPlotWidget):
 		self.grid.addWidget(self.fig1c, 1, 0)
 		self.setLayout(self.grid)
 	
-	def manual_init(self):
+	def manual_init(self, is_reinit:bool=False):
 		pass
 		# # Get autoscale choices
 		# umax = np.max([np.max(self.mdata.rf1), np.max(self.mdata.rf2), np.max(self.mdata.rf3)])
@@ -2286,13 +2326,22 @@ class HarmGenBiasDomainPlotWidget(TabPlotWidget):
 		
 		return mask
 	
-	def manual_init(self):
+	def manual_init(self, is_reinit:bool=False):
 		
 		self.init_zscore_data([self.mdata.zs_rf1, self.mdata.zs_rf2, self.mdata.zs_rf3], ['Fundamental', '2nd Harmonic', '3rd Harmonic'], [self.mdata.Idc_mA, self.mdata.Idc_mA, self.mdata.Idc_mA], "Bias Current (mA)")
 		
-		self.ylims1 = get_graph_lims(np.concatenate((self.mdata.rf1, self.mdata.rf2, self.mdata.rf3)), step=10)
-		self.xlims1m = get_graph_lims(self.mdata.Idc_mA, step=0.25)
-		self.xlims1r = get_graph_lims(self.mdata.requested_Idc_mA, step=0.25)
+		if is_reinit:
+			if self.get_condition(GCOND_REMOVE_OUTLIERS):
+				mask = np.array(self.mdata.outlier_mask)
+			if not np.any(mask):
+				self.log.warning(f"No points matched when calculating mask for graph limits. Aborting graph limit calculation.")
+				return
+		else:
+			mask = np.full(len(self.mdata.rf1), True)
+		
+		self.ylims1 = get_graph_lims(np.concatenate((self.mdata.rf1[mask], self.mdata.rf2[mask], self.mdata.rf3[mask])), step=10)
+		self.xlims1m = get_graph_lims(self.mdata.Idc_mA[mask], step=0.25)
+		self.xlims1r = get_graph_lims(self.mdata.requested_Idc_mA[mask], step=0.25)
 	
 	@updateRenderPB
 	def render_plot(self):
@@ -2461,7 +2510,7 @@ class SpectrumPIDomainPlotWidget(TabPlotWidget):
 			self.ax1.set_xlim(self.default_xlims)
 			self.fig1.canvas.draw_idle()
 	
-	def manual_init(self):
+	def manual_init(self, is_reinit:bool=False):
 		pass
 		# self.init_zscore_data([self.mdata.zs_rf1, self.mdata.zs_rf2, self.mdata.zs_rf3], ['Fundamental', '2nd Harmonic', '3rd Harmonic'], [self.mdata.freq_rf_GHz, self.mdata.freq_rf_GHz, self.mdata.freq_rf_GHz], "Frequency (GHz)")
 		
@@ -2713,7 +2762,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.add_menu()
 		
 		# Make a controls widget
-		self.control_widget = OutlierControlWidget(self.gcond, self.log, self.mdata, self.plot_all, show_frame=True)
+		self.control_widget = OutlierControlWidget(self.gcond, self.log, self.mdata, self.plot_all, self.reinit_all, show_frame=True)
 		self.dataselect_widget = DataSelectWidget(self.gcond, self.log, self.mdata, self.plot_all, self.dataset_changed, show_frame=True)
 		
 		# Create tab widget
@@ -2784,6 +2833,11 @@ class HGA1Window(QtWidgets.QMainWindow):
 		
 		for sub in self.gcond_subscribers:
 			sub.plot_zscore_if_active()
+
+	def reinit_all(self):
+		
+		for sub in self.gcond_subscribers:
+			sub.manual_init(is_reinit=True)
 	
 	def update_freq(self, x):
 		try:
@@ -2965,13 +3019,18 @@ class HGA1Window(QtWidgets.QMainWindow):
 	
 	def _set_max_ce2(self):
 		
+		if self.get_condition(GCOND_REMOVE_OUTLIERS):
+			mask = np.array(self.mdata.outlier_mask)
+		else:
+			mask = np.full(len(self.mdata.ce2), True)
+		
 		# Find index of max CE2 value
-		idx_max = np.argmax(self.mdata.ce2)
+		idx_max = np.argmax(self.mdata.ce2[mask])
 		
 		# Select power, freq, and bias to match
-		bmax = self.mdata.requested_Idc_mA[idx_max]
-		pmax = self.mdata.power_rf_dBm[idx_max]
-		fmax = self.mdata.freq_rf_GHz[idx_max]
+		bmax = self.mdata.requested_Idc_mA[mask][idx_max]
+		pmax = self.mdata.power_rf_dBm[mask][idx_max]
+		fmax = self.mdata.freq_rf_GHz[mask][idx_max]
 		
 		# Find the index of each (on the unique slider scales)
 		bmax_idx = np.where(self.mdata.unique_bias == bmax)[0][0]
@@ -2986,13 +3045,18 @@ class HGA1Window(QtWidgets.QMainWindow):
 	
 	def _set_max_ce3(self):
 		
+		if self.get_condition(GCOND_REMOVE_OUTLIERS):
+			mask = np.array(self.mdata.outlier_mask)
+		else:
+			mask = np.full(len(self.mdata.ce3), True)
+		
 		# Find index of max CE2 value
-		idx_max = np.argmax(self.mdata.ce3)
+		idx_max = np.argmax(self.mdata.ce3[mask])
 		
 		# Select power, freq, and bias to match
-		bmax = self.mdata.requested_Idc_mA[idx_max]
-		pmax = self.mdata.power_rf_dBm[idx_max]
-		fmax = self.mdata.freq_rf_GHz[idx_max]
+		bmax = self.mdata.requested_Idc_mA[mask][idx_max]
+		pmax = self.mdata.power_rf_dBm[mask][idx_max]
+		fmax = self.mdata.freq_rf_GHz[mask][idx_max]
 		
 		# Find the index of each (on the unique slider scales)
 		bmax_idx = np.where(self.mdata.unique_bias == bmax)[0][0]
