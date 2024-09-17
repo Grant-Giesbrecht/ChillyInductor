@@ -168,7 +168,7 @@ class DataLoadingManager:
 		
 		return True
 	
-	def get_sweep(self, sweep_filename:str):
+	def get_sweep_full(self, sweep_filename:str):
 		
 		# CHeck if file needs to be read
 		read_file = False
@@ -202,7 +202,7 @@ class DataLoadingManager:
 			
 			# return data if in databank
 			if sweep_filename in self.sweep_data:
-				return self.sweep_data[sweep_filename]['dataset']
+				return self.sweep_data[sweep_filename]
 	
 	def get_sparam(self, sp_filename:str):
 		
@@ -393,17 +393,12 @@ class DataLoadingManager:
 		
 		self.data_mtx.release()
 
-	def get_sweep_full(self, sweep_filename:str):
+	def get_sweep(self, sweep_filename:str):
 		''' Returns info struct for a sweep file.'''
 		
-		# Load data from file if not already present
-		if sweep_filename not in self.sweep_data:
-			self.log.info(f"Loading sweep data from file: {sweep_filename}")
-			self.import_sweep_file(sweep_filename)
+		full_ds = self.get_sweep_full(sweep_filename)
 		
-		# return data if in databank
-		if sweep_filename  in self.sweep_data:
-			return self.sweep_data[sweep_filename]
+		return full_ds['dataset']
 
 class ImportSweepThread(QtCore.QThread):
 		
