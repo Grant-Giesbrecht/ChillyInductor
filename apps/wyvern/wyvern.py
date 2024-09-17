@@ -1804,7 +1804,7 @@ class CE23FreqDomainPlotWidget(TabPlotWidget):
 	
 	def manual_init(self):
 		
-		self.init_zscore_data([self.mdata.zs_ce2, self.mdata.zs_ce3], ["2f0 Conversion Efficiency", "3f0 Conversion Efficiency"], [self.mdata.requested_Idc_mA, self.mdata.requested_Idc_mA], "Bias Current (mA)")
+		self.init_zscore_data([self.mdata.zs_ce2, self.mdata.zs_ce3], ["2f0 Conversion Efficiency", "3f0 Conversion Efficiency"], [self.mdata.freq_rf_GHz, self.mdata.freq_rf_GHz], "Frequency (GHz)")
 		
 		self.ylims1 = get_graph_lims(self.mdata.ce2, 5)
 		self.ylims2 = get_graph_lims(self.mdata.ce3, 0.5)
@@ -1836,9 +1836,7 @@ class CE23FreqDomainPlotWidget(TabPlotWidget):
 		use_fund = self.get_condition(GCOND_FREQXAXIS_ISFUND)
 		
 		# Filter relevant data
-		mask_bias = (self.mdata.requested_Idc_mA == b)
-		mask_pwr = (self.mdata.power_rf_dBm == p)
-		mask = (mask_bias & mask_pwr)
+		mask = self.calc_mask()
 		
 		# Plot results
 		self.ax1.cla()
