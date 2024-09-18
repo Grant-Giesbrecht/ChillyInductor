@@ -14,7 +14,7 @@ from pylogfile.base import *
 from PyQt6 import QtCore, QtGui, QtWidgets
 from PyQt6.QtGui import QAction, QActionGroup, QDoubleValidator, QIcon, QFontDatabase, QFont, QPixmap
 from PyQt6.QtCore import Qt, QSize
-from PyQt6.QtWidgets import QWidget, QTabWidget, QLabel, QGridLayout, QLineEdit, QCheckBox, QSpacerItem, QSizePolicy, QMainWindow, QSlider, QPushButton, QGroupBox, QListWidget, QFileDialog
+from PyQt6.QtWidgets import QWidget, QTabWidget, QLabel, QGridLayout, QLineEdit, QCheckBox, QSpacerItem, QSizePolicy, QMainWindow, QSlider, QPushButton, QGroupBox, QListWidget, QFileDialog, QProgressBar, QStatusBar
 
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg, NavigationToolbar2QT
 from matplotlib.figure import Figure
@@ -33,6 +33,9 @@ import argparse
 
 log = LogPile()
 log.set_terminal_level("LOWDEBUG")
+
+import matplotlib as mpl
+mpl.rcParams['axes.formatter.useoffset'] = False
 
 # TODO: Important
 #
@@ -92,9 +95,12 @@ class DataLoadingManager:
 	''' Class from which MasterData populates itself. Reads data from disk when neccesary. Stores
 	both S-parameter data and HDF sweep data.'''
 	
-	def __init__(self, log:LogPile, conf_file:str=None):
+	def __init__(self, log:LogPile, conf_file:str=None, main_window=None):
 		
 		self.log = log
+		self.main_window = main_window
+		
+		self.use_legacy_peakdetect = False
 		
 		# Get conf data
 		self.data_conf = {}
@@ -102,10 +108,18 @@ class DataLoadingManager:
 			conf_file = os.path.join(".", "wyv_conf.json")
 		self.load_conf(conf_file)
 		
+		# This mutex is used to protect sweep_data and sparam_data
+		self.data_mtx = threading.Lock()
+		
 		# Dictionary s.t. key=filename, value=dict of data
 		self.sweep_data = {}
 		
 		# Dictionary s.t. key=filename, value = dict of data
+		self.sparam_data = {}
+	
+	def clear_data(self):
+		''' Erases all loaded data, forcing data to be re-read from disk.'''
+		self.sweep_data = {}
 		self.sparam_data = {}
 	
 	def load_conf(self, conf_file:str):
@@ -154,32 +168,92 @@ class DataLoadingManager:
 		
 		return True
 	
-	def get_sweep(self, sweep_filename:str):
+	def get_sweep_full(self, sweep_filename:str):
 		
-		print(sweep_filename)
+		# CHeck if file needs to be read
+		read_file = False
+		with self.data_mtx:
 		
-		# Load data from file if not already present
-		if sweep_filename not in self.sweep_data:
-			self.log.info(f"Loading sweep data from file: {sweep_filename}")
-			self.import_sweep_file(sweep_filename)
+			self.log.lowdebug(f"DLM Checking if file '{sweep_filename}' is loaded.")
 		
-		# return data if in databank
-		if sweep_filename  in self.sweep_data:
-			return self.sweep_data[sweep_filename]['dataset']
+			# Load data from file if not already present
+			if sweep_filename not in self.sweep_data:
+				self.log.info(f"Loading sweep data from file: {sweep_filename}")
+				read_file = True
+		
+		# Start thread to read file if requested
+		if read_file:
+			self.log.lowdebug(f"Creating thread to read file from disk.")
+			
+			if self.main_window is not None:
+				self.main_window.status_bar.setLoadingFile(True)
+				self.main_window.app.processEvents()
+			
+			self.data_mtx.acquire()
+			self.import_thread = ImportSweepThread(self, sweep_filename)
+			self.import_thread.taskFinished.connect(self.fileLoadFinished)
+			self.import_thread.start()
+			
+		
+		# Access and return data
+		with self.data_mtx:
+			
+			self.log.lowdebug(f"Accessing loaded sweep.")
+			
+			# return data if in databank
+			if sweep_filename in self.sweep_data:
+				return self.sweep_data[sweep_filename]
 	
 	def get_sparam(self, sp_filename:str):
 		
-		# Load data from file if not already present
-		if sp_filename not in self.sparam_data:
-			self.log.info(f"Loading s-parameter data from file: {sp_filename}")
-			self.import_sparam_file(sp_filename)
+		# Check if file needs to be read
+		read_file = False
+		with self.data_mtx:
+			
+			# Load data from file if not already present
+			if sp_filename not in self.sparam_data:
+				self.log.info(f"Loading s-parameter data from file: {sp_filename}")
+				read_file = True
 		
-		# Return data if in databank
-		if sp_filename in self.sparam_data:
-			return self.sparam_data[sp_filename]
+		# Start thread to read file if requested
+		if read_file:
+			
+			self.log.lowdebug(f"Creating thread to read file from disk.")
+			
+			if self.main_window is not None:
+				self.main_window.status_bar.setLoadingSPFile(True)
+				self.main_window.app.processEvents()
+			
+			self.data_mtx.acquire()
+			self.import_thread = ImportSparamThread(self, sp_filename)
+			self.import_thread.taskFinished.connect(self.spfileLoadFinished)
+			self.import_thread.start()
+		
+		# Access and returnn data
+		with self.data_mtx:
+			
+			self.log.lowdebug(f"Accessing loaded sweep.")
+			
+			# Return data if in databank
+			if sp_filename in self.sparam_data:
+				return self.sparam_data[sp_filename]
+	
+	def fileLoadFinished(self):
+		
+		if self.main_window is not None:
+			self.main_window.status_bar.setLoadingFile(False)
+			self.main_window.app.processEvents()
+	
+	def spfileLoadFinished(self):
+		
+		if self.main_window is not None:
+			self.main_window.status_bar.setLoadingSPFile(False)
+			self.main_window.app.processEvents()
 	
 	def import_sweep_file(self, sweep_filename:str):
 		''' Imports sweep data into the DLM's sweep dict from file.'''
+		
+		self.log.lowdebug(f"Reading file from disk: {sweep_filename}")
 		
 		##--------------------------------------------
 		# Read HDF5 File
@@ -187,38 +261,28 @@ class DataLoadingManager:
 		# Load data from file
 		hdfdata = hdf_to_dict(sweep_filename, to_lists=False)
 		
-		# nd = {}
-		# t_hdfr_0 = time.time()
-		# with h5py.File(sweep_filename, 'r') as fh:
-			
-		# 	# Read primary dataset
-		# 	GROUP = 'dataset'
-		# 	try:
-		# 		nd['freq_rf_GHz'] = fh[GROUP]['freq_rf_GHz'][()]
-		# 		nd['power_rf_dBm'] = fh[GROUP]['power_rf_dBm'][()]
-				
-		# 		nd['waveform_f_Hz'] = fh[GROUP]['waveform_f_Hz'][()]
-		# 		nd['waveform_s_dBm'] = fh[GROUP]['waveform_s_dBm'][()]
-		# 		nd['waveform_rbw_Hz'] = fh[GROUP]['waveform_rbw_Hz'][()]
-				
-		# 		nd['MFLI_V_offset_V'] = fh[GROUP]['MFLI_V_offset_V'][()]
-		# 		nd['requested_Idc_mA'] = fh[GROUP]['requested_Idc_mA'][()]
-		# 		nd['raw_meas_Vdc_V'] = fh[GROUP]['raw_meas_Vdc_V'][()]
-		# 		nd['Idc_mA'] = fh[GROUP]['Idc_mA'][()]
-		# 		nd['detect_normal'] = fh[GROUP]['detect_normal'][()]
-				
-		# 		nd['temperature_K'] = fh[GROUP]['temperature_K'][()]
-		# 	except Exception as e:
-		# 		self.log.error(f"Failed ot load file {sweep_filename}.", detail=f"{e}")
-		# 		return
-		
 		##--------------------------------------------
 		# Generate Mixing Products lists
-
 		
-		hdfdata['dataset']['rf1'] = spectrum_peak_list(hdfdata['dataset']['waveform_f_Hz'], hdfdata['dataset']['waveform_s_dBm'], hdfdata['dataset']['freq_rf_GHz']*1e9)
-		hdfdata['dataset']['rf2'] = spectrum_peak_list(hdfdata['dataset']['waveform_f_Hz'], hdfdata['dataset']['waveform_s_dBm'], hdfdata['dataset']['freq_rf_GHz']*2e9)
-		hdfdata['dataset']['rf3'] = spectrum_peak_list(hdfdata['dataset']['waveform_f_Hz'], hdfdata['dataset']['waveform_s_dBm'], hdfdata['dataset']['freq_rf_GHz']*3e9)
+		data_out = list_search_spectrum_peak_harms(hdfdata['dataset']['waveform_f_Hz'], hdfdata['dataset']['waveform_s_dBm'], hdfdata['dataset']['freq_rf_GHz']*1e9, nharms=3, scan_bw_Hz=500, harm_scan_points=7)
+		
+		if not self.use_legacy_peakdetect:
+			hdfdata['dataset']['rf1'] = data_out[1][0]
+			hdfdata['dataset']['rf2'] = data_out[1][1]
+			hdfdata['dataset']['rf3'] = data_out[1][2]
+			
+			hdfdata['dataset']['freqmeas_rf1'] = data_out[0][0]
+			hdfdata['dataset']['freqmeas_rf2'] = data_out[0][1]
+			hdfdata['dataset']['freqmeas_rf3'] = data_out[0][2]
+		else:
+			hdfdata['dataset']['rf1'] = spectrum_peak_list(hdfdata['dataset']['waveform_f_Hz'], hdfdata['dataset']['waveform_s_dBm'], hdfdata['dataset']['freq_rf_GHz']*1e9)
+			hdfdata['dataset']['rf2'] = spectrum_peak_list(hdfdata['dataset']['waveform_f_Hz'], hdfdata['dataset']['waveform_s_dBm'], hdfdata['dataset']['freq_rf_GHz']*2e9)
+			hdfdata['dataset']['rf3'] = spectrum_peak_list(hdfdata['dataset']['waveform_f_Hz'], hdfdata['dataset']['waveform_s_dBm'], hdfdata['dataset']['freq_rf_GHz']*3e9)
+			
+			hdfdata['dataset']['freqmeas_rf1'] = []
+			hdfdata['dataset']['freqmeas_rf2'] = []
+			hdfdata['dataset']['freqmeas_rf3'] = []
+			
 		hdfdata['dataset']['rf1W'] = dBm2W(hdfdata['dataset']['rf1'])
 		hdfdata['dataset']['rf2W'] = dBm2W(hdfdata['dataset']['rf2'])
 		hdfdata['dataset']['rf3W'] = dBm2W(hdfdata['dataset']['rf3'])
@@ -261,9 +325,18 @@ class DataLoadingManager:
 		
 		# Save to master databank
 		self.sweep_data[sweep_filename] = hdfdata
+		
+		if self.main_window is not None:
+			self.main_window.status_bar.setLoadingFile(False)
+		
+		self.log.lowdebug(f"Finished reading file '{sweep_filename}'.")
+		
+		self.data_mtx.release()
 	
 	def import_sparam_file(self, sp_filename:str):
 		''' Imports S-parameter data into the DLM's sparam dict'''
+		
+		self.log.lowdebug(f"Reading file from disk: {sp_filename}")
 		
 		try:
 			if sp_filename[-4:].lower() == '.csv':
@@ -315,18 +388,44 @@ class DataLoadingManager:
 
 		# Add dictionary to main databank
 		self.sparam_data[sp_filename] = nd
+		
+		self.log.lowdebug(f"Finished reading file '{sp_filename}'.")
+		
+		self.data_mtx.release()
 
-	def get_sweep_full(self, sweep_filename:str):
+	def get_sweep(self, sweep_filename:str):
 		''' Returns info struct for a sweep file.'''
 		
-		# Load data from file if not already present
-		if sweep_filename not in self.sweep_data:
-			self.log.info(f"Loading sweep data from file: {sweep_filename}")
-			self.import_sweep_file(sweep_filename)
+		full_ds = self.get_sweep_full(sweep_filename)
 		
-		# return data if in databank
-		if sweep_filename  in self.sweep_data:
-			return self.sweep_data[sweep_filename]
+		return full_ds['dataset']
+
+class ImportSweepThread(QtCore.QThread):
+		
+	taskFinished = QtCore.pyqtSignal()
+	
+	def __init__(self, dlm:DataLoadingManager, sweep_filename:str):
+		super().__init__()
+		self.dlm = dlm
+		self.sweep_filename = sweep_filename
+	
+	def run(self):
+		print("  [[Sweep import thread running]]")
+		self.dlm.import_sweep_file(self.sweep_filename)
+		self.taskFinished.emit()
+
+class ImportSparamThread(QtCore.QThread):
+	
+	taskFinished = QtCore.pyqtSignal()
+	
+	def __init__(self, dlm:DataLoadingManager, sweep_filename:str):
+		super().__init__()
+		self.dlm = dlm
+		self.sweep_filename = sweep_filename
+	
+	def run(self):
+		self.dlm.import_sparam_file(self.sweep_filename)
+		self.taskFinished.emit()
 
 class MasterData:
 	''' Class to represent the data currently analyzed/plotted by the application'''
@@ -339,6 +438,7 @@ class MasterData:
 	
 		self.log = log
 		self.dlm = dlm
+		self.main_window = None
 		
 		# Mask of points to eliminate as outliers
 		self.outlier_mask = []
@@ -380,6 +480,11 @@ class MasterData:
 		
 		
 		self.load_sparam(sp_analysis_file)
+
+	def add_main_window(self, main_window):
+		
+		self.main_window = main_window
+		self.dlm.main_window = main_window
 
 	def clear_sparam(self):
 		
@@ -440,6 +545,10 @@ class MasterData:
 		if spdict is None:
 			return
 		
+		if self.main_window is not None:
+			self.main_window.status_bar.setLoadingRAM(True)
+			self.main_window.app.processEvents()
+		
 		# Populate local variables
 		self.S11 = spdict['S11']
 		self.S21 = spdict['S21']
@@ -457,6 +566,10 @@ class MasterData:
 			self._valid_sparam = False
 		
 		self._valid_sparam = True
+		
+		if self.main_window is not None:
+			self.main_window.status_bar.setLoadingRAM(False)
+			
 		# all_lists = [self.S11, self.S21, self.S12, self.S22, self.S11_dB, self.S21_dB, , self.S12_dB, self.S22_dB, self.S_freq_GHz]
 	
 		# it = iter(all_lists)
@@ -472,6 +585,10 @@ class MasterData:
 		
 		if swdict is None:
 			return
+		
+		if self.main_window is not None:
+			self.main_window.status_bar.setLoadingRAM(True)
+			self.main_window.app.processEvents()
 		
 		# populate local variables
 		self.freq_rf_GHz = swdict['freq_rf_GHz']
@@ -523,8 +640,11 @@ class MasterData:
 		
 		self._valid_sweep = True
 		
+		if self.main_window is not None:
+			self.main_window.status_bar.setLoadingRAM(False)
 		
-	def rebuild_outlier_mask(self, ce2_zscore:float, extraz_zscore:float):
+		
+	def rebuild_outlier_mask(self, ce2_zscore:float, ce3_zscore:float, extraz_zscore:float, extraz_val:float, rf1_val:float):
 		
 		# Process CE2
 		if ce2_zscore is not None:
@@ -532,9 +652,21 @@ class MasterData:
 		else:
 			self.outlier_mask = (self.zs_ce2 == self.zs_ce2)
 		
-		# Process extra-z
+		# Process CE3
+		if ce3_zscore is not None:
+			self.outlier_mask = self.outlier_mask & (self.zs_ce3 < ce3_zscore)
+
+		# Process extra-z (Zscore)
 		if extraz_zscore is not None:
 			self.outlier_mask = self.outlier_mask & (self.zs_extra_z < extraz_zscore)
+		
+		# Process extra-z (value)
+		if extraz_val is not None:
+			self.outlier_mask = self.outlier_mask & (self.extra_z < extraz_val)
+		
+		# Process rf1 (value)
+		if rf1_val is not None:
+			self.outlier_mask = self.outlier_mask & (self.rf1 > rf1_val)
 		
 	def is_valid_sweep(self):
 		return self._valid_sweep
@@ -561,10 +693,103 @@ def calc_zscore(data:list):
 
 GCOND_REMOVE_OUTLIERS = 'remove_outliers'
 GCOND_OUTLIER_ZSCE2 = 'remove_outliers_ce2_zscore'
+GCOND_OUTLIER_ZSCE3 = 'remove_outliers_ce3_zscore'
 GCOND_OUTLIER_ZSEXTRAZ = 'remove_outliers_extraz_zscore'
+GCOND_OUTLIER_VALEXTRAZ = 'remove_outliers_extraz_val'
+GCOND_OUTLIER_VALRF1 = 'remove_outliers_rf1_val'
 GCOND_FREQXAXIS_ISFUND = 'freqxaxis_isfund'
 GCOND_BIASXAXIS_ISMEAS = 'biasxaxis_ismeas'
 GCOND_ADJUST_SLIDER = 'adjust_sliders'
+
+class StatusBar(QStatusBar):
+
+	def __init__(self):
+		super().__init__()
+		
+		self.loadfile_label = QLabel("Disk (Sweep):")
+		self.addPermanentWidget(self.loadfile_label)
+		
+		# Set layout
+		self.loadfile_pb = QProgressBar(self)
+		self.loadfile_pb.setRange(0,1)
+		self.loadfile_pb.setFixedWidth(100)
+		self.addPermanentWidget(self.loadfile_pb)
+		
+		self.loadspfile_label = QLabel("Disk (SParam):")
+		self.addPermanentWidget(self.loadspfile_label)
+		
+		# Set layout
+		self.loadspfile_pb = QProgressBar(self)
+		self.loadspfile_pb.setRange(0,1)
+		self.loadspfile_pb.setFixedWidth(100)
+		self.addPermanentWidget(self.loadspfile_pb)
+		
+		self.ram_label = QLabel("Loading Dataset:")
+		self.addPermanentWidget(self.ram_label)
+		
+		# Set layout
+		self.ram_pb = QProgressBar(self)
+		self.ram_pb.setRange(0,1)
+		self.ram_pb.setFixedWidth(100)
+		self.addPermanentWidget(self.ram_pb)
+		
+		self.render_label = QLabel("Rendering:")
+		self.addPermanentWidget(self.render_label)
+		
+		# Set layout
+		self.render_pb = QProgressBar(self)
+		self.render_pb.setRange(0,1)
+		self.render_pb.setFixedWidth(100)
+		self.addPermanentWidget(self.render_pb)
+		
+		
+		
+		
+		
+		
+		
+		# # Make frame
+		# self.frame = QGroupBox()
+		# self.frame.setLayout(self.grid)
+		# self.overgrid = QGridLayout()
+		# self.overgrid.addWidget(self.frame, 0, 0)
+		# self.setLayout(self.overgrid)
+
+		# self.myLongTask = TaskThread()
+		# self.myLongTask.taskFinished.connect(self.end_loadfile)
+		
+	def setLoadingFile(self, status:bool):
+		if status:
+			self.loadfile_pb.setRange(0,0)
+		else:
+			self.loadfile_pb.setRange(0,1)
+	
+	def setLoadingSPFile(self, status:bool):
+		if status:
+			self.loadspfile_pb.setRange(0,0)
+		else:
+			self.loadspfile_pb.setRange(0,1)
+	
+	def setLoadingRAM(self, status:bool):
+		if status:
+			self.ram_pb.setRange(0,0)
+		else:
+			self.ram_pb.setRange(0,1)
+	
+	def setRendering(self, status:bool):
+		if status:
+			self.render_pb.setRange(0,0)
+		else:
+			self.render_pb.setRange(0,1)
+	
+			
+
+
+# class TaskThread(QtCore.QThread):
+# 	taskFinished = QtCore.pyqtSignal()
+# 	def run(self):
+# 		time.sleep(3)
+# 		self.taskFinished.emit() 
 
 class DataCompareWindow(QMainWindow):
 	
@@ -692,7 +917,8 @@ class DataCompareWindow(QMainWindow):
 		# 	self.ax1.grid(True)
 		
 		self.fig1.canvas.draw_idle()
-
+		
+		
 
 class DataSelectWidget(QWidget):
 	
@@ -1097,65 +1323,134 @@ class DataSelectWidget(QWidget):
 
 class OutlierControlWidget(QWidget):
 	
-	def __init__(self, global_conditions:dict, log:LogPile, mdata:MasterData, replot_handle, show_frame:bool=False):
+	def __init__(self, global_conditions:dict, log:LogPile, mdata:MasterData, replot_handle, reinit_handle, show_frame:bool=False):
 		super().__init__()
 		
 		self.gcond = global_conditions
 		self.log = log
 		self.mdata = mdata
 		self.replot_handle = replot_handle
+		self.reinit_handle = reinit_handle
 		
 		self.enable_cb = QCheckBox("Remove Outliers")
+		self.enable_cb.setChecked(True)
 		self.enable_cb.stateChanged.connect(self.reanalyze)
 		
 
-			#-------- CE 2 subgroup
+			#-------- CE 2 subgroup (Zscore)
 			
 		self.ce2_gbox = QGroupBox("CE2")
 		
-		self.zscore_ce2_cb = QCheckBox("Enable")
+		self.zscore_ce2_cb = QCheckBox("En")
 		self.zscore_ce2_cb.stateChanged.connect(self.reanalyze)
 		
 		self.zscore_ce2_label = QLabel("Z-Score < ")
 		self.zscore_ce2_edit = QLineEdit()
 		self.zscore_ce2_edit.setValidator(QDoubleValidator())
 		self.zscore_ce2_edit.setText("10")
+		self.zscore_ce2_edit.setFixedWidth(40)
 		self.zscore_ce2_edit.editingFinished.connect(self.reanalyze)
 		
 		self.ce2_gboxgrid = QGridLayout()
-		self.ce2_gboxgrid.addWidget(self.zscore_ce2_cb, 0, 0, 1, 2)
-		self.ce2_gboxgrid.addWidget(self.zscore_ce2_label, 1, 0)
-		self.ce2_gboxgrid.addWidget(self.zscore_ce2_edit, 1, 1)
+		self.ce2_gboxgrid.addWidget(self.zscore_ce2_label, 0, 0)
+		self.ce2_gboxgrid.addWidget(self.zscore_ce2_edit, 0, 1)
+		self.ce2_gboxgrid.addWidget(self.zscore_ce2_cb, 0, 2)
 		self.ce2_gbox.setLayout(self.ce2_gboxgrid)
+		
+			#-------- CE 3 subgroup (Zscore)
 			
-			#------------- Extra Z subgroup
+		self.ce3_gbox = QGroupBox("CE3")
+		
+		self.zscore_ce3_cb = QCheckBox("En")
+		self.zscore_ce3_cb.stateChanged.connect(self.reanalyze)
+		
+		self.zscore_ce3_label = QLabel("Z-Score < ")
+		self.zscore_ce3_edit = QLineEdit()
+		self.zscore_ce3_edit.setValidator(QDoubleValidator())
+		self.zscore_ce3_edit.setText("10")
+		self.zscore_ce3_edit.setFixedWidth(40)
+		self.zscore_ce3_edit.editingFinished.connect(self.reanalyze)
+		
+		self.ce3_gboxgrid = QGridLayout()
+		self.ce3_gboxgrid.addWidget(self.zscore_ce3_label, 0, 0)
+		self.ce3_gboxgrid.addWidget(self.zscore_ce3_edit, 0, 1)
+		self.ce3_gboxgrid.addWidget(self.zscore_ce3_cb, 0, 2)
+		self.ce3_gbox.setLayout(self.ce3_gboxgrid)
+			
+			#------------- Extra Z subgroup (Zscore)
 		
 		self.extraz_gbox = QGroupBox("Extra Impedance")
 		
-		self.zscore_extraz_cb = QCheckBox("Enable")
+		self.zscore_extraz_cb = QCheckBox("En")
 		self.zscore_extraz_cb.stateChanged.connect(self.reanalyze)
 		
 		self.zscore_extraz_label = QLabel("Z-Score < ")
 		self.zscore_extraz_edit = QLineEdit()
 		self.zscore_extraz_edit.setValidator(QDoubleValidator())
 		self.zscore_extraz_edit.setText("2")
+		self.zscore_extraz_edit.setFixedWidth(40)
 		self.zscore_extraz_edit.editingFinished.connect(self.reanalyze)
 		
+		self.val_extraz_cb = QCheckBox("En")
+		self.val_extraz_cb.stateChanged.connect(self.reanalyze)
+		
+		self.val_extraz_label = QLabel("Value (Ω) < ")
+		self.val_extraz_edit = QLineEdit()
+		self.val_extraz_edit.setValidator(QDoubleValidator())
+		self.val_extraz_edit.setText("20")
+		self.val_extraz_edit.setFixedWidth(40)
+		self.val_extraz_edit.editingFinished.connect(self.reanalyze)
+		
+		# self.extraz_gboxgrid = QGridLayout()
+		# self.extraz_gboxgrid.addWidget(self.zscore_extraz_cb, 0, 0, 1, 2)
+		# self.extraz_gboxgrid.addWidget(self.zscore_extraz_label, 1, 0)
+		# self.extraz_gboxgrid.addWidget(self.zscore_extraz_edit, 1, 1)
+		# self.extraz_gbox.setLayout(self.extraz_gboxgrid)
+		
 		self.extraz_gboxgrid = QGridLayout()
-		self.extraz_gboxgrid.addWidget(self.zscore_extraz_cb, 0, 0, 1, 2)
+		self.extraz_gboxgrid.addWidget(self.val_extraz_label, 0, 0)
+		self.extraz_gboxgrid.addWidget(self.val_extraz_edit, 0, 1)
+		self.extraz_gboxgrid.addWidget(self.val_extraz_cb, 0, 2)
+		
 		self.extraz_gboxgrid.addWidget(self.zscore_extraz_label, 1, 0)
 		self.extraz_gboxgrid.addWidget(self.zscore_extraz_edit, 1, 1)
+		self.extraz_gboxgrid.addWidget(self.zscore_extraz_cb, 1, 2)
+		
 		self.extraz_gbox.setLayout(self.extraz_gboxgrid)
+		
+			#------------- Extra Z subgroup
+		
+		self.rf1_gbox = QGroupBox("Harmonic Power")
+		
+		self.val_rf1_cb = QCheckBox("En")
+		self.val_rf1_cb.stateChanged.connect(self.reanalyze)
+		
+		self.val_rf1_label = QLabel("Fund (dBm) > ")
+		self.val_rf1_edit = QLineEdit()
+		self.val_rf1_edit.setValidator(QDoubleValidator())
+		self.val_rf1_edit.setText("-40")
+		self.val_rf1_edit.setFixedWidth(40)
+		self.val_rf1_edit.editingFinished.connect(self.reanalyze)
+		
+		self.rf1_gboxgrid = QGridLayout()
+		self.rf1_gboxgrid.addWidget(self.val_rf1_label, 0, 0)
+		self.rf1_gboxgrid.addWidget(self.val_rf1_edit, 0, 1)
+		self.rf1_gboxgrid.addWidget(self.val_rf1_cb, 0, 2)
+		self.rf1_gbox.setLayout(self.rf1_gboxgrid)
+		
+			#------------- End subgroups
 		
 		self.bottom_spacer = QSpacerItem(10, 10, QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Expanding)
 		
 		self.grid = QGridLayout()
 		self.grid.addWidget(self.enable_cb, 0, 0, 1, 2, alignment=QtCore.Qt.AlignmentFlag.AlignTop)
 		self.grid.addWidget(self.ce2_gbox, 1, 0)
-		self.grid.addWidget(self.extraz_gbox, 2, 0)
+		self.grid.addWidget(self.ce3_gbox, 2, 0)
+		self.grid.addWidget(self.extraz_gbox, 3, 0)
+		self.grid.addWidget(self.rf1_gbox, 4, 0)
 		# self.grid.addWidget(self.zscore_label, 1, 0, alignment=QtCore.Qt.AlignmentFlag.AlignTop)
 		# self.grid.addWidget(self.zscore_edit, 1, 1, alignment=QtCore.Qt.AlignmentFlag.AlignTop)
-		self.grid.addItem(self.bottom_spacer, 3, 0)
+		self.grid.addItem(self.bottom_spacer, 5, 0)
 		
 		if show_frame:
 			self.frame = QGroupBox("Outlier Control")
@@ -1175,7 +1470,7 @@ class OutlierControlWidget(QWidget):
 		# Update enable/disable all 
 		self.gcond[GCOND_REMOVE_OUTLIERS] = self.enable_cb.isChecked()
 		
-		# Update CE2 spec
+		# Update CE2 spec (Zscore)
 		try:
 			if self.zscore_ce2_cb.isChecked():
 				self.gcond[GCOND_OUTLIER_ZSCE2] = float(self.zscore_ce2_edit.text())
@@ -1183,21 +1478,57 @@ class OutlierControlWidget(QWidget):
 				self.gcond[GCOND_OUTLIER_ZSCE2] = None
 		except Exception as e:
 			self.log.warning("Failed to interpret CE2 Z-score value. Defaulting to 10.", detail=f"{e}")
-			self.zscore_edit.setText("10")
+			self.zscore_ce2_edit.setText("10")
 			self.gcond[GCOND_OUTLIER_ZSCE2] = 10
 			
-		# Update extra z spec
+		# Update CE3 spec (Zscore)
+		try:
+			if self.zscore_ce3_cb.isChecked():
+				self.gcond[GCOND_OUTLIER_ZSCE3] = float(self.zscore_ce3_edit.text())
+			else:
+				self.gcond[GCOND_OUTLIER_ZSCE3] = None
+		except Exception as e:
+			self.log.warning("Failed to interpret CE3 Z-score value. Defaulting to 10.", detail=f"{e}")
+			self.zscore_ce3_edit.setText("10")
+			self.gcond[GCOND_OUTLIER_ZSCE3] = 10
+			
+		# Update extra z spec (Zscore)
 		try:
 			if self.zscore_extraz_cb.isChecked():
 				self.gcond[GCOND_OUTLIER_ZSEXTRAZ] = float(self.zscore_extraz_edit.text())
 			else:
 				self.gcond[GCOND_OUTLIER_ZSEXTRAZ] = None
 		except Exception as e:
-			self.log.warning("Failed to interpret CE2 Z-score value. Defaulting to 2.", detail=f"{e}")
+			self.log.warning("Failed to interpret extra-Z Z-score value. Defaulting to 2.", detail=f"{e}")
 			self.zscore_edit.setText("2")
 			self.gcond[GCOND_OUTLIER_ZSEXTRAZ] = 2
 		
-		self.mdata.rebuild_outlier_mask(self.gcond[GCOND_OUTLIER_ZSCE2], self.gcond[GCOND_OUTLIER_ZSEXTRAZ])
+		# Update extra z spec (value)
+		try:
+			if self.val_extraz_cb.isChecked():
+				self.gcond[GCOND_OUTLIER_VALEXTRAZ] = float(self.val_extraz_edit.text())
+			else:
+				self.gcond[GCOND_OUTLIER_VALEXTRAZ] = None
+		except Exception as e:
+			self.log.warning("Failed to interpret extra-Z value for outlier removal. Defaulting to 20.", detail=f"{e}")
+			self.zscore_edit.setText("20")
+			self.gcond[GCOND_OUTLIER_VALEXTRAZ] = 20
+		
+		# Update extra z spec (value)
+		try:
+			if self.val_rf1_cb.isChecked():
+				self.gcond[GCOND_OUTLIER_VALRF1] = float(self.val_rf1_edit.text())
+			else:
+				self.gcond[GCOND_OUTLIER_VALRF1] = None
+		except Exception as e:
+			self.log.warning("Failed to interpret RF1 value for outlier removal. Defaulting to -40 dBm.", detail=f"{e}")
+			self.zscore_edit.setText("-40")
+			self.gcond[GCOND_OUTLIER_VALRF1] = -40
+		
+		self.mdata.rebuild_outlier_mask(self.gcond[GCOND_OUTLIER_ZSCE2], self.gcond[GCOND_OUTLIER_ZSCE3], self.gcond[GCOND_OUTLIER_ZSEXTRAZ], self.gcond[GCOND_OUTLIER_VALEXTRAZ], self.gcond[GCOND_OUTLIER_VALRF1])
+		
+		# Reinitialize all auto-lims
+		self.reinit_handle()
 		
 		# Replot all graph
 		self.replot_handle()
@@ -1364,6 +1695,17 @@ class TabPlotWidget(QWidget):
 	def render_plot(self):
 		pass
 
+def updateRenderPB(func):
+	def wrapper(*args, **kwargs):
+		if args[0].mdata.dlm.main_window is not None:
+			args[0].mdata.dlm.main_window.status_bar.setRendering(True)
+			args[0].mdata.dlm.main_window.app.processEvents()
+		func(*args, **kwargs)
+		if args[0].mdata.dlm.main_window is not None:
+			args[0].mdata.dlm.main_window.status_bar.setRendering(False)
+		
+	return wrapper
+
 class HarmGenFreqDomainPlotWidget(TabPlotWidget):
 	
 	def __init__(self, global_conditions:dict, log:LogPile, mdata:MasterData):
@@ -1394,11 +1736,20 @@ class HarmGenFreqDomainPlotWidget(TabPlotWidget):
 		self.grid.addWidget(self.fig1c, 1, 0)
 		self.setLayout(self.grid)
 	
-	def manual_init(self):
+	def manual_init(self, is_reinit:bool=False):
 		self.init_zscore_data([self.mdata.zs_rf1, self.mdata.zs_rf2, self.mdata.zs_rf3], ['Fundamental', '2nd Harmonic', '3rd Harmonic'], [self.mdata.freq_rf_GHz, self.mdata.freq_rf_GHz, self.mdata.freq_rf_GHz], "Frequency (GHz)")
 		
-		self.ylims1 = get_graph_lims(np.concatenate((self.mdata.rf1, self.mdata.rf2, self.mdata.rf3)), step=10)
-		self.xlims1 = get_graph_lims(self.mdata.freq_rf_GHz, step=0.5)
+		if is_reinit:
+			if self.get_condition(GCOND_REMOVE_OUTLIERS):
+				mask = np.array(self.mdata.outlier_mask)
+			if not np.any(mask):
+				self.log.warning(f"No points matched when calculating mask for graph limits. Aborting graph limit calculation.")
+				return
+		else:
+			mask = np.full(len(self.mdata.rf3), True)
+		
+		self.ylims1 = get_graph_lims(np.concatenate((self.mdata.rf1[mask], self.mdata.rf2[mask], self.mdata.rf3[mask])), step=10)
+		self.xlims1 = get_graph_lims(self.mdata.freq_rf_GHz[mask], step=0.5)
 		
 	def calc_mask(self):
 		b = self.get_condition('sel_bias_mA')
@@ -1418,6 +1769,7 @@ class HarmGenFreqDomainPlotWidget(TabPlotWidget):
 		
 		return mask
 	
+	@updateRenderPB
 	def render_plot(self):
 		use_fund = self.get_condition(GCOND_FREQXAXIS_ISFUND)
 		b = self.get_condition('sel_bias_mA')
@@ -1500,14 +1852,23 @@ class CE23FreqDomainPlotWidget(TabPlotWidget):
 		self.grid.addWidget(self.fig2c, 1, 1)
 		self.setLayout(self.grid)
 	
-	def manual_init(self):
+	def manual_init(self, is_reinit:bool=False):
 		
-		self.init_zscore_data([self.mdata.zs_ce2, self.mdata.zs_ce3], ["2f0 Conversion Efficiency", "3f0 Conversion Efficiency"], [self.mdata.requested_Idc_mA, self.mdata.requested_Idc_mA], "Bias Current (mA)")
+		self.init_zscore_data([self.mdata.zs_ce2, self.mdata.zs_ce3], ["2f0 Conversion Efficiency", "3f0 Conversion Efficiency"], [self.mdata.freq_rf_GHz, self.mdata.freq_rf_GHz], "Frequency (GHz)")
 		
-		self.ylims1 = get_graph_lims(self.mdata.ce2, 5)
-		self.ylims2 = get_graph_lims(self.mdata.ce3, 0.5)
+		if is_reinit:
+			if self.get_condition(GCOND_REMOVE_OUTLIERS):
+				mask = np.array(self.mdata.outlier_mask)
+			if not np.any(mask):
+				self.log.warning(f"No points matched when calculating mask for graph limits. Aborting graph limit calculation.")
+				return
+		else:
+			mask = np.full(len(self.mdata.ce2), True)
 		
-		self.xlimsX = get_graph_lims(self.mdata.freq_rf_GHz, 0.5)
+		self.ylims1 = get_graph_lims(self.mdata.ce2[mask], 5)
+		self.ylims2 = get_graph_lims(self.mdata.ce3[mask], 0.5)
+		
+		self.xlimsX = get_graph_lims(self.mdata.freq_rf_GHz[mask], 0.5)
 	
 	def calc_mask(self):
 		b = self.get_condition('sel_bias_mA')
@@ -1527,15 +1888,14 @@ class CE23FreqDomainPlotWidget(TabPlotWidget):
 		
 		return mask
 	
+	@updateRenderPB
 	def render_plot(self):
 		b = self.get_condition('sel_bias_mA')
 		p = self.get_condition('sel_power_dBm')
 		use_fund = self.get_condition(GCOND_FREQXAXIS_ISFUND)
 		
 		# Filter relevant data
-		mask_bias = (self.mdata.requested_Idc_mA == b)
-		mask_pwr = (self.mdata.power_rf_dBm == p)
-		mask = (mask_bias & mask_pwr)
+		mask = self.calc_mask()
 		
 		# Plot results
 		self.ax1.cla()
@@ -1619,15 +1979,24 @@ class CE23BiasDomainPlotWidget(TabPlotWidget):
 		self.grid.addWidget(self.fig2c, 1, 1)
 		self.setLayout(self.grid)
 	
-	def manual_init(self):
+	def manual_init(self, is_reinit:bool=False):
 		
 		self.init_zscore_data([self.mdata.zs_ce2, self.mdata.zs_ce3], ["2f0 Conversion Efficiency", "3f0 Conversion Efficiency"], [self.mdata.requested_Idc_mA, self.mdata.requested_Idc_mA], "Bias Current (mA)")
 		
-		self.ylims1 = get_graph_lims(self.mdata.ce2, 5)
-		self.ylims2 = get_graph_lims(self.mdata.ce3, 0.5)
+		if is_reinit:
+			if self.get_condition(GCOND_REMOVE_OUTLIERS):
+				mask = np.array(self.mdata.outlier_mask)
+			if not np.any(mask):
+				self.log.warning(f"No points matched when calculating mask for graph limits. Aborting graph limit calculation.")
+				return
+		else:
+			mask = np.full(len(self.mdata.ce2), True)
 		
-		self.xlimsXr = get_graph_lims(self.mdata.requested_Idc_mA, 0.25)
-		self.xlimsXm = get_graph_lims(self.mdata.Idc_mA, 0.25)
+		self.ylims1 = get_graph_lims(self.mdata.ce2[mask], 5)
+		self.ylims2 = get_graph_lims(self.mdata.ce3[mask], 0.5)
+		
+		self.xlimsXr = get_graph_lims(self.mdata.requested_Idc_mA[mask], 0.25)
+		self.xlimsXm = get_graph_lims(self.mdata.Idc_mA[mask], 0.25)
 		
 	def calc_mask(self):
 		f = self.get_condition('sel_freq_GHz')
@@ -1647,6 +2016,7 @@ class CE23BiasDomainPlotWidget(TabPlotWidget):
 		
 		return mask
 	
+	@updateRenderPB
 	def render_plot(self):
 		
 		f = self.get_condition('sel_freq_GHz')
@@ -1735,7 +2105,7 @@ class IVPlotWidget(TabPlotWidget):
 		self.grid.addWidget(self.fig2c, 1, 1)
 		self.setLayout(self.grid)
 		
-	def manual_init(self):
+	def manual_init(self, is_reinit:bool=False):
 		
 		# # Estimate system Z
 		# expected_Z = self.mdata.MFLI_V_offset_V[1]/(self.mdata.requested_Idc_mA[1]/1e3) #TODO: Do something more general than index 1
@@ -1747,10 +2117,19 @@ class IVPlotWidget(TabPlotWidget):
 		
 		self.init_zscore_data( [self.mdata.zs_extra_z, self.mdata.zs_meas_Idc], ['Extra Impedance', 'Measured Idc'], [self.mdata.requested_Idc_mA, self.mdata.requested_Idc_mA], 'Requested DC Bias (mA)' )
 		
-		self.ylim1 = get_graph_lims(self.mdata.Idc_mA, 0.25)
-		self.ylim2 = get_graph_lims(self.mdata.extra_z, 50)
-		self.xlimT = get_graph_lims(self.mdata.requested_Idc_mA, 0.25)
-		self.xlim1b = get_graph_lims(self.mdata.MFLI_V_offset_V, 0.1)
+		if is_reinit:
+			if self.get_condition(GCOND_REMOVE_OUTLIERS):
+				mask = np.array(self.mdata.outlier_mask)
+			if not np.any(mask):
+				self.log.warning(f"No points matched when calculating mask for graph limits. Aborting graph limit calculation.")
+				return
+		else:
+			mask = np.full(len(self.mdata.Idc_mA), True)
+		
+		self.ylim1 = get_graph_lims(self.mdata.Idc_mA[mask], 0.25)
+		self.ylim2 = get_graph_lims(self.mdata.extra_z[mask], 50)
+		self.xlimT = get_graph_lims(self.mdata.requested_Idc_mA[mask], 0.25)
+		self.xlim1b = get_graph_lims(self.mdata.MFLI_V_offset_V[mask], 0.1)
 		self.xlim2b = self.ylim1
 		
 	
@@ -1772,6 +2151,7 @@ class IVPlotWidget(TabPlotWidget):
 		
 		return mask
 	
+	@updateRenderPB
 	def render_plot(self):
 		f = self.get_condition('sel_freq_GHz')
 		p = self.get_condition('sel_power_dBm')
@@ -1879,7 +2259,7 @@ class SParamSPDPlotWidget(TabPlotWidget):
 		self.grid.addWidget(self.fig1c, 1, 0)
 		self.setLayout(self.grid)
 	
-	def manual_init(self):
+	def manual_init(self, is_reinit:bool=False):
 		pass
 		# # Get autoscale choices
 		# umax = np.max([np.max(self.mdata.rf1), np.max(self.mdata.rf2), np.max(self.mdata.rf3)])
@@ -1891,6 +2271,7 @@ class SParamSPDPlotWidget(TabPlotWidget):
 		
 		# self.ylims = [np.floor(umin/rstep)*rstep, np.ceil(umax/rstep)*rstep]
 	
+	@updateRenderPB
 	def render_plot(self):
 		# f = self.get_condition('sel_freq_GHz')
 		# p = self.get_condition('sel_power_dBm')
@@ -1982,14 +2363,24 @@ class HarmGenBiasDomainPlotWidget(TabPlotWidget):
 		
 		return mask
 	
-	def manual_init(self):
+	def manual_init(self, is_reinit:bool=False):
 		
 		self.init_zscore_data([self.mdata.zs_rf1, self.mdata.zs_rf2, self.mdata.zs_rf3], ['Fundamental', '2nd Harmonic', '3rd Harmonic'], [self.mdata.Idc_mA, self.mdata.Idc_mA, self.mdata.Idc_mA], "Bias Current (mA)")
 		
-		self.ylims1 = get_graph_lims(np.concatenate((self.mdata.rf1, self.mdata.rf2, self.mdata.rf3)), step=10)
-		self.xlims1m = get_graph_lims(self.mdata.Idc_mA, step=0.25)
-		self.xlims1r = get_graph_lims(self.mdata.requested_Idc_mA, step=0.25)
+		if is_reinit:
+			if self.get_condition(GCOND_REMOVE_OUTLIERS):
+				mask = np.array(self.mdata.outlier_mask)
+			if not np.any(mask):
+				self.log.warning(f"No points matched when calculating mask for graph limits. Aborting graph limit calculation.")
+				return
+		else:
+			mask = np.full(len(self.mdata.rf1), True)
 		
+		self.ylims1 = get_graph_lims(np.concatenate((self.mdata.rf1[mask], self.mdata.rf2[mask], self.mdata.rf3[mask])), step=10)
+		self.xlims1m = get_graph_lims(self.mdata.Idc_mA[mask], step=0.25)
+		self.xlims1r = get_graph_lims(self.mdata.requested_Idc_mA[mask], step=0.25)
+	
+	@updateRenderPB
 	def render_plot(self):
 		f = self.get_condition('sel_freq_GHz')
 		p = self.get_condition('sel_power_dBm')
@@ -2036,6 +2427,11 @@ class HarmGenBiasDomainPlotWidget(TabPlotWidget):
 
 class SpectrumPIDomainPlotWidget(TabPlotWidget):
 	
+	ZOOM_MODE_FULL = 0
+	ZOOM_MODE_FUND = 1
+	ZOOM_MODE_2H = 2
+	ZOOM_MODE_3H = 3
+	
 	def __init__(self, global_conditions:dict, log:LogPile, mdata:MasterData):
 		super().__init__(global_conditions, log, mdata)
 		
@@ -2046,6 +2442,8 @@ class SpectrumPIDomainPlotWidget(TabPlotWidget):
 		
 		# Create figure
 		self.fig1, self.ax1 = plt.subplots(1, 1)
+		self.default_xlims = None
+		self.zoom_mode = SpectrumPIDomainPlotWidget.ZOOM_MODE_FULL
 		
 		# Estimate system Z
 		expected_Z = self.mdata.MFLI_V_offset_V[1]/(self.mdata.requested_Idc_mA[1]/1e3) #TODO: Do something more general than index 1
@@ -2058,13 +2456,98 @@ class SpectrumPIDomainPlotWidget(TabPlotWidget):
 		self.fig1c = FigureCanvas(self.fig1)
 		self.toolbar1 = NavigationToolbar2QT(self.fig1c, self)
 		
+		self.zoom_span_label = QLabel("Zoom Span: kHz")
+		# self.zoom_span_label.setSizePolicy(QSizePolicy.Policy.Minimum, QSizePolicy.Policy.Minimum)
+		self.zoom_span_label.setFixedWidth(120)
+		
+		self.zoom_span_edit = QLineEdit()
+		self.zoom_span_edit.setText("10")
+		self.zoom_span_edit.setValidator(QDoubleValidator())
+		self.zoom_span_edit.setFixedWidth(50)
+		self.zoom_span_edit.editingFinished.connect(self._reapply_zoom)
+		
+		# self.right_spacer = QSpacerItem(10, 10, QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Minimum)
+		
+		# Make buttons
+		self.fund_btn = QPushButton("Fundamental", parent=self)
+		self.fund_btn.setFixedSize(100, 25)
+		self.fund_btn.clicked.connect(self._zoom_fund)
+		
+		self.f2h_btn = QPushButton("2nd Harmonic", parent=self)
+		self.f2h_btn.setFixedSize(100, 25)
+		self.f2h_btn.clicked.connect(self._zoom_2h)
+		
+		self.f3h_btn = QPushButton("3rd Harmonic", parent=self)
+		self.f3h_btn.setFixedSize(100, 25)
+		self.f3h_btn.clicked.connect(self._zoom_3h)
+		
+		self.reset_btn = QPushButton("Full Span", parent=self)
+		self.reset_btn.setFixedSize(100, 25)
+		self.reset_btn.clicked.connect(self._zoom_reset)
+		
 		# Add widgets to parent-widget and set layout
 		self.grid = QtWidgets.QGridLayout()
-		self.grid.addWidget(self.toolbar1, 0, 0)
-		self.grid.addWidget(self.fig1c, 1, 0)
+		self.grid.addWidget(self.toolbar1, 0, 0, 1, 7)
+		self.grid.addWidget(self.fig1c, 1, 0, 1, 7)
+		
+		
+		self.grid.addWidget(self.zoom_span_label, 2, 0)
+		self.grid.addWidget(self.zoom_span_edit, 2, 1)
+		
+		# self.grid.addItem(self.right_spacer, 2, 0, 6)
+		
+		self.grid.addWidget(self.fund_btn, 2, 3)
+		self.grid.addWidget(self.f2h_btn, 2, 4)
+		self.grid.addWidget(self.f3h_btn, 2, 5)
+		self.grid.addWidget(self.reset_btn, 2, 6)
+		
+		
 		self.setLayout(self.grid)
 	
-	def manual_init(self):
+	def _reapply_zoom(self):
+		
+		if self.zoom_mode == SpectrumPIDomainPlotWidget.ZOOM_MODE_FULL:
+			self._zoom_reset()
+		elif self.zoom_mode == SpectrumPIDomainPlotWidget.ZOOM_MODE_FUND:
+			self._zoom_fund()
+		elif self.zoom_mode == SpectrumPIDomainPlotWidget.ZOOM_MODE_2H:
+			self._zoom_2h()
+		elif self.zoom_mode == SpectrumPIDomainPlotWidget.ZOOM_MODE_3H:
+			self._zoom_3h()
+	
+	def _zoom_freq(self, f_center_GHz:float):
+		
+		try:
+			span_kHz = float(self.zoom_span_edit.text())
+		except Exception as e:
+			self.log.warning(f"Failed to interpret textbox. Defaulting to 10 kHz.", detail=f"{e}")
+			span_kHz = 10
+		half_span_GHz = span_kHz/2e6
+		self.ax1.set_xlim([f_center_GHz-half_span_GHz, f_center_GHz+half_span_GHz])
+		self.fig1.canvas.draw_idle()
+	
+	def _zoom_fund(self):
+		f = self.get_condition('sel_freq_GHz')
+		self._zoom_freq(f)
+		self.zoom_mode = SpectrumPIDomainPlotWidget.ZOOM_MODE_FUND
+	
+	def _zoom_2h(self):
+		f = self.get_condition('sel_freq_GHz')
+		self._zoom_freq(2*f)
+		self.zoom_mode = SpectrumPIDomainPlotWidget.ZOOM_MODE_2H
+		
+	def _zoom_3h(self):
+		f = self.get_condition('sel_freq_GHz')
+		self._zoom_freq(3*f)
+		self.zoom_mode = SpectrumPIDomainPlotWidget.ZOOM_MODE_3H
+		
+	def _zoom_reset(self):
+		self.zoom_mode = SpectrumPIDomainPlotWidget.ZOOM_MODE_FULL
+		if self.default_xlims is not None:
+			self.ax1.set_xlim(self.default_xlims)
+			self.fig1.canvas.draw_idle()
+	
+	def manual_init(self, is_reinit:bool=False):
 		pass
 		# self.init_zscore_data([self.mdata.zs_rf1, self.mdata.zs_rf2, self.mdata.zs_rf3], ['Fundamental', '2nd Harmonic', '3rd Harmonic'], [self.mdata.freq_rf_GHz, self.mdata.freq_rf_GHz, self.mdata.freq_rf_GHz], "Frequency (GHz)")
 		
@@ -2091,6 +2574,7 @@ class SpectrumPIDomainPlotWidget(TabPlotWidget):
 		
 		return mask
 	
+	@updateRenderPB
 	def render_plot(self):
 		use_fund = self.get_condition(GCOND_FREQXAXIS_ISFUND)
 		b = self.get_condition('sel_bias_mA')
@@ -2115,14 +2599,12 @@ class SpectrumPIDomainPlotWidget(TabPlotWidget):
 		# 	self.fig1.canvas.draw_idle()
 		# 	return
 		
-		self.ax1.plot(self.mdata.waveform_f_Hz[mask], self.mdata.waveform_s_dBm[mask], linestyle=':', marker='o', markersize=4, color=(0, 0.7, 0))
-		self.ax1.plot(self.mdata.waveform_f_Hz[mask], self.mdata.waveform_s_dBm[mask], linestyle=':', marker='o', markersize=4, color=(0, 0, 0.7))
-		self.ax1.plot(self.mdata.waveform_f_Hz[mask], self.mdata.waveform_s_dBm[mask], linestyle=':', marker='o', markersize=4, color=(0.7, 0, 0))
+		self.ax1.plot(np.array(self.mdata.waveform_f_Hz[mask])/1e9, self.mdata.waveform_s_dBm[mask], linestyle=':', marker='o', markersize=4, color=(0, 0.55, 0.75))
 		self.ax1.set_xlabel("Frequency (GHz)")
 		self.ax1.set_title(f"Bias = {b} mA, p = {p} dBm, f = {f} GHz")
 		self.ax1.set_ylabel("Power (dBm)")
-		self.ax1.legend(["Fundamental", "2nd Harm.", "3rd Harm."])
 		self.ax1.grid(True)
+		self.default_xlims = self.ax1.get_xlim()
 		
 		# if self.get_condition('fix_scale'):
 		# 	self.ax1.set_ylim(self.ylims1)
@@ -2304,7 +2786,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.mdata = mdata
 		
 		# Initialize global conditions
-		self.gcond = {'sel_freq_GHz': self.mdata.unique_freqs[len(self.mdata.unique_freqs)//2], 'sel_power_dBm': self.mdata.unique_pwr[len(self.mdata.unique_pwr)//2], 'sel_bias_mA': self.mdata.unique_bias[len(self.mdata.unique_bias)//2], 'fix_scale':False, GCOND_FREQXAXIS_ISFUND:False, GCOND_BIASXAXIS_ISMEAS:True, "remove_outliers":True, "remove_outliers_ce2_zscore":10, GCOND_ADJUST_SLIDER:True}
+		self.gcond = {'sel_freq_GHz': self.mdata.unique_freqs[len(self.mdata.unique_freqs)//2], 'sel_power_dBm': self.mdata.unique_pwr[len(self.mdata.unique_pwr)//2], 'sel_bias_mA': self.mdata.unique_bias[len(self.mdata.unique_bias)//2], 'fix_scale':False, GCOND_FREQXAXIS_ISFUND:False, GCOND_BIASXAXIS_ISMEAS:True, "remove_outliers":True, GCOND_OUTLIER_ZSCE2:10, GCOND_OUTLIER_ZSCE3:10, GCOND_OUTLIER_ZSEXTRAZ:None, GCOND_OUTLIER_VALEXTRAZ: None, GCOND_ADJUST_SLIDER:True}
 		
 		self.gcond_subscribers = []
 		
@@ -2317,7 +2799,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.add_menu()
 		
 		# Make a controls widget
-		self.control_widget = OutlierControlWidget(self.gcond, self.log, self.mdata, self.plot_all, show_frame=True)
+		self.control_widget = OutlierControlWidget(self.gcond, self.log, self.mdata, self.plot_all, self.reinit_all, show_frame=True)
 		self.dataselect_widget = DataSelectWidget(self.gcond, self.log, self.mdata, self.plot_all, self.dataset_changed, show_frame=True)
 		
 		# Create tab widget
@@ -2340,6 +2822,10 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.active_spfile_label.setText(f"Active S-Parameter File: {self.mdata.current_sparam_file}")
 		self.active_spfile_label.setAlignment(QtCore.Qt.AlignmentFlag.AlignRight)
 		
+		# progress bar
+		self.status_bar = StatusBar()
+		
+		
 		# Place each widget
 		self.grid.addWidget(self.control_widget, 0, 0)
 		self.grid.addWidget(self.tab_widget, 0, 1)
@@ -2347,6 +2833,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.grid.addWidget(self.dataselect_widget, 1, 0, 1, 3)
 		self.grid.addWidget(self.active_file_label, 2, 1, 1, 2)
 		self.grid.addWidget(self.active_spfile_label, 3, 1, 1, 2)
+		self.grid.addWidget(self.status_bar, 4, 0, 1, 3)
 		
 		# Set the central widget
 		central_widget = QtWidgets.QWidget()
@@ -2383,6 +2870,11 @@ class HGA1Window(QtWidgets.QMainWindow):
 		
 		for sub in self.gcond_subscribers:
 			sub.plot_zscore_if_active()
+
+	def reinit_all(self):
+		
+		for sub in self.gcond_subscribers:
+			sub.manual_init(is_reinit=True)
 	
 	def update_freq(self, x):
 		try:
@@ -2564,13 +3056,18 @@ class HGA1Window(QtWidgets.QMainWindow):
 	
 	def _set_max_ce2(self):
 		
+		if self.get_condition(GCOND_REMOVE_OUTLIERS):
+			mask = np.array(self.mdata.outlier_mask)
+		else:
+			mask = np.full(len(self.mdata.ce2), True)
+		
 		# Find index of max CE2 value
-		idx_max = np.argmax(self.mdata.ce2)
+		idx_max = np.argmax(self.mdata.ce2[mask])
 		
 		# Select power, freq, and bias to match
-		bmax = self.mdata.requested_Idc_mA[idx_max]
-		pmax = self.mdata.power_rf_dBm[idx_max]
-		fmax = self.mdata.freq_rf_GHz[idx_max]
+		bmax = self.mdata.requested_Idc_mA[mask][idx_max]
+		pmax = self.mdata.power_rf_dBm[mask][idx_max]
+		fmax = self.mdata.freq_rf_GHz[mask][idx_max]
 		
 		# Find the index of each (on the unique slider scales)
 		bmax_idx = np.where(self.mdata.unique_bias == bmax)[0][0]
@@ -2585,13 +3082,18 @@ class HGA1Window(QtWidgets.QMainWindow):
 	
 	def _set_max_ce3(self):
 		
+		if self.get_condition(GCOND_REMOVE_OUTLIERS):
+			mask = np.array(self.mdata.outlier_mask)
+		else:
+			mask = np.full(len(self.mdata.ce3), True)
+		
 		# Find index of max CE2 value
-		idx_max = np.argmax(self.mdata.ce3)
+		idx_max = np.argmax(self.mdata.ce3[mask])
 		
 		# Select power, freq, and bias to match
-		bmax = self.mdata.requested_Idc_mA[idx_max]
-		pmax = self.mdata.power_rf_dBm[idx_max]
-		fmax = self.mdata.freq_rf_GHz[idx_max]
+		bmax = self.mdata.requested_Idc_mA[mask][idx_max]
+		pmax = self.mdata.power_rf_dBm[mask][idx_max]
+		fmax = self.mdata.freq_rf_GHz[mask][idx_max]
 		
 		# Find the index of each (on the unique slider scales)
 		bmax_idx = np.where(self.mdata.unique_bias == bmax)[0][0]
@@ -2652,6 +3154,11 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.fix_scales_act.setChecked(True)
 		self.set_gcond('fix_scale', self.fix_scales_act.isChecked())
 		self.graph_menu.addAction(self.fix_scales_act)
+		
+		self.legacy_peak_act = QAction("Legacy Peak Detection", self, checkable=True)
+		# self.fix_scales_act.setShortcut("Ctrl+Shift+")
+		self.legacy_peak_act.setChecked(self.mdata.dlm.use_legacy_peakdetect)
+		self.graph_menu.addAction(self.legacy_peak_act)
 		
 			# Graph Menu: Freq-axis sub menu -------------
 		
@@ -2730,6 +3237,10 @@ class HGA1Window(QtWidgets.QMainWindow):
 			self.plot_all()
 		elif q.text() == "Show Active Z-Score":
 			self.plot_active_zscore()
+		elif q.text() == "Legacy Peak Detection":
+			self.mdata.dlm.use_legacy_peakdetect = self.legacy_peak_act.isChecked()
+			self.mdata.dlm.clear_data()
+			self.dataselect_widget.reload_sweep()
 	
 	def _process_sparam_menu(self, q):
 		
@@ -2762,6 +3273,8 @@ if platform == "win32":
 	ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
 w = HGA1Window(log, master_data, app)
+w.mdata.add_main_window(w)
+
 app.exec()
 
 #TODO: When bias is set to show requested, the fixed scale doesnt work. Look at max-CE2 in 8Aug dataset.

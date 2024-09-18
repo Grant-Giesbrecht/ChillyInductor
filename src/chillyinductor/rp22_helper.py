@@ -96,6 +96,192 @@ def plot_nan(x, y):
 	plt.ylabel("Value")
 	plt.show()
 
+def list_search_spectrum_peak_harms(freqs_list:list, pwr_list:list, f_targ_fund_list:list, nharms:int=3, scan_bw_Hz:float=500, harm_scan_points:int=7):
+	''' 
+	Designed to remedy issues that cropped-up with spectrum_peak_list when the 
+	RF signal generator deviated by too much from the target frequency. Searches 
+	for the max power at a given frequency, but searches within a range of
+	scan_bw_Hz (so bw/2 in either direction). Repeats the spectrum search then
+	at each requested harmonic, however after identifying the actual frequency
+	of the fundamental, it will conduct a narrower search on the harmonics. 
+	
+	Parameters:
+		freq (list): List of frequencies in Hz, as all source data
+		pwr (list): List of powers in dBm, as all source data
+		f_targ_fund (float): Fundamental frequency to search for, in Hz
+		nharms (int): Number of harmonics to include
+		scan_bw_Hz (float): Bandwidth over which to scan for actual fundamental peak in Hz.
+		harm_scan_points (int): Number of points to search, centered around fundamental frequency based off of found harmonic.
+	
+	Returns:
+		(Tuple) Index 0, list of lists of detected frequencies for each spectral component. Inner list aligns with f_targ_fund_list; Index 1, list of lists of peak powers for each spectral component. Inner list aligns with f_targ_fund_list. Returns None if invalid (eg. f_targ outside range of frequencies). If one of the harmonics is out of frequency bounds for input data, replaces that value with np.nan
+	'''
+	
+	# Initialize output lists
+	freqs_out = []
+	powers_out = []
+	for harm_no in range(nharms):
+		freqs_out.append([])
+		powers_out.append([])
+	
+	# Scan over each target value
+	for freqs, pwr, f_targ_fund in zip(freqs_list, pwr_list, f_targ_fund_list):
+		
+		# freqs_nsort = freqs.copy()
+		# freqs.sort()
+		
+		# if not all(freqs_nsort == freqs):
+		# 	print(f"{Fore.RED} NOt sorted!{Style.RESET_ALL}")
+		
+		# Remove all nan values
+		valid_indices = np.where(~np.isnan(freqs) & ~np.isnan(pwr)) # Find indices where neither array has NaN
+		freqs = freqs[valid_indices]
+		pwr = pwr[valid_indices]
+		
+		# Check bounds
+		freq_max = np.max(freqs)
+		freq_min = np.min(freqs)
+		freqs = np.asarray(freqs)
+		
+		# print(f"Target freq: {f_targ_fund}")
+	
+		if f_targ_fund < freq_min or f_targ_fund > freq_max:
+			return None
+		
+		# Get index of closest frequency
+		idx_targ = (np.abs(freqs - f_targ_fund)).argmin() # Find index closest to target harm frequency
+		idx_ftlow = (np.abs(freqs - (f_targ_fund-scan_bw_Hz/2))).argmin()
+		idx_fthigh = (np.abs(freqs - (f_targ_fund+scan_bw_Hz/2))).argmin()
+		
+		idx_ftlow = np.min([idx_ftlow, idx_targ-harm_scan_points//2])
+		idx_fthigh = np.max([idx_fthigh, idx_targ-harm_scan_points//2+harm_scan_points])
+		
+		
+		# print(f"IDX: {idx_ftlow}:({idx_targ}):{idx_fthigh}")
+		# fl = freqs[idx_ftlow]
+		# fh = freqs[idx_fthigh]
+		# f0 = freqs[idx_targ]
+		# print(f"IDX: {fl/1e9}:({f0/1e9}):{fh/1e9} GHz")
+		
+		# Return Max Power
+		try:
+			idx_peak = np.argmax(pwr[idx_ftlow:idx_fthigh])+idx_ftlow
+			ff_peak = freqs[idx_peak]
+			pf_peak = pwr[idx_peak]
+		except:
+			return None
+		
+		# Add to lists
+		freqs_out[0].append(ff_peak)
+		powers_out[0].append(pf_peak)
+		
+		# print(f"   peak: {ff_peak/1e6} MHz")
+		# print(f"   target: {f_targ_fund/1e6} MHz")
+		# print(f"   Delta: {ff_peak/1e6 - f_targ_fund/1e6} MHz")
+		
+		# freq_options = np.array(freqs[idx_ftlow:idx_fthigh])/1e6
+		# pwr_options = pwr[idx_ftlow:idx_fthigh]
+		# print(f"    Freqs: {freq_options} MHz")
+		# print(f"    pwrs: {pwr_options} MHz")
+		
+		
+		# print(f"  -> Found peak at: {ff_peak}")
+		
+		# Calculate for each harmonic
+		for harm_no in range(2, nharms+1):
+			
+			# print(f"  Searching harmonic: {harm_no}")
+			
+			# Check for out of bounds
+			if ff_peak*harm_no > freq_max or ff_peak*harm_no < freq_min:
+				freqs_out.append(np.nan)
+				powers_out.append(np.nan)
+				continue
+			
+			# Find and add point
+			idx_htarg = (np.abs(freqs - ff_peak*harm_no)).argmin() # Find index closest to target harm frequency
+			idx_hmax = np.argmax(pwr[(idx_htarg-harm_scan_points//2):(idx_htarg-harm_scan_points//2+harm_scan_points)]) + (idx_htarg-harm_scan_points//2) # Find local maximum
+			
+			# Append
+			freqs_out[harm_no-1].append(freqs[idx_hmax])
+			powers_out[harm_no-1].append(pwr[idx_hmax])
+	
+	# Convert to numpy arrays
+	for harm_no in range(nharms):
+		freqs_out[harm_no] = np.array(freqs_out[harm_no])
+		powers_out[harm_no] = np.array(powers_out[harm_no])
+	
+	return (freqs_out, powers_out)
+
+def search_spectrum_peak_harms(freqs:list, pwr:list, f_targ_fund:float, nharms:int=3, scan_bw_Hz:float=500, harm_scan_points:int=7):
+	''' 
+	Designed to remedy issues that cropped-up with spectrum_peak_list when the 
+	RF signal generator deviated by too much from the target frequency. Searches 
+	for the max power at a given frequency, but searches within a range of
+	scan_bw_Hz (so bw/2 in either direction). Repeats the spectrum search then
+	at each requested harmonic, however after identifying the actual frequency
+	of the fundamental, it will conduct a narrower search on the harmonics. 
+	
+	Parameters:
+		freq (list): List of frequencies in Hz, as all source data
+		pwr (list): List of powers in dBm, as all source data
+		f_targ_fund (float): Fundamental frequency to search for, in Hz
+		nharms (int): Number of harmonics to include
+		scan_bw_Hz (float): Bandwidth over which to scan for actual fundamental peak in Hz.
+		harm_scan_points (int): Number of points to search, centered around fundamental frequency based off of found harmonic.
+	
+	Returns:
+		(Tuple) Index 0, list of detected frequencies for each spectral component; Index 1, list of peak powers for each spectral component. Returns None if invalid (eg. f_targ outside range of frequencies). If one of the harmonics is out of frequency bounds for input data, replaces that value with np.nan
+	'''
+	
+	#TODO: Implement
+	#TODO: Make it listy in wyvern!
+	
+	# Remove all nan values
+	valid_indices = np.where(~np.isnan(freqs) & ~np.isnan(pwr)) # Find indices where neither array has NaN
+	freqs = freqs[valid_indices]
+	pwr = pwr[valid_indices]
+	
+	# Check bounds
+	freq_max = np.max(freqs)
+	freq_min = np.min(freqs)
+	freqs = np.asarray(freqs)
+	if f_targ_fund < freq_min or f_targ_fund > freq_max:
+		return None
+	
+	# Get index of closest frequency
+	# idx_fftarg = (np.abs(freqs - f_targ_fund)).argmin()
+	idx_ftlow = (np.abs(freqs - (f_targ_fund-scan_bw_Hz/2))).argmin()
+	idx_fthigh = (np.abs(freqs - (f_targ_fund+scan_bw_Hz/2))).argmin()
+	
+	# Return Max Power
+	try:
+		idx_peak = np.argmax(pwr[idx_ftlow:idx_fthigh])
+		ff_peak = freqs[idx_peak]
+		pf_peak = pwr[idx_peak]
+	except:
+		return None
+	
+	# Initialize output lists
+	freqs_out = [ff_peak]
+	powers_out = [pf_peak]
+	
+	# Calculate for each harmonic
+	for harm_no in range(2, nharms+1):
+		
+		# Check for out of bounds
+		if ff_peak*harm_no > freq_max or ff_peak*harm_no < freq_min:
+			freqs_out.append(np.nan)
+			powers_out.append(np.nan)
+			continue
+		
+		# Find and add point
+		idx_htarg = (np.abs(freqs - ff_peak*harm_no)).argmin() # Find index closest to target harm frequency
+		idx_hmax = np.argmax(pwr[(idx_htarg-harm_scan_points//2):(idx_htarg-harm_scan_points//2+harm_scan_points)]) # Find local maximum
+		freqs_out.append(freqs[idx_peak])
+		powers_out.append(pwr[idx_peak])
+
+	return (freqs_out, powers_out)
 
 def spectrum_peak_list(freqs, pwr, f_target, num_points:int=5):
 	''' Returns the power at a given frequency. Returns np.nan if invalid '''
