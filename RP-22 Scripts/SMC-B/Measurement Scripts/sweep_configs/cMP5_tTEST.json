@@ -1,0 +1,34 @@
+{
+	"delta_threshold_T_K": 0.01,
+	"delta_threshold_target_K": 0.3,
+	"frequency_RF":{
+		"type": "list",
+		"unit": "Hz",
+		"values": [1e9]
+	},
+	"power_RF":{
+		"type": "list",
+		"unit": "dBm",
+		"values": [-30]
+	},
+	"dc_current_mA":{
+		"type":"list",
+		"unit": "mA",
+		"values": [0.0]
+	},
+	"temp_list_K":{
+		"type":"list",
+		"unit": "K",
+		"values": [3]
+	},
+	"spectrum_analyzer":[
+		{
+			"mode": "dynamic",
+			"span_Hz": 2e3,
+			"RBW_Hz": 50,
+			"mixing_products_order": 2,
+			"lo_harmonics": 3,
+			"rf_harmonics": 3
+		}
+	]
+}
