@@ -1,6 +1,8 @@
 ''' The purpose of this script is to measure the harmonic generation capacity of the C2024Q1 chips.
 
 Allows a temperature-wait condition to be set s.t. the sweep doesn't begin until the cryostat is properly cooled-down. 
+
+MP5a: Same as MP5, however it allows each temperature point to be repeated X number of times.
 '''
 
 from heimdallr.all import *
@@ -84,6 +86,7 @@ try:
 	
 	DELTA_THRESHOLD_T = float(conf_data['delta_threshold_T_K'])
 	DELTA_THRESHOLD_TARG = float(conf_data['delta_threshold_target_K'])
+	num_temp_repeats = int(conf_data['temperature_repeats'])
 	
 	sa_conf = conf_data['spectrum_analyzer']
 except:
@@ -187,7 +190,7 @@ except Exception as e:
 	self_contents = f"ERROR: Failed to read script source. ({e})"
 
 # Define dataset dictionary
-dataset = {"calibration":{"current_sense_res_ohms": cs_res, "time_of_meas": str(cs_time)}, "dataset":{"freq_rf_GHz":[], "power_rf_dBm":[], "times":[], "waveform_f_Hz":[], "waveform_s_dBm":[], "waveform_rbw_Hz":[], "MFLI_V_offset_V":[], "requested_Idc_mA":[], "raw_meas_Vdc_V":[], "Idc_mA":[], "detect_normal":[], "temperature_K":[]}, 'info': {'source_script': __file__, 'operator_notes':operator_notes, 'configuration': json.dumps(conf_data), 'source_script_full':self_contents}}
+dataset = {"calibration":{"current_sense_res_ohms": cs_res, "time_of_meas": str(cs_time)}, "dataset":{"freq_rf_GHz":[], "power_rf_dBm":[], "times":[], "waveform_f_Hz":[], "waveform_s_dBm":[], "waveform_rbw_Hz":[], "MFLI_V_offset_V":[], "requested_Idc_mA":[], "raw_meas_Vdc_V":[], "Idc_mA":[], "detect_normal":[], "temperature_K":[], "temp_setpoint_K":[], "repeat_index":[]}, 'info': {'source_script': __file__, 'operator_notes':operator_notes, 'configuration': json.dumps(conf_data), 'source_script_full':self_contents}}
 
 dataset['aux_dataset'] = {'continuous_temp_logging': {}}
 dataset['aux_dataset']['continuous_temp_logging'] = {'temp_K':[], 'temp_setpoint_K':[],'timestamp': []}
@@ -307,173 +310,178 @@ for temp_set in temp_list_K:
 				else:
 					log.lowdebug(f"Equilibrium condition has not been met. delta T = {temp_delta} K, target deviation = {temp_targ_delta} K.", detail=f"Old average = {old_temp} K, new average = {new_temp} K.")
 	
-	# Scan over all frequencies
-	for f_rf in freq_rf:
+	# Repeat X number of times
+	for ntr_count in range(num_temp_repeats):
 		
-		if abort:
-			break
-		
-		log.info(f"Setting freq_rf to >{f_rf/1e9}< GHz.")
-		
-		# Scan over all powers
-		for p_rf in power_rf_dBm:
+		# Scan over all frequencies
+		for f_rf in freq_rf:
 			
 			if abort:
 				break
 			
-			norm_detected = False
+			log.info(f"Setting freq_rf to >{f_rf/1e9}< GHz.")
 			
-			log.info(f"Setting RF power to >{p_rf}< dBm.")
-			
-			# Scan over each bias current
-			for idc in idc_list_mA:
+			# Scan over all powers
+			for p_rf in power_rf_dBm:
 				
 				if abort:
 					break
 				
-				log.info(f"Setting bias current to >{idc}< mA.")
+				norm_detected = False
 				
-				# Set offset voltage
-				Voffset = current_set_res * idc/1e3
-				log.debug(f"Selected offset voltage {Voffset} V from current_set_res={current_set_res} Ohms and idc={idc} mA")
-				mfli.set_offset(Voffset)
-				mfli.set_output_enable(True)
+				log.info(f"Setting RF power to >{p_rf}< dBm.")
 				
-				# Prepare the signal generator
-				sig_gen.set_freq(f_rf)
-				sig_gen.set_power(p_rf)
-				sig_gen.set_enable_rf(True)
-				
-				# Prepare the spectrum analyzer
-				sa_conditions = calc_sa_conditions(sa_conf, f_rf, f_lo=None)
-				
-				# Read Vdc (-> Idc)
-				v_cs_read = np.abs(dmm.trigger_and_read())
-				
-				log.info(f"Measured bias current at {v_cs_read/cs_res*1e3} mA", detail=f"V_current_sense_read = {v_cs_read} V, CS-resistor = {cs_res} ohms.")
-				if (idc != 0) and (np.abs((v_cs_read/cs_res*1e3) - idc)/idc > 0.2):
-					log.warning(f"Measured Idc missed target by more than 20%. (Error = {np.abs((v_cs_read/cs_res*1e3) - idc)/idc*100} %)")
-				
-				# Read temperature
-				t_meas = tempctrl.get_temp()
-				
-				# Set conditions for spectrum analyzer
-				wav_rbw = None
-				wav_f = None
-				wav_s = None
-				for idx_sac, sac in enumerate(sa_conditions):
+				# Scan over each bias current
+				for idc in idc_list_mA:
 					
-					fstart = sac['f_start']
-					fend = sac['f_end']
-					frbw = sac['rbw']
+					if abort:
+						break
 					
-					log.debug(f"Measuring frequency range >{fstart/1e6}< MHz to >{fend/1e6}< MHz, RBW = >:q{frbw/1e3}< kHz.")
+					log.info(f"Setting bias current to >{idc}< mA.")
 					
-					# count += 1
-					# log.debug(f"Beginning measurement {count} of {npts}.")
+					# Set offset voltage
+					Voffset = current_set_res * idc/1e3
+					log.debug(f"Selected offset voltage {Voffset} V from current_set_res={current_set_res} Ohms and idc={idc} mA")
+					mfli.set_offset(Voffset)
+					mfli.set_output_enable(True)
 					
-					# Configure spectrum analyzer
-					spec_an.set_res_bandwidth(frbw)
-					spec_an.set_freq_start(fstart)
-					spec_an.set_freq_end(fend)
+					# Prepare the signal generator
+					sig_gen.set_freq(f_rf)
+					sig_gen.set_power(p_rf)
+					sig_gen.set_enable_rf(True)
 					
-					# Start trigger on spectrum analyzer
-					spec_an.send_manual_trigger()
+					# Prepare the spectrum analyzer
+					sa_conditions = calc_sa_conditions(sa_conf, f_rf, f_lo=None)
 					
-					# Wait for FSQ to finish sweep
-					spec_an.wait_ready()
+					# Read Vdc (-> Idc)
+					v_cs_read = np.abs(dmm.trigger_and_read())
 					
-					# Get waveform
-					wvfrm = spec_an.get_trace_data(1)
+					log.info(f"Measured bias current at {v_cs_read/cs_res*1e3} mA", detail=f"V_current_sense_read = {v_cs_read} V, CS-resistor = {cs_res} ohms.")
+					if (idc != 0) and (np.abs((v_cs_read/cs_res*1e3) - idc)/idc > 0.2):
+						log.warning(f"Measured Idc missed target by more than 20%. (Error = {np.abs((v_cs_read/cs_res*1e3) - idc)/idc*100} %)")
 					
-					# Save data
-					rbw_list = [sac['rbw']]*len(wvfrm['x'])
-					if wav_f is None:
-						wav_f = wvfrm['x']
-						wav_s = wvfrm['y']
-						wav_rbw = rbw_list
+					# Read temperature
+					t_meas = tempctrl.get_temp()
+					
+					# Set conditions for spectrum analyzer
+					wav_rbw = None
+					wav_f = None
+					wav_s = None
+					for idx_sac, sac in enumerate(sa_conditions):
+						
+						fstart = sac['f_start']
+						fend = sac['f_end']
+						frbw = sac['rbw']
+						
+						log.debug(f"Measuring frequency range >{fstart/1e6}< MHz to >{fend/1e6}< MHz, RBW = >:q{frbw/1e3}< kHz.")
+						
+						# count += 1
+						# log.debug(f"Beginning measurement {count} of {npts}.")
+						
+						# Configure spectrum analyzer
+						spec_an.set_res_bandwidth(frbw)
+						spec_an.set_freq_start(fstart)
+						spec_an.set_freq_end(fend)
+						
+						# Start trigger on spectrum analyzer
+						spec_an.send_manual_trigger()
+						
+						# Wait for FSQ to finish sweep
+						spec_an.wait_ready()
+						
+						# Get waveform
+						wvfrm = spec_an.get_trace_data(1)
+						
+						# Save data
+						rbw_list = [sac['rbw']]*len(wvfrm['x'])
+						if wav_f is None:
+							wav_f = wvfrm['x']
+							wav_s = wvfrm['y']
+							wav_rbw = rbw_list
+						else:
+							wav_f_temp = wav_f + wvfrm['x']
+							wav_s_temp = wav_s + wvfrm['y']
+							wav_rbw_temp = wav_rbw+ rbw_list
+							
+							# # Find duplicate frequencies
+							# dupl_freqs = [k for k,v in Counter(wav_x).items() if v>1]
+							
+							# # Found duplicates - resolve duplicates
+							# if len(dupl_freqs) > 0:
+							# 	pass
+							
+							# Sort result
+							wav_f = []
+							wav_s = []
+							wav_rbw = []
+							for wx,wy,wr in sorted(zip(wav_f_temp, wav_s_temp, wav_rbw_temp)):
+								wav_f.append(wx)
+								wav_s.append(wy)
+								wav_rbw.append(wr)
+					
+					# Check for chip going normal
+					if v_cs_read < THRESHOLD_NORMAL_V * Voffset:
+						# Chip has gone normal
+						log.warning(f"Chip has gone normal. Moving to next power condition. {v_cs_read} > {THRESHOLD_NORMAL_V}*{Voffset}.")
+						norm_detected = True
 					else:
-						wav_f_temp = wav_f + wvfrm['x']
-						wav_s_temp = wav_s + wvfrm['y']
-						wav_rbw_temp = wav_rbw+ rbw_list
+						log.debug(f"Chip has not gone normal. {v_cs_read} > {THRESHOLD_NORMAL_V}*{Voffset}.")
+						norm_detected = False
+					
+					log.debug(f"Saving datapoint.")
+					
+					# After all spectrum analyzer data has been captured, save all data to master dataset
+					dataset['dataset']['freq_rf_GHz'].append(f_rf/1e9)
+					dataset['dataset']['power_rf_dBm'].append(p_rf)
+					
+					dataset['dataset']['waveform_f_Hz'].append(wav_f)
+					dataset['dataset']['waveform_s_dBm'].append(wav_s)
+					dataset['dataset']['waveform_rbw_Hz'].append(wav_rbw)
+					
+					dataset['dataset']['MFLI_V_offset_V'].append(Voffset)
+					dataset['dataset']['requested_Idc_mA'].append(idc)
+					dataset['dataset']['raw_meas_Vdc_V'].append(v_cs_read)
+					dataset['dataset']['Idc_mA'].append(v_cs_read/cs_res*1e3)
+					dataset['dataset']['detect_normal'].append(norm_detected)
+					
+					dataset['dataset']['temperature_K'].append(t_meas)
+					dataset['dataset']['times'].append(str(datetime.datetime.now()))
+					dataset['dataset']['temp_setpoint_K'].append(temp_set)
+					dataset['dataset']['repeat_index'].append(ntr_count)
+					
+					# Check for autosave
+					if time.time() - time_last_save > TIME_AUTOSAVE_S:
 						
-						# # Find duplicate frequencies
-						# dupl_freqs = [k for k,v in Counter(wav_x).items() if v>1]
+						# Save data and log
+						log.save_hdf(os.path.join(LOG_DIRECTORY, f"{sweep_name}_autosave.log.hdf"))
 						
-						# # Found duplicates - resolve duplicates
-						# if len(dupl_freqs) > 0:
-						# 	pass
+						dict_to_hdf(dataset, os.path.join(DATA_DIRECTORY, f"{sweep_name}_autosave.hdf"))
+						log.debug(f"Autosaved logs and data.")
 						
-						# Sort result
-						wav_f = []
-						wav_s = []
-						wav_rbw = []
-						for wx,wy,wr in sorted(zip(wav_f_temp, wav_s_temp, wav_rbw_temp)):
-							wav_f.append(wx)
-							wav_s.append(wy)
-							wav_rbw.append(wr)
-				
-				# Check for chip going normal
-				if v_cs_read < THRESHOLD_NORMAL_V * Voffset:
-					# Chip has gone normal
-					log.warning(f"Chip has gone normal. Moving to next power condition. {v_cs_read} > {THRESHOLD_NORMAL_V}*{Voffset}.")
-					norm_detected = True
-				else:
-					log.debug(f"Chip has not gone normal. {v_cs_read} > {THRESHOLD_NORMAL_V}*{Voffset}.")
-					norm_detected = False
-				
-				log.debug(f"Saving datapoint.")
-				
-				# After all spectrum analyzer data has been captured, save all data to master dataset
-				dataset['dataset']['freq_rf_GHz'].append(f_rf/1e9)
-				dataset['dataset']['power_rf_dBm'].append(p_rf)
-				
-				dataset['dataset']['waveform_f_Hz'].append(wav_f)
-				dataset['dataset']['waveform_s_dBm'].append(wav_s)
-				dataset['dataset']['waveform_rbw_Hz'].append(wav_rbw)
-				
-				dataset['dataset']['MFLI_V_offset_V'].append(Voffset)
-				dataset['dataset']['requested_Idc_mA'].append(idc)
-				dataset['dataset']['raw_meas_Vdc_V'].append(v_cs_read)
-				dataset['dataset']['Idc_mA'].append(v_cs_read/cs_res*1e3)
-				dataset['dataset']['detect_normal'].append(norm_detected)
-				
-				dataset['dataset']['temperature_K'].append(t_meas)
-				dataset['dataset']['times'].append(str(datetime.datetime.now()))
-				
-				# Check for autosave
-				if time.time() - time_last_save > TIME_AUTOSAVE_S:
+						time_last_save = time.time()
 					
-					# Save data and log
-					log.save_hdf(os.path.join(LOG_DIRECTORY, f"{sweep_name}_autosave.log.hdf"))
+					# Wait for user input - check to quit
+					try:
+						usr_input = inputimeout(prompt="Enter 'q' to quit (will work next cycle): ", timeout=0.01)
+					except TimeoutOccurred:
+						usr_input = ''
+						
+					# Quit if told
+					if usr_input.lower() == "q":
+						log.info(f"Received exit signal quitting.")
+						abort = True
 					
-					dict_to_hdf(dataset, os.path.join(DATA_DIRECTORY, f"{sweep_name}_autosave.hdf"))
-					log.debug(f"Autosaved logs and data.")
-					
-					time_last_save = time.time()
-				
-				# Wait for user input - check to quit
-				try:
-					usr_input = inputimeout(prompt="Enter 'q' to quit (will work next cycle): ", timeout=0.01)
-				except TimeoutOccurred:
-					usr_input = ''
-					
-				# Quit if told
-				if usr_input.lower() == "q":
-					log.info(f"Received exit signal quitting.")
-					abort = True
-				
-				# Check for skip to next power condition
-				if norm_detected:
-					
-					# Let chip recover
-					log.info("Turning off DC bias and signal generator to let chip recover")
-					sig_gen.set_enable_rf(False)
-					mfli.set_offset(0)
-					log.debug(f"Waiting {RECOVERY_TIME_S} seconds for chip to recover.")
-					time.sleep(RECOVERY_TIME_S)
-					log.debug("Post-normal recovery procedure complete. Proceeding to next sweep point.")
-					break
+					# Check for skip to next power condition
+					if norm_detected:
+						
+						# Let chip recover
+						log.info("Turning off DC bias and signal generator to let chip recover")
+						sig_gen.set_enable_rf(False)
+						mfli.set_offset(0)
+						log.debug(f"Waiting {RECOVERY_TIME_S} seconds for chip to recover.")
+						time.sleep(RECOVERY_TIME_S)
+						log.debug("Post-normal recovery procedure complete. Proceeding to next sweep point.")
+						break
 
 if abort:
 	log.info(f"Sweep has been aborted. Shutting off signal generator, heater and DC bias.")
