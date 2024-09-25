@@ -18,23 +18,22 @@ from jarnsaxa import hdf_to_dict, dict_to_hdf
 #------------------------------------------------------------
 # Import Data
 
-# datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 1 4mm'])
+datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C1*E', 'Track 2*'])
 
-# if datapath is None:
-# 	print(f"{Fore.RED}Failed to find data location{Style.RESET_ALL}")
-# 	sys.exit()
-# else:
-# 	print(f"{Fore.GREEN}Located data directory at: {Fore.LIGHTBLACK_EX}{datapath}{Style.RESET_ALL}")
+if datapath is None:
+	print(f"{Fore.RED}Failed to find data location{Style.RESET_ALL}")
+	sys.exit()
+else:
+	print(f"{Fore.GREEN}Located data directory at: {Fore.LIGHTBLACK_EX}{datapath}{Style.RESET_ALL}")
 
-# # filename = "RP22B_MP3_t1_31July2024_R4C4T1_r1_autosave.hdf"
-# filename = "RP22B_MP3_t1_1Aug2024_R4C4T1_r1.hdf"
-
-# analysis_file = os.path.join(datapath, filename)
-analysis_file = "/Users/grantgiesbrecht/Downloads/RP22B_MP5_t2_18Sept2024_R4C1T2_r1.hdf"
+# filename = "RP22B_MP3_t1_31July2024_R4C4T1_r1_autosave.hdf"
+filename = "RP22B_MP5a_t3_19Sept2024_R4C1T2_r1.hdf"
+out_filename = "RP22B_MP5a_t3_19Sept2024_R4C1T2_r1_processed.hdf"
+# analysis_file = "/Users/grantgiesbrecht/Downloads/RP22B_MP5_t2_18Sept2024_R4C1T2_r1.hdf"
 
 log = LogPile()
 
-inputdata = hdf_to_dict("/Users/grantgiesbrecht/Downloads/RP22B_MP5_t2_18Sept2024_R4C1T2_r1.hdf")
+inputdata = hdf_to_dict(os.path.join(datapath, filename))
 
 times_main = inputdata['dataset']['times']
 times_main_ds = [datetime.datetime.strptime(ts, '%Y-%m-%d %H:%M:%S.%f') for ts in times_main]
@@ -98,4 +97,4 @@ for midx, main_time in enumerate(times_main_ds):
 	if not found_val:
 		inputdata['dataset']['temp_sp_K'].append(inputdata['aux_dataset']['continuous_temp_logging']['temp_setpoint_K'][-1])
 
-dict_to_hdf(inputdata, "/Users/grantgiesbrecht/Downloads/RP22B_MP5_t2_18Sept2024_R4C1T2_r1_processed.hdf")
+dict_to_hdf(inputdata, os.path.join(datapath, out_filename))

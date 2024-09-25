@@ -30,19 +30,17 @@ from jarnsaxa import *
 # Z0x = 49.5
 # # Z0x = 50
 
-datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C1*E', 'Track 2 43mm', 'tdr'])
+datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R3C1*D', 'Track 2 43mm', 'tdr'])
 if datapath is None:
 	print(f"{Fore.RED}Failed to find data location{Style.RESET_ALL}")
 	sys.exit()
 else:
 	print(f"{Fore.GREEN}Located data directory at: {Fore.LIGHTBLACK_EX}{datapath}{Style.RESET_ALL}")
 
-filename = "RP22B_MP4_13Sept2024_R4C1T2.hdf"
+filename = "RP22B_MP4_24Sept2024_R3C1T2_r1.hdf"
 use_old_tdr_file_format = False
-Z0x = 49.4
+Z0x = 49.25
 # Z0x = 50
-averaging_cryo_R_x_ns = [58, 75]
-averaging_cryo_L_x_ns = [58, 75]
 
 analysis_file = os.path.join(datapath, filename)
 
@@ -90,7 +88,10 @@ def gamma_to_Z(gvals:list):
 XLIM = [42, 62]
 YLIM1 = [45, 55]
 YLIM2T = [0, 400]
-YLIM2B = [0, 100]
+YLIM2B = [40, 60]
+
+averaging_cryo_R_x_ns = [57.75, 75]
+averaging_cryo_L_x_ns = [57.75, 75]
 
 fig1, (ax1_1, ax1_2, ax1_3, ax1_4) = plt.subplots(4, 1, figsize=(8, 10))
 fig2, (ax2_1, ax2_2, ax2_3, ax2_4) = plt.subplots(4, 1, figsize=(8, 10))
@@ -165,80 +166,6 @@ ax1_4.set_title("Cable Cryostat-L")
 # fig1.suptitle("13 dB Attenuator")
 fig1.tight_layout()
 
-##-------------------------------------------
-# Plot TDR graphs - 20 dB
-
-display_name = '20-dB'
-
-fig1 = plt.figure(1, figsize=(8, 10))
-
-if use_old_tdr_file_format:
-	srcy = (data['dataset']['atten20dB']['open']['y'])
-	src = data['dataset']['atten20dB']['open']
-else:
-	srcy = (data['dataset']['atten20dB']['open']['Z']['y'])
-	src = data['dataset']['atten20dB']['open']['Z']
-# ax1_1.subplot(4, 1, 1)
-ax1_1.plot(np.array(src['x'])*1e9, srcy, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
-ax1_1.set_xlabel("Time (ns)")
-ax1_1.set_ylabel("Impedance (Ohms)")
-ax1_1.grid(True)
-ax1_1.set_title("Cable Open-Circuit")
-# ax1_1.set_xlim(XLIM)
-# ax1_1.set_ylim(YLIM1)
-ax1_1.legend()
-
-if use_old_tdr_file_format:
-	srcy = (data['dataset']['atten20dB']['50_term']['y'])
-	src = data['dataset']['atten20dB']['50_term']
-else:
-	srcy = (data['dataset']['atten20dB']['match']['Z']['y'])
-	src = data['dataset']['atten20dB']['match']['Z']
-# ax1_2.subplot(4, 1, 2)
-ax1_2.plot(np.array(src['x'])*1e9, srcy, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
-ax1_2.set_xlabel("Time (ns)")
-ax1_2.set_ylabel("Impedance (Ohms)")
-ax1_2.grid(True)
-ax1_2.set_title("Cable 50-Ohm Termination")
-# ax1_2.set_xlim(XLIM)
-# ax1_2.set_ylim(YLIM1)
-ax1_2.legend()
-
-if use_old_tdr_file_format:
-	srcy = (data['dataset']['atten20dB']['cryostat']['opposite_50_term']['y'])
-	src = data['dataset']['atten20dB']['cryostat']['opposite_50_term']
-else:
-	srcy = (data['dataset']['atten20dB']['CryoR_MatchL']['Z']['y'])
-	src = data['dataset']['atten20dB']['CryoR_MatchL']['Z']
-# plt.subplot(4, 1, 3)
-ax1_3.plot(np.array(src['x'])*1e9, srcy, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
-ax1_3.set_xlabel("Time (ns)")
-ax1_3.set_ylabel("Impedance (Ohms)")
-ax1_3.grid(True)
-ax1_3.set_title("Cable Cryostat-R")
-# ax1_3.set_xlim(XLIM)
-# ax1_3.set_ylim(YLIM1)
-ax1_3.legend()
-
-if use_old_tdr_file_format:
-	srcy = (data['dataset']['atten20dB']['cryostat_left']['opposite_50_term']['y'])
-	src = data['dataset']['atten20dB']['cryostat_left']['opposite_50_term']
-else:
-	srcy = (data['dataset']['atten20dB']['CryoL_MatchR']['Z']['y'])
-	src = data['dataset']['atten20dB']['CryoL_MatchR']['Z']
-# plt.subplot(4, 1, 4)
-ax1_4.plot(np.array(src['x'])*1e9, srcy, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
-ax1_4.set_xlabel("Time (ns)")
-ax1_4.set_ylabel("Impedance (Ohms)")
-ax1_4.grid(True)
-ax1_4.set_title("Cable Cryostat-L")
-# ax1_4.set_xlim(XLIM)
-# ax1_4.set_ylim(YLIM1)
-ax1_4.legend()
-
-# fig1.suptitle("20 dB Attenuator")
-fig1.tight_layout()
-
 ###################################################################
 # Figure 2 - transformed to compensate for attenuator
 
@@ -290,7 +217,7 @@ else:
 	src = data['dataset']['atten13dB']['CryoR_MatchL']['Z']
 # plt.subplot(4, 1, 3)
 cryo_R = atten_tdr_transform(srcy, atten_dB, Z0x)
-ax2_3.plot(np.array(src['x'])*1e9, atten_tdr_transform(srcy, atten_dB, Z0x), linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
+ax2_3.plot(np.array(src['x'])*1e9, cryo_R, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
 ax2_3.set_xlabel("Time (ns)")
 ax2_3.set_ylabel("Impedance (Ohms)")
 ax2_3.grid(True)
@@ -306,7 +233,7 @@ else:
 	src = data['dataset']['atten13dB']['CryoL_MatchR']['Z']
 # plt.subplot(4, 1, 4)
 cryo_L = atten_tdr_transform(srcy, atten_dB, Z0x)
-ax2_4.plot(np.array(src['x'])*1e9, atten_tdr_transform(srcy, atten_dB, Z0x), linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
+ax2_4.plot(np.array(src['x'])*1e9, cryo_L, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
 ax2_4.set_xlabel("Time (ns)")
 ax2_4.set_ylabel("Impedance (Ohms)")
 ax2_4.grid(True)
@@ -316,83 +243,6 @@ ax2_4.set_ylim(YLIM2B)
 
 # fig1.suptitle("13 dB Attenuator")
 fig1.tight_layout()
-
-##-------------------------------------------
-# Plot TDR graphs - 20 dB
-
-display_name = '20-dB'
-atten_dB = 20
-
-fig1 = plt.figure(1, figsize=(8, 10))
-
-if use_old_tdr_file_format:
-	srcy = (data['dataset']['atten20dB']['open']['y'])
-	src = data['dataset']['atten20dB']['open']
-else:
-	srcy = (data['dataset']['atten20dB']['open']['Z']['y'])
-	src = data['dataset']['atten20dB']['open']['Z']
-# ax2_1.subplot(4, 1, 1)
-ax2_1.plot(np.array(src['x'])*1e9, atten_tdr_transform(srcy, atten_dB, Z0x), linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
-ax2_1.set_xlabel("Time (ns)")
-ax2_1.set_ylabel("Impedance (Ohms)")
-ax2_1.grid(True)
-ax2_1.set_title("Corrected: Cable Open-Circuit")
-# ax2_1.set_xlim(XLIM)
-ax2_1.set_ylim(YLIM2T)
-ax2_1.legend()
-
-if use_old_tdr_file_format:
-	srcy = (data['dataset']['atten20dB']['50_term']['y'])
-	src = data['dataset']['atten20dB']['50_term']
-else:
-	srcy = (data['dataset']['atten20dB']['match']['Z']['y'])
-	src = data['dataset']['atten20dB']['match']['Z']
-# ax2_2.subplot(4, 1, 2)
-ax2_2.plot(np.array(src['x'])*1e9, atten_tdr_transform(srcy, atten_dB, Z0x), linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
-ax2_2.set_xlabel("Time (ns)")
-ax2_2.set_ylabel("Impedance (Ohms)")
-ax2_2.grid(True)
-ax2_2.set_title("Corrected: Cable 50-Ohm Termination")
-# ax2_2.set_xlim(XLIM)
-ax2_2.set_ylim(YLIM2T)
-ax2_2.legend()
-
-if use_old_tdr_file_format:
-	srcy = (data['dataset']['atten20dB']['cryostat']['opposite_50_term']['y'])
-	src = data['dataset']['atten20dB']['cryostat']['opposite_50_term']
-else:
-	srcy = (data['dataset']['atten20dB']['CryoR_MatchL']['Z']['y'])
-	src = data['dataset']['atten20dB']['CryoR_MatchL']['Z']
-# plt.subplot(4, 1, 3)
-ax2_3.plot(np.array(src['x'])*1e9, atten_tdr_transform(srcy, atten_dB, Z0x), linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
-ax2_3.set_xlabel("Time (ns)")
-ax2_3.set_ylabel("Impedance (Ohms)")
-ax2_3.grid(True)
-ax2_3.set_title("Corrected: Cable Cryostat-R")
-# ax2_3.set_xlim(XLIM)
-ax2_3.set_ylim(YLIM2B)
-ax2_3.legend()
-
-if use_old_tdr_file_format:
-	srcy = (data['dataset']['atten20dB']['cryostat_left']['opposite_50_term']['y'])
-	src = data['dataset']['atten20dB']['cryostat_left']['opposite_50_term']
-else:
-	srcy = (data['dataset']['atten20dB']['CryoL_MatchR']['Z']['y'])
-	src = data['dataset']['atten20dB']['CryoL_MatchR']['Z']
-# plt.subplot(4, 1, 4)
-ax2_4.plot(np.array(src['x'])*1e9, atten_tdr_transform(srcy, atten_dB, Z0x), linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
-ax2_4.set_xlabel("Time (ns)")
-ax2_4.set_ylabel("Impedance (Ohms)")
-ax2_4.grid(True)
-ax2_4.set_title("Corrected: Cable Cryostat-L")
-# ax2_4.set_xlim(XLIM)
-ax2_4.set_ylim(YLIM2B)
-ax2_4.legend()
-
-# fig1.suptitle("20 dB Attenuator")
-fig1.tight_layout()
-fig2.tight_layout()
-
 
 ##-------------------------------------------------------------------
 ## Calculate standard deviations
@@ -415,9 +265,6 @@ print(f"\tStDev: {stdev_R}")
 plt.figure(3)
 plt.hist(cryo_L[avging_mask], bins=15, alpha=0.4)
 plt.hist(cryo_R[avging_mask], bins=15, alpha=0.4)
-
-
-
 
 
 plt.show()
