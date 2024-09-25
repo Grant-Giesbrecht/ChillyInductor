@@ -61,7 +61,7 @@ with h5py.File(analysis_file, 'r') as fh:
 	
 	temperature_K = fh[GROUP]['temperature_K'][()]
 	
-	temp_sp_K = fh[GROUP]['temp_sp_K'][()]
+	temp_sp_K = fh[GROUP]['temp_setpoint_K'][()]
 
 ##--------------------------------------------
 # Generate Mixing Products lists
@@ -106,24 +106,56 @@ def plot_selcted_data():
 	# Plot results
 	ax1.cla()
 	
-	# # Check correct number of points
-	# mask_len = np.sum(mask)
-	# if len(req_bias_list) != mask_len:
-	# 	log.warning(f"Cannot display data: Mismatched number of points (mask: {mask_len}, bias: {len(req_bias_list)})")
-	# 	fig1.canvas.draw_idle()
-	# 	return
+	# Average out repeated sweeps
+	masked_biases = np.unique(requested_Idc_mA[mask])
+	mean_bias = []
+	std_bias = []
+	mean_rf1 = []
+	mean_rf2 = []
+	mean_rf3 = []
+	std_rf1 = []
+	std_rf2 = []
+	std_rf3 = []
+	for mb in masked_biases:
+		
+		locmask = (requested_Idc_mA == mb) & mask
+		
+		mean_bias.append(np.mean(Idc_mA[locmask]))
+		std_bias.append(np.std(Idc_mA[locmask]))
+		
+		mean_rf1.append(np.mean(rf1[locmask]))
+		std_rf1.append(np.std(rf1[locmask]))
+		
+		mean_rf2.append(np.mean(rf2[locmask]))
+		std_rf2.append(np.std(rf2[locmask]))
+		
+		mean_rf3.append(np.mean(rf3[locmask]))
+		std_rf3.append(np.std(rf3[locmask]))
+	
+	mean_rf1 = np.array(mean_rf1)
+	mean_rf2 = np.array(mean_rf2)
+	mean_rf3 = np.array(mean_rf3)
+	
+	std_rf1 = np.array(std_rf1)
+	std_rf2 = np.array(std_rf2)
+	std_rf3 = np.array(std_rf3)
+	
+	ax1.errorbar(mean_bias, mean_rf1, xerr=std_bias, yerr=std_rf1, linestyle=':', marker='o', markersize=1.5, color=(0, 0.7, 0))
+	ax1.errorbar(mean_bias, mean_rf2, xerr=std_bias, yerr=std_rf2, linestyle=':', marker='o', markersize=1.5, color=(0, 0, 0.7))
+	ax1.errorbar(mean_bias, mean_rf3, xerr=std_bias, yerr=std_rf3, linestyle=':', marker='o', markersize=1.5, color=(0.7, 0, 0))
+	
+	ax1.fill_between(mean_bias, mean_rf1 - std_rf1, mean_rf1 + std_rf1, color=(0, 0.7, 0), alpha=0.25)
+	ax1.fill_between(mean_bias, mean_rf2 - std_rf2, mean_rf2 + std_rf2, color=(0, 0, 0.7), alpha=0.25)
+	ax1.fill_between(mean_bias, mean_rf3 - std_rf3, mean_rf3 + std_rf3, color=(0.7, 0, 0), alpha=0.25)
 	
 	
-	ax1.plot(Idc_mA[mask], rf1[mask], linestyle=':', marker='o', markersize=1.5, color=(0, 0.7, 0))
-	ax1.plot(Idc_mA[mask], rf2[mask], linestyle=':', marker='o', markersize=1.5, color=(0, 0, 0.7))
-	ax1.plot(Idc_mA[mask], rf3[mask], linestyle=':', marker='o', markersize=1.5, color=(0.7, 0, 0))
 	ax1.set_title(f"f = {f} GHz, p = {p} dBm")
 	ax1.set_xlabel("DC Bias (mA)")
 	ax1.set_ylabel("Power (dBm)")
 	ax1.legend(["Fundamental", "2nd Harm.", "3rd Harm."])
 	ax1.grid(True)
 	ax1.set_ylim([-100, -20])
-	ax1.set_xlim([0, 0.6])
+	ax1.set_xlim([0, 0.15])
 	
 	fig1.canvas.draw_idle()
 	
