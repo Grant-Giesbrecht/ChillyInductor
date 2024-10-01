@@ -2912,7 +2912,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 					name = name + ".graf"
 				
 				# Create graf
-				write_GrAF(afig, name)
+				write_GrAF(afig, name, conditions=self.gcond)
 				self.log.info(f"Saved figure to file '{name}'.")
 				
 
