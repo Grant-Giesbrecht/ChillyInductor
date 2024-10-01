@@ -15,6 +15,8 @@ import numpy as np
 import pickle
 from jarnsaxa import *
 
+plt.rcParams['font.family'] = 'Aptos'
+
 #------------------------------------------------------------
 # Import Data
 
@@ -222,7 +224,8 @@ ax2_3.set_xlabel("Time (ns)")
 ax2_3.set_ylabel("Impedance (Ohms)")
 ax2_3.grid(True)
 ax2_3.set_title("Corrected: Cable Cryostat-R")
-# ax2_3.set_xlim(XLIM)
+# ax2_3.set_title("3.7 $\mu$m Chip TDR Measurement")
+# ax2_3.set_xlim([43, 89.2])
 ax2_3.set_ylim(YLIM2B)
 
 if use_old_tdr_file_format:
@@ -254,6 +257,10 @@ mean_L = np.mean(cryo_L[avging_mask])
 stdev_R = np.std(cryo_R[avging_mask])
 mean_R = np.mean(cryo_R[avging_mask])
 
+cryo_RLavg = np.concatenate((cryo_R[avging_mask], cryo_L[avging_mask]))
+stdev_RLa = np.std(cryo_RLavg)
+mean_RLa = np.mean(cryo_RLavg)
+
 print(f"Cryostat from left:")
 print(f"\tMean: {mean_L}")
 print(f"\tStDev: {stdev_L}")
@@ -262,9 +269,22 @@ print(f"Cryostat from right:")
 print(f"\tMean: {mean_R}")
 print(f"\tStDev: {stdev_R}")
 
+print(f"Combined:")
+print(f"\tMean: {mean_RLa}")
+print(f"\tStDev: {stdev_RLa}")
+
 plt.figure(3)
 plt.hist(cryo_L[avging_mask], bins=15, alpha=0.4)
 plt.hist(cryo_R[avging_mask], bins=15, alpha=0.4)
 
+fig4, ax = plt.subplots(figsize=(4.5,3))
+ax.hist(cryo_RLavg, bins=15)
+ax.set_xlabel("Characteristic Impedance ($\Omega$)")
+ax.set_ylabel("Counts")
+fig4.tight_layout()
+ax.grid()
+
+fig4.savefig("AP7d_fig4.svg", format='svg')
+fig2.savefig("AP7d_fig2.svg", format='svg')
 
 plt.show()

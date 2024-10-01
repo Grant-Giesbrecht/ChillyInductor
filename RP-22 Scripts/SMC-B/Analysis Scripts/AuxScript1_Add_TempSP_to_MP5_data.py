@@ -27,8 +27,8 @@ else:
 	print(f"{Fore.GREEN}Located data directory at: {Fore.LIGHTBLACK_EX}{datapath}{Style.RESET_ALL}")
 
 # filename = "RP22B_MP3_t1_31July2024_R4C4T1_r1_autosave.hdf"
-filename = "RP22B_MP5a_t3_19Sept2024_R4C1T2_r1.hdf"
-out_filename = "RP22B_MP5a_t3_19Sept2024_R4C1T2_r1_processed.hdf"
+filename = "RP22B_MP5_t2_18Sept2024_R4C1T2_r1.hdf"
+out_filename = "RP22B_MP5_t2_18Sept2024_R4C1T2_r1_processed.hdf"
 # analysis_file = "/Users/grantgiesbrecht/Downloads/RP22B_MP5_t2_18Sept2024_R4C1T2_r1.hdf"
 
 log = LogPile()

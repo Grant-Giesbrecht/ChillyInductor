@@ -41,6 +41,11 @@
 			"chip_name": "R4C1",
 			"track": "Track 2  (43 mm)",
 			"path": ["ARC0*", "RP-22*", "Data", "SMC-B*", "*R4C1*", "Track 2*"]
+		},
+		{
+			"chip_name": "R3C1",
+			"track": "Track 2  (43 mm)",
+			"path": ["ARC0*", "RP-22*", "Data", "SMC-B*", "*R3C1*", "Track 2*"]
 		}
 	],
 	"sparam_sources": [

@@ -328,7 +328,7 @@ def spectrum_sum(freqs, pwr, f_min:float=None, f_max:float=None):
 	''' Returns the total power in a spectrum. '''
 	
 	all_bws = []
-	pwr_sum = 0
+	pwr_sum_mW = 0
 	
 	if f_min is not None or f_max is not None:
 		print(f"{Fore.RED}This hasn't been implemented!{Style.RESET_ALL} Just need to filter pwr in the for loop statement and add the starting index to idx.")
@@ -338,26 +338,34 @@ def spectrum_sum(freqs, pwr, f_min:float=None, f_max:float=None):
 	for idx, s_pt in enumerate(pwr):
 		
 		# Try to find lower freq delta
-		bw_list = []
+		mean_pwr = None
+		bw_new = None
 		try:
-			bw_new = freqs[idx]-freqs[idx-1]
+			bw_new = np.abs(freqs[idx]-freqs[idx-1])
+			mean_pwr = np.mean([dBm2W(pwr[idx]), dBm2W(pwr[idx-1])])
 			if bw_new == 0:
-				bw_new = freqs[idx-1]-freqs[idx-2]
-			bw_list.append(np.abs(bw_new))
+				bw_new = np.abs(freqs[idx-1]-freqs[idx-2])
+				mean_pwr = np.mean([dBm2W(pwr[idx-1]), dBm2W(pwr[idx-2])])
 		except:
 			pass
 		
 		# Try to find upper freq delta
 		try:
-			bw_new = freqs[idx+1]-freqs[idx]
+			bw_new2 = np.abs(freqs[idx+1]-freqs[idx])
+			mean_pwr2 = np.mean([dBm2W(pwr[idx+1]), dBm2W(pwr[idx])])
 			if bw_new == 0:
-				bw_new = freqs[idx+2]-freqs[idx+1]
-			bw_list.append(np.abs(bw_new))
+				bw_new2 = np.abs(freqs[idx+2]-freqs[idx+1])
+				mean_pwr2 = np.mean([dBm2W(pwr[idx+2]), dBm2W(pwr[idx+1])])
 		except:
 			pass
 		
-		# Get minimum BW change
-		bw = min(bw_list)
+		# Pick smallest gap
+		if (bw_new is None) or ((bw_new2 is not None) and (bw_new2 < bw_new)):
+			bw = bw_new2
+			use_pwr = mean_pwr2
+		else:
+			bw = bw_new
+			use_pwr = mean_pwr
 		
 		# If BW is large, skip it!
 		if bw > 10e3:
@@ -366,11 +374,13 @@ def spectrum_sum(freqs, pwr, f_min:float=None, f_max:float=None):
 		# Add to BW list
 		all_bws.append(bw)
 		
+		# print(f"Mean power:{use_pwr}, BW: {bw}, sum: {use_pwr*bw}")
+		
 		# Add to power sum
-		pwr_sum += dBm2W(s_pt)*bw
+		pwr_sum_mW += use_pwr*(bw*1000)
 	
 	# Return sum
-	return W2dBm(pwr_sum)
+	return W2dBm(pwr_sum_mW/1e3)
 
 def subplot_size(N:int):
 	# Thanks Copilot
@@ -1332,7 +1342,7 @@ def dfplotcm(df, xparam:str, yparam:str, zparam:str, fixedparam:dict=None, skip_
 	# Return data values
 	return (X, Y, Z)
 
-def dfplot3d(df, xparam:str, yparam:str, zparam:str, fixedparam:dict=None, skip_plot:bool=False, fig_no:int=1, autoshow:bool=False, show_markers:bool=False, projections=None, hovertips:bool=True, subplot_no:tuple=None, cmap:str='coolwarm'):
+def dfplot3d(df, xparam:str, yparam:str, zparam:str, xlabel:str=None, ylabel:str=None, zlabel:str=None, fixedparam:dict=None, skip_plot:bool=False, fig_no:int=1, autoshow:bool=False, show_markers:bool=False, projections=None, hovertips:bool=True, subplot_no:tuple=None, cmap:str='coolwarm', marker:str='.', markersize:float=3, markercolor:tuple=(0, 0.4, 0.7)):
 	''' Accepts a dataframe as input, and returns a tuple with (X,Y,Z)
 # 	2D lists to plot using contourf(). '''
 	
@@ -1340,12 +1350,12 @@ def dfplot3d(df, xparam:str, yparam:str, zparam:str, fixedparam:dict=None, skip_
 	X, Y, Z = dfplotcm(df, xparam, yparam, zparam, fixedparam=fixedparam, skip_plot=True, fig_no=fig_no, autoshow=False)
 	
 	# Generate 3D plot
-	lplot3d(X, Y, Z, xparam, yparam, zparam, skip_plot=skip_plot, fig_no=fig_no, autoshow=autoshow, show_markers=show_markers, projections=projections, hovertips=hovertips, subplot_no=subplot_no, cmap=cmap)
+	lplot3d(X, Y, Z, xparam, yparam, zparam, xlabel=xlabel, ylabel=ylabel, zlabel=zlabel, skip_plot=skip_plot, fig_no=fig_no, autoshow=autoshow, show_markers=show_markers, projections=projections, hovertips=hovertips, subplot_no=subplot_no, cmap=cmap, marker=marker, markersize=markersize, markercolor=markercolor)
 	
 	# Return data values
 	return (X, Y, Z)
 
-def lplot3d(X, Y, Z, xparam:str, yparam:str, zparam:str, skip_plot:bool=False, fig_no:int=1, autoshow:bool=False, show_markers:bool=False, projections=None, hovertips:bool=True, subplot_no:tuple=None, cmap:str='coolwarm'):
+def lplot3d(X, Y, Z, xparam:str, yparam:str, zparam:str, xlabel:str=None, ylabel:str=None, zlabel:str=None, skip_plot:bool=False, fig_no:int=1, autoshow:bool=False, show_markers:bool=False, projections=None, hovertips:bool=True, subplot_no:tuple=None, cmap:str='coolwarm', marker:str='.', markersize:float=3, markercolor:tuple=(0, 0.4, 0.7), title:str=None):
 	''' Accepts a dataframe as input, and returns a tuple with (X,Y,Z)
 # 	2D lists to plot using contourf(). '''
 	
@@ -1362,9 +1372,18 @@ def lplot3d(X, Y, Z, xparam:str, yparam:str, zparam:str, skip_plot:bool=False, f
 		ax.contourf(X,Y,Z, zdir='x', offset=-40, cmap='coolwarm')
 		ax.contourf(X,Y,Z, zdir='y', offset=40, cmap='coolwarm')
 	
-	ax.set_xlabel(xparam)
-	ax.set_ylabel(yparam)
-	ax.set_zlabel(zparam)
+	if xlabel is None:
+		xlabel = xparam
+	if ylabel is None:
+		ylabel = yparam
+	if zlabel is None:
+		zlabel = zparam
+	ax.set_xlabel(xlabel)
+	ax.set_ylabel(ylabel)
+	ax.set_zlabel(zlabel)
+	
+	if title is not None:
+		ax.set_title(title)
 		
 	# Initialize an empty annotation - Thanks Copilot
 	annot = ax.annotate("", xy=(0, 0), xytext=(20, 20), textcoords="offset points", bbox=dict(boxstyle="round", fc="w"), arrowprops=dict(arrowstyle="->"))
@@ -1376,7 +1395,7 @@ def lplot3d(X, Y, Z, xparam:str, yparam:str, zparam:str, skip_plot:bool=False, f
 		flatY = Y.flatten()
 		flatZ = Z.flatten()
 		
-		sc = ax.scatter(flatX,flatY, flatZ, color=(0, 0.4, 0.7), s=3, marker='.', label='Data points', picker=True)
+		sc = ax.scatter(flatX,flatY, flatZ, color=markercolor, s=markersize, marker=marker, label='Data points', picker=True)
 	
 		# Update the annotation when hovering over points - Thanks Copilot
 		def update_annot(annot_text, mouse_event):
