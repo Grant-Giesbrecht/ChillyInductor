@@ -23,6 +23,7 @@ import matplotlib.pyplot as plt
 from chillyinductor.rp22_helper import *
 from colorama import Fore, Style
 from ganymede import *
+from graf.base import *
 from pylogfile.base import *
 import sys
 import numpy as np
@@ -1608,6 +1609,8 @@ class TabPlotWidget(QWidget):
 		self.zscore_x_data = []
 		self.zscore_x_label = ""
 		
+		self.fig_list = [] # List of figures to save when save graph is activated
+		
 	def init_zscore_data(self, y_data:list, legend_labels:list, x_data:list=[], x_label:str="Datapoint Index"):
 		''' y_data, x_data are lists of lists. legend_label is a list of strings. Each list row corresponds to one trace.
 		 Only one x-label provided. '''
@@ -1641,6 +1644,14 @@ class TabPlotWidget(QWidget):
 			return self.gcond[c]
 		else:
 			return None
+	
+	def get_fig_if_active(self):
+		
+		# Return if not active
+		if not self.is_active():
+			return None
+		
+		return self.fig_list
 	
 	def plot_zscore_if_active(self):
 		''' Generates a Z-Score breakout window if window is active and if z-score window is possible. Requires:
@@ -1718,6 +1729,7 @@ class HarmGenFreqDomainPlotWidget(TabPlotWidget):
 		
 		# Create figure
 		self.fig1, self.ax1 = plt.subplots(1, 1)
+		self.fig_list.append(self.fig1)
 		
 		# Estimate system Z
 		expected_Z = self.mdata.MFLI_V_offset_V[1]/(self.mdata.requested_Idc_mA[1]/1e3) #TODO: Do something more general than index 1
@@ -1829,6 +1841,8 @@ class CE23FreqDomainPlotWidget(TabPlotWidget):
 		# Create figure
 		self.fig1, self.ax1 = plt.subplots(1, 1)
 		self.fig2, self.ax2 = plt.subplots(1, 1)
+		self.fig_list.append(self.fig1)
+		self.fig_list.append(self.fig2)
 		
 		# Estimate system Z
 		expected_Z = self.mdata.MFLI_V_offset_V[1]/(self.mdata.requested_Idc_mA[1]/1e3) #TODO: Do something more general than index 1
@@ -1956,6 +1970,8 @@ class CE23BiasDomainPlotWidget(TabPlotWidget):
 		# Create figure
 		self.fig1, self.ax1 = plt.subplots(1, 1)
 		self.fig2, self.ax2 = plt.subplots(1, 1)
+		self.fig_list.append(self.fig1)
+		self.fig_list.append(self.fig2)
 		
 		# Estimate system Z
 		expected_Z = self.mdata.MFLI_V_offset_V[1]/(self.mdata.requested_Idc_mA[1]/1e3) #TODO: Do something more general than index 1
@@ -2082,6 +2098,8 @@ class IVPlotWidget(TabPlotWidget):
 		# Create figure
 		self.fig1, ax_arr1 = plt.subplots(2, 1)
 		self.fig2, ax_arr2 = plt.subplots(2, 1)
+		self.fig_list.append(self.fig1)
+		self.fig_list.append(self.fig2)
 		self.ax1t = ax_arr1[0]
 		self.ax1b = ax_arr1[1]
 		self.ax2t = ax_arr2[0]
@@ -2246,6 +2264,7 @@ class SParamSPDPlotWidget(TabPlotWidget):
 		# Create figure
 		self.fig1, self.ax1 = plt.subplots(1, 1, figsize=(12, 7))
 		self.fig1.subplots_adjust(left=0.065, bottom=0.065, top=0.95, right=0.8)
+		self.fig_list.append(self.fig1)
 		
 		self.render_plot()
 		
@@ -2332,6 +2351,7 @@ class HarmGenBiasDomainPlotWidget(TabPlotWidget):
 		# Create figure
 		self.fig1, self.ax1 = plt.subplots(1, 1, figsize=(12, 7))
 		self.fig1.subplots_adjust(left=0.065, bottom=0.065, top=0.95, right=0.8)
+		self.fig_list.append(self.fig1)
 		
 		self.render_plot()
 		
@@ -2444,6 +2464,7 @@ class SpectrumPIDomainPlotWidget(TabPlotWidget):
 		self.fig1, self.ax1 = plt.subplots(1, 1)
 		self.default_xlims = None
 		self.zoom_mode = SpectrumPIDomainPlotWidget.ZOOM_MODE_FULL
+		self.fig_list.append(self.fig1)
 		
 		# Estimate system Z
 		expected_Z = self.mdata.MFLI_V_offset_V[1]/(self.mdata.requested_Idc_mA[1]/1e3) #TODO: Do something more general than index 1
@@ -2870,6 +2891,30 @@ class HGA1Window(QtWidgets.QMainWindow):
 		
 		for sub in self.gcond_subscribers:
 			sub.plot_zscore_if_active()
+	
+	def save_active_graph(self):
+		
+		# Scan over subscribers and get figures
+		for sub in self.gcond_subscribers:
+			active_figs = sub.get_fig_if_active()
+			
+			if active_figs is not None:
+				break
+		
+		if active_figs is not None:
+			
+			for afig in active_figs:
+				name_tup = QFileDialog.getSaveFileName(self, 'Save File')
+				name = name_tup[0]
+				
+				# Ensure proper extension
+				if len(name) < 5 or name[-5:].upper() != ".GRAF":
+					name = name + ".graf"
+				
+				# Create graf
+				write_GrAF(afig, name)
+				self.log.info(f"Saved figure to file '{name}'.")
+				
 
 	def reinit_all(self):
 		
@@ -3216,7 +3261,9 @@ class HGA1Window(QtWidgets.QMainWindow):
 	def _process_file_menu(self, q):
 		
 		if q.text() == "Save Graph":
-			self.log.warning("TODO: Implement save graph")
+			
+			self.save_active_graph()
+			
 		if q.text() == "Close Window":
 			self.close()
 			sys.exit(0)
