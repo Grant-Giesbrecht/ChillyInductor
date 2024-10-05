@@ -29,7 +29,7 @@ log = LogPile()
 if args.loglevel is not None:
 	log.set_terminal_level(args.loglevel)
 else:
-	log.set_terminal_level(DEBUG)
+	log.set_terminal_level("DEBUG")
 log.str_format.show_detail = args.detail
 
 ##======================================================

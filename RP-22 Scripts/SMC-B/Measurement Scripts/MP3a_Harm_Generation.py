@@ -17,8 +17,12 @@ import argparse
 CONF_DIRECTORY = "sweep_configs"
 # DATA_DIRECTORY = "data"
 # LOG_DIRECTORY = "logs"
-DATA_DIRECTORY = "C:\\Users\\gmg3\\Mega\\remote_data\\data"
-LOG_DIRECTORY = "C:\\Users\\gmg3\\Mega\\remote_data\\logs"
+
+# DATA_DIRECTORY = "C:\\Users\\gmg3\\Mega\\remote_data\\data"
+# LOG_DIRECTORY = "C:\\Users\\gmg3\\Mega\\remote_data\\logs"
+
+DATA_DIRECTORY = "C:\\Users\\gmg3\\OneDrive - UCB-O365\\remote_data\\data"
+LOG_DIRECTORY = "C:\\Users\\gmg3\\OneDrive - UCB-O365\\remote_data\\logs"
 
 # Set autosave period in seconds
 TIME_AUTOSAVE_S = 600
@@ -46,7 +50,7 @@ log = LogPile()
 if args.loglevel is not None:
 	log.set_terminal_level(args.loglevel)
 else:
-	log.set_terminal_level(DEBUG)
+	log.set_terminal_level("DEBUG")
 log.str_format.show_detail = args.detail
 
 # Check for tempwait argument

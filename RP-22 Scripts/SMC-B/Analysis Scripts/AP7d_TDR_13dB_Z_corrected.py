@@ -15,7 +15,7 @@ import numpy as np
 import pickle
 from jarnsaxa import *
 
-plt.rcParams['font.family'] = 'Aptos'
+plt.rcParams['font.family'] = 'Consolas'
 
 #------------------------------------------------------------
 # Import Data
@@ -43,6 +43,7 @@ filename = "RP22B_MP4_24Sept2024_R3C1T2_r1.hdf"
 use_old_tdr_file_format = False
 Z0x = 49.25
 # Z0x = 50
+
 
 analysis_file = os.path.join(datapath, filename)
 
@@ -226,7 +227,7 @@ ax2_3.grid(True)
 ax2_3.set_title("Corrected: Cable Cryostat-R")
 # ax2_3.set_title("3.7 $\mu$m Chip TDR Measurement")
 # ax2_3.set_xlim([43, 89.2])
-ax2_3.set_ylim(YLIM2B)
+# ax2_3.set_ylim(YLIM2B)
 
 if use_old_tdr_file_format:
 	srcy = (data['dataset']['atten13dB']['cryostat_left']['opposite_50_term']['y'])
