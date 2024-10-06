@@ -128,80 +128,6 @@ print(df_cond)
 print(f"{Fore.YELLOW}DF_SA:{Style.RESET_ALL}")
 print(df_sa)
 
-##===========================================================================
-# Plot bias currents
-
-plt.figure(1)
-plt.subplot(1, 2, 1)
-plt.plot(df_cond.Ibias_mA, marker='.', markersize=5, linestyle=':', linewidth=0.2, color=(0, 0, 0.8))
-plt.plot(Ibias_bin, marker='.', markersize=5, linestyle=':', linewidth=0.2, color=(0, 0.7, 0))
-plt.grid(True)
-plt.xlabel("Sweep Index")
-plt.ylabel("Bias Current (mA)")
-
-plt.subplot(1, 2, 2)
-plt.plot(np.diff(df_cond.Ibias_mA), marker='.', markersize=5, linestyle=':', linewidth=0.2)
-plt.grid(True)
-
-plt.suptitle("Bias Current Analysis")
-
-
-print(f"mean diff = {np.mean(np.diff(df_cond.Ibias_mA))}")
-print(f"max diff = {np.max(np.diff(df_cond.Ibias_mA))}")
-
-##===========================================================================
-# Plot graphs of power levels
-
-X,Y,Zmx1l = dfplot3d(df_mix, xparam='freq_rf_GHz', yparam='freq_lo_GHz', zparam='peak_mx1l', fixedparam={'Ibias_mA':(0, 0, 0.2)}, skip_plot=False, fig_no=2, subplot_no=(2, 3, 1), show_markers=True, hovertips=False)
-X,Y,Zrf1 = dfplot3d(df_mix, xparam='freq_rf_GHz', yparam='freq_lo_GHz', zparam='peak_rf1', fixedparam={'Ibias_mA':(0, 0, 0.2)}, skip_plot=False, fig_no=2, subplot_no=(2, 3, 2), show_markers=True, hovertips=False)
-X,Y,Zlo1 = dfplot3d(df_mix, xparam='freq_rf_GHz', yparam='freq_lo_GHz', zparam='peak_lo1', fixedparam={'Ibias_mA':(0, 0, 0.2)}, skip_plot=False, fig_no=2, subplot_no=(2, 3, 3), show_markers=True, hovertips=False)
-
-X,Y,Zmx1h = dfplot3d(df_mix, xparam='freq_rf_GHz', yparam='freq_lo_GHz', zparam='peak_mx1h', fixedparam={'Ibias_mA':(0, 0, 0.2)}, skip_plot=False, fig_no=2, subplot_no=(2, 3, 4), show_markers=True, hovertips=False)
-X,Y,Zmx2l = dfplot3d(df_mix, xparam='freq_rf_GHz', yparam='freq_lo_GHz', zparam='peak_mx2l', fixedparam={'Ibias_mA':(0, 0, 0.2)}, skip_plot=False, fig_no=2, subplot_no=(2, 3, 5), show_markers=True, hovertips=False)
-X,Y,Zmx2h = dfplot3d(df_mix, xparam='freq_rf_GHz', yparam='freq_lo_GHz', zparam='peak_mx2h', fixedparam={'Ibias_mA':(0, 0, 0.2)}, skip_plot=False, fig_no=2, subplot_no=(2, 3, 6), show_markers=True, hovertips=False)
-plt.suptitle("Peaks (fRF-fLO Space)")
-
-##===========================================================================
-# Make a graph of mixing loss (Fix: f_rf, X=bias, Y=f_lo)
-
-COLOR_MAPNEW = color_map
-
-freq_filt = 4
-if args.t3a:
-	freq_filt = 3.5
-
-X,Y,Zmx1l = dfplot3d(df_mix, xparam='Ibias_mA_bin', yparam='freq_lo_GHz', zparam='peak_mx1l', fixedparam={'freq_rf_GHz':(freq_filt, 0, 0.1)}, skip_plot=False, fig_no=3, subplot_no=(2, 3, 1), show_markers=True, hovertips=False)
-X,Y,Zmx1h = dfplot3d(df_mix, xparam='Ibias_mA_bin', yparam='freq_lo_GHz', zparam='peak_mx1l', fixedparam={'freq_rf_GHz':(freq_filt, 0, 0.1)}, skip_plot=False, fig_no=3, subplot_no=(2, 3, 2), show_markers=True, hovertips=False)
-X,Y,Zmx2l = dfplot3d(df_mix, xparam='Ibias_mA_bin', yparam='freq_lo_GHz', zparam='peak_mx2l', fixedparam={'freq_rf_GHz':(freq_filt, 0, 0.1)}, skip_plot=False, fig_no=3, subplot_no=(2, 3, 3), show_markers=True, hovertips=False)
-X,Y,Zmx2h = dfplot3d(df_mix, xparam='Ibias_mA_bin', yparam='freq_lo_GHz', zparam='peak_mx2h', fixedparam={'freq_rf_GHz':(freq_filt, 0, 0.1)}, skip_plot=False, fig_no=3, subplot_no=(2, 3, 4), show_markers=True, hovertips=False)
-X,Y,Zrf1 = dfplot3d(df_mix, xparam='Ibias_mA_bin', yparam='freq_lo_GHz', zparam='peak_rf1', fixedparam={'freq_rf_GHz':(freq_filt, 0, 0.1)}, skip_plot=False, fig_no=3, subplot_no=(2, 3, 5), show_markers=True, hovertips=False)
-X,Y,Zlo1 = dfplot3d(df_mix, xparam='Ibias_mA_bin', yparam='freq_lo_GHz', zparam='peak_lo1', fixedparam={'freq_rf_GHz':(freq_filt, 0, 0.1)}, skip_plot=False, fig_no=3, subplot_no=(2, 3, 6), show_markers=True, hovertips=False, cmap=COLOR_MAPNEW)
-plt.suptitle("Peaks (Bias-fLO Space)")
-
-COLOR_MAP = 'plasma'
-
-Zrflo = W2dBm(dBm2W(Zrf1)+dBm2W(Zlo1))
-
-lplot3d(X, Y, Zmx1l-Zrf1, xparam='Ibias_mA_bin', yparam='freq_lo_GHz', zparam='mx1l-rf1', fig_no=4, subplot_no=(2, 2, 1), show_markers=True, hovertips=False, cmap=COLOR_MAP)
-lplot3d(X, Y, Zmx1h-Zrf1, xparam='Ibias_mA_bin', yparam='freq_lo_GHz', zparam='mx1h-rf1', fig_no=4, subplot_no=(2, 2, 2), show_markers=True, hovertips=False, cmap=COLOR_MAP)
-
-lplot3d(X, Y, Zmx2l-Zrf1, xparam='Ibias_mA_bin', yparam='freq_lo_GHz', zparam='mx2l-rf1', fig_no=4, subplot_no=(2, 2, 3), show_markers=True, hovertips=False, cmap=COLOR_MAP)
-lplot3d(X, Y, Zmx2h-Zrf1, xparam='Ibias_mA_bin', yparam='freq_lo_GHz', zparam='mx2h-rf1', fig_no=4, subplot_no=(2, 2, 4), show_markers=True, hovertips=False, cmap=COLOR_MAP)
-plt.suptitle("Mixing Gain (Bias-fLO Space)")
-
-lplot3d(X, Y, Zmx1l-Zrflo, xparam='Ibias_mA_bin', yparam='freq_lo_GHz', zparam='mx1l-rf1-lo1', fig_no=11, subplot_no=(2, 2, 1), show_markers=True, hovertips=False, cmap=COLOR_MAPNEW)
-lplot3d(X, Y, Zmx1h-Zrflo, xparam='Ibias_mA_bin', yparam='freq_lo_GHz', zparam='mx1h-rf1-lo1', fig_no=11, subplot_no=(2, 2, 2), show_markers=True, hovertips=False, cmap=COLOR_MAPNEW)
-
-lplot3d(X, Y, Zmx2l-Zrflo, xparam='Ibias_mA_bin', yparam='freq_lo_GHz', zparam='mx2l-rf1-lo1', fig_no=11, subplot_no=(2, 2, 3), show_markers=True, hovertips=False, cmap=COLOR_MAPNEW)
-lplot3d(X, Y, Zmx2h-Zrflo, xparam='Ibias_mA_bin', yparam='freq_lo_GHz', zparam='mx2h-rf1-lo1', fig_no=11, subplot_no=(2, 2, 4), show_markers=True, hovertips=False, cmap=COLOR_MAPNEW)
-plt.suptitle("Total Mixing Gain (Bias-fLO Space)")
-
-##===========================================================================
-# Quit if no calibration requested
-
-if args.nocal:
-	plt.show()
-	sys.exit()
 
 ##===========================================================================
 # Begin calibration step
@@ -274,6 +200,40 @@ df_cal = pd.merge(df_cal, df_temp, left_index=True, right_index=True, how='outer
 print(f"Finsihed analyzing calibration data in {rd(time.time()-t0)} seconds.")
 ##--------------------------------------------
 # Plot loss in (Freq-Power space)
+
+df_trim_rf = df_cal[df_cal['rf_enabled'] == True]
+df_trim_rf = df_trim_rf[df_trim_rf['power_rf_dBm'] == -10]
+
+df_trim_lo = df_cal[df_cal['lo_enabled'] == True]
+df_trim_lo = df_trim_lo[df_trim_lo['power_lo_dBm'] == -10]
+
+Ptot_rf = W2dBm(dBm2W(df_trim_rf['peak_rf1']) + dBm2W(df_trim_rf['peak_rf2']) + dBm2W(df_trim_rf['peak_rf3']))
+Ptot_lo = W2dBm(dBm2W(df_trim_lo['peak_lo1']) + dBm2W(df_trim_lo['peak_lo2']) + dBm2W(df_trim_lo['peak_lo3']))
+
+plt.figure(1)
+plt.plot(df_trim_rf['freq_rf_GHz'], df_trim_rf['powermeter_dBm']-Ptot_rf, linestyle=':', marker='.')
+plt.plot(df_trim_lo['freq_lo_GHz'], df_trim_lo['powermeter_dBm']-Ptot_lo, linestyle=':', marker='x')
+plt.xlabel("Frequency (GHz)")
+plt.ylabel("Mixer Gain (dB)")
+plt.grid(True)
+plt.legend(["RF Path", "LO Path"])
+
+plt.figure(2)
+plt.plot(df_trim_rf['freq_rf_GHz'], df_trim_rf['powermeter_dBm'], linestyle=':', marker='.')
+plt.plot(df_trim_lo['freq_lo_GHz'], df_trim_lo['powermeter_dBm'], linestyle=':', marker='x')
+plt.xlabel("Frequency (GHz)")
+plt.ylabel("Power Meter Power (dBm)")
+plt.grid(True)
+
+plt.figure(3)
+plt.plot(df_trim_rf['freq_rf_GHz'], Ptot_rf, linestyle=':', marker='.')
+plt.plot(df_trim_lo['freq_lo_GHz'], Ptot_lo, linestyle=':', marker='x')
+plt.xlabel("Frequency (GHz)")
+plt.ylabel("Spectrum Power Sum (dBm)")
+plt.grid(True)
+plt.show()
+
+sys.exit()
 
 X,Y,Z_SaTotRf = dfplot3d(df_cal, xparam='power_rf_dBm', yparam='freq_rf_GHz', zparam='spectrum_total', fixedparam={'rf_enabled':1}, skip_plot=False, fig_no=5, subplot_no=(2, 3, 1), show_markers=True, hovertips=False, cmap=color_map)
 X,Y,Z_PmRf = dfplot3d(df_cal, xparam='power_rf_dBm', yparam='freq_rf_GHz', zparam='powermeter_dBm', fixedparam={'rf_enabled':1}, skip_plot=False, fig_no=5, subplot_no=(2, 3, 2), show_markers=True, hovertips=False, cmap=color_map)

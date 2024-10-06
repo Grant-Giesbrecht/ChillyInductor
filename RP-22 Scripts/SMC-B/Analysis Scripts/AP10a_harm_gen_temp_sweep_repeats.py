@@ -14,6 +14,8 @@ import numpy as np
 import pickle
 from matplotlib.widgets import Slider, Button
 
+plt.rcParams['font.family'] = 'Aptos'
+
 #------------------------------------------------------------
 # Import Data
 
