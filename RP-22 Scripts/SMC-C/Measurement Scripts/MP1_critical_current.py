@@ -109,6 +109,14 @@ else:
 	log.critical("Failed to connect to Zurich Instruments MFLI!")
 	exit()
 
+sig_gen = Keysight8360L("GPIB::18::INSTR", log)
+if sig_gen.online:
+	log.info("Keysight signal generator >ONLINE<")
+else:
+	log.critical("Failed to connect to Keysight signal generator!")
+	exit()
+sig_gen.set_enable_rf(False)
+
 # vna = RohdeSchwarzZVA("", log)
 # if vna.online:
 # 	log.info("R&S VNA >ONLINE<")
@@ -157,7 +165,7 @@ except Exception as e:
 	self_contents = f"ERROR: Failed to read script source. ({e})"
 
 # # Define dataset dictionary
-dataset = {"calibration":{"current_sense_res_ohms": cs_res, "time_of_meas": str(cs_time)}, "dataset":{"freq_rf_GHz":[], "power_rf_dBm":[], "times":[], "MFLI_V_offset_V":[], "requested_Idc_mA":[], "raw_meas_Vdc_V":[], "Idc_mA":[], "detect_normal":[], "temperature_K":[]}, "summary_dataset": {'Tc_K':[], "Tc_uncert_K": []}, 'info': {'source_script': __file__, 'operator_notes':operator_notes, 'configuration': json.dumps(conf_data), 'source_script_full':self_contents}}
+dataset = {"calibration":{"current_sense_res_ohms": cs_res, "time_of_meas": str(cs_time)}, "dataset":{"freq_rf_GHz":[], "power_rf_dBm":[], "times":[], "MFLI_V_offset_V":[], "requested_Idc_mA":[], "raw_meas_Vdc_V":[], "Idc_mA":[], "detect_normal":[], "temperature_K":[]}, "summary_dataset": {'Ic_mA':[], "Ic_uncert_mA": []}, 'info': {'source_script': __file__, 'operator_notes':operator_notes, 'configuration': json.dumps(conf_data), 'source_script_full':self_contents}}
 
 
 # Prepare DMM to measure voltage
@@ -216,6 +224,9 @@ mfli.set_offset(0)
 ##======================================================
 # Begin logging data
 
+freq_rf = [1e9]
+power_rf_dBm = [-40]
+
 # Scan over all frequencies
 abort = False
 for f_rf in freq_rf:
@@ -240,8 +251,10 @@ for f_rf in freq_rf:
 		#------ Find critical current ----------
 		# Step 1: Move up in steps until you go normal
 		
-		highest_sc = 0
-		lowest_norm = None
+		highest_sc_meas = None
+		highest_sc_set = 0
+		lowest_norm_meas = None
+		lowest_norm_set = None
 		
 		# Loop until normal
 		idc_target = 0
@@ -271,37 +284,75 @@ for f_rf in freq_rf:
 			additional_Z = system_Z - current_set_res
 			if additional_Z > norm_extra_Z:
 				log.info(f"Chip detected as normal (>Z_extra = {additional_Z} Ohms<). Threshold is {norm_extra_Z} Ohms.")
-				lowest_norm = I_meas_A
+				lowest_norm_meas = I_meas_A*1e3
+				lowest_norm_set = idc_target
+				
+				# Let chip recover
+				log.debug("Turning off DC bias and signal generator to let chip recover")
+				sig_gen.set_enable_rf(False)
+				mfli.set_offset(0)
+				log.debug(f"Waiting {RECOVERY_TIME_S} seconds for chip to recover.")
+				time.sleep(RECOVERY_TIME_S)
+				log.debug("Post-normal recovery procedure complete. Proceeding to next sweep point.")
 				
 				# Quit climbing
 				break
 			else:
-				highest_sc = I_meas_A
+				highest_sc_meas = I_meas_A*1e3
+				highest_sc_set = idc_target
 		
-			TODO: Save data
-		
+			dataset['dataset']['MFLI_V_offset_V'].append(Voffset)
+			dataset['dataset']['requested_Idc_mA'].append(idc_target)
+			dataset['dataset']['raw_meas_Vdc_V'].append(v_cs_read)
+			dataset['dataset']['Idc_mA'].append(v_cs_read/cs_res*1e3)
+			dataset['dataset']['detect_normal'].append(norm_detected)
+			
+			dataset['dataset']['temperature_K'].append(t_meas)
+			dataset['dataset']['times'].append(str(datetime.datetime.now()))
+			
+			# Check for autosave
+			if time.time() - time_last_save > TIME_AUTOSAVE_S:
+				
+				# Save data and log
+				log.save_hdf(os.path.join(LOG_DIRECTORY, f"{sweep_name}_autosave.log.hdf"))
+				
+				dict_to_hdf(dataset, os.path.join(DATA_DIRECTORY, f"{sweep_name}_autosave.hdf"))
+				log.debug(f"Autosaved logs and data.")
+				
+				time_last_save = time.time()
 		
 		
 		#------ Find critical current ----------
 		# Step 2: Perform binary search from max to locate critical current with tolerance
 		
+		log.info(f"Searching for Ic: Running binary search.")
+		
 		while True:
 			
 			# Calculate delta, check for end condition
-			delta = lowest_norm - highest_sc
-			if delta <= idc_resolution_step_mA:
+			#NOTE: Cannot calculate (delta_meas = lowest_norm_meas - highest_sc_meas) because highest_sc_meas is meaningless (val taken when chip is doing god knows what)
+			# INstead we look at how our measured values are missing the set point, then using that to extrapolate what real measured current CANNOT be hit because the chip would first go normal.
+			correction_factor = highest_sc_meas/highest_sc_set # Calculate correction from SP to measured
+			est_norm_current = correction_factor*lowest_norm_set
+			delta_meas = est_norm_current - highest_sc_meas
+			delta_set = lowest_norm_set - highest_sc_set
+			if (delta_set < idc_resolution_step_mA):
+				log.info(f"Met end condition. Final range [S.P. >{highest_sc_set} mA - {lowest_norm_set} mA<]. Measured range: [>:a{highest_sc_meas} mA - ({est_norm_current}) mA<]")
+				log.info(f"Critical current uncertainty (>{delta_meas} mA< measured, >{delta_set} mA< S.P.) is within margin ({idc_resolution_step_mA} mA)")
 				
-				Ic = (lowest_norm + highest_sc)/2
-				Ic_uncert = delta
+				Ic = (est_norm_current + highest_sc_meas)/2
+				Ic_uncert = delta_meas
 				
-				dataset['summary_dataset']['Tc_K'].append(Ic)
-				dataset['summary_dataset']['Tc_uncert_K'].append(Ic_uncert)
+				dataset['summary_dataset']['Ic_mA'].append(Ic)
+				dataset['summary_dataset']['Ic_uncert_mA'].append(Ic_uncert)
+				
+				log.info(f"Ic = >{Ic}< mA +/- {Ic_uncert/2} mA")
 				
 				break
 			
 			# Else divide range by 2
-			idc_target = (lowest_norm + highest_sc)/2
-			log.info(f"Setting new target current to >{idc_target} mA<, splitting range [>{highest_sc} mA - {lowest_norm} mA<].")
+			idc_target = (lowest_norm_set + highest_sc_set)/2
+			log.info(f"Setting new target current to >{idc_target} mA<, splitting range [S.P. >{highest_sc_set} mA - {lowest_norm_set} mA<]. Measured range: [>:a{highest_sc_meas} mA - {lowest_norm_meas} mA<]")
 			
 			# Set current, take measurements
 			
@@ -326,7 +377,8 @@ for f_rf in freq_rf:
 			additional_Z = system_Z - current_set_res
 			if additional_Z > norm_extra_Z:
 				log.info(f"Chip detected as normal (>Z_extra = {additional_Z} Ohms<). Threshold is {norm_extra_Z} Ohms.")
-				lowest_norm = I_meas_A
+				lowest_norm_meas = np.min([I_meas_A*1e3, lowest_norm_meas])
+				lowest_norm_set = idc_target
 				
 				# Let chip recover
 				log.debug("Turning off DC bias and signal generator to let chip recover")
@@ -336,7 +388,9 @@ for f_rf in freq_rf:
 				time.sleep(RECOVERY_TIME_S)
 				log.debug("Post-normal recovery procedure complete. Proceeding to next sweep point.")
 			else:
-				highest_sc = I_meas_A
+				highest_sc_meas = I_meas_A*1e3
+				highest_sc_set = idc_target
+				log.info(f"Chip remained superconducting.")
 			
 			log.debug(f"Saving datapoint.")
 			
