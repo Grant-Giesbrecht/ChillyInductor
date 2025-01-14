@@ -2445,6 +2445,113 @@ class HarmGenBiasDomainPlotWidget(TabPlotWidget):
 		
 		self.plot_is_current = True
 
+# class MaxBiasBiasDomainPlotWidget(TabPlotWidget):
+#	
+#	def __init__(self, global_conditions:dict, log:LogPile, mdata:MasterData):
+# 		super().__init__(global_conditions, log, mdata)
+		
+# 		# Conditions dictionaries
+# 		self.conditions = {'rounding_step':10}
+		
+# 		self.manual_init()
+		
+# 		# Create figure
+# 		self.fig1, self.ax1 = plt.subplots(1, 1, figsize=(12, 7))
+# 		self.fig1.subplots_adjust(left=0.065, bottom=0.065, top=0.95, right=0.8)
+# 		self.fig_list.append(self.fig1)
+		
+# 		self.render_plot()
+		
+# 		# Create widgets
+# 		self.fig1c = FigureCanvas(self.fig1)
+# 		self.toolbar = NavigationToolbar2QT(self.fig1c, self)
+		
+# 		# Add widgets to parent-widget and set layout
+# 		self.grid = QtWidgets.QGridLayout()
+# 		self.grid.addWidget(self.toolbar, 0, 0)
+# 		self.grid.addWidget(self.fig1c, 1, 0)
+# 		self.setLayout(self.grid)
+#	
+#	def calc_mask(self):
+# 		f = self.get_condition('sel_freq_GHz')
+# 		p = self.get_condition('sel_power_dBm')
+		
+# 		# Filter relevant data
+# 		mask_freq = (self.mdata.freq_rf_GHz == f)
+# 		mask_pwr = (self.mdata.power_rf_dBm == p)
+# 		loc_mask = (mask_freq & mask_pwr)
+	
+# 		if self.get_condition(GCOND_REMOVE_OUTLIERS):
+# 			mask = np.array(loc_mask) & np.array(self.mdata.outlier_mask)
+# 			self.log.lowdebug(f"Removing outliers. Mask had {loc_mask.sum()} vals, now {mask.sum()} vals.")
+# 		else:
+# 			self.log.lowdebug(f"Ignoring outlier spec")
+# 			mask = loc_mask
+		
+# 		return mask
+#	
+#	def manual_init(self, is_reinit:bool=False):
+		
+# 		self.init_zscore_data([self.mdata.zs_rf1, self.mdata.zs_rf2, self.mdata.zs_rf3], ['Fundamental', '2nd Harmonic', '3rd Harmonic'], [self.mdata.Idc_mA, self.mdata.Idc_mA, self.mdata.Idc_mA], "Bias Current (mA)")
+		
+# 		if is_reinit:
+# 			if self.get_condition(GCOND_REMOVE_OUTLIERS):
+# 				mask = np.array(self.mdata.outlier_mask)
+# 			if not np.any(mask):
+# 				self.log.warning(f"No points matched when calculating mask for graph limits. Aborting graph limit calculation.")
+# 				return
+# 		else:
+# 			mask = np.full(len(self.mdata.rf1), True)
+		
+# 		self.ylims1 = get_graph_lims(np.concatenate((self.mdata.rf1[mask], self.mdata.rf2[mask], self.mdata.rf3[mask])), step=10)
+# 		self.xlims1m = get_graph_lims(self.mdata.Idc_mA[mask], step=0.25)
+# 		self.xlims1r = get_graph_lims(self.mdata.requested_Idc_mA[mask], step=0.25)
+#	
+#	@updateRenderPB
+#	def render_plot(self):
+# 		f = self.get_condition('sel_freq_GHz')
+# 		p = self.get_condition('sel_power_dBm')
+		
+# 		# Filter relevant data
+# 		mask = self.calc_mask()
+		
+# 		# Plot results
+# 		self.ax1.cla()
+		
+# 		if not self.mdata.is_valid_sweep():
+# 			self.log.debug(f"Invalid sweep data. Aborting plot.")
+# 			return
+		
+# 		if self.get_condition(GCOND_BIASXAXIS_ISMEAS):
+# 			self.ax1.plot(self.mdata.Idc_mA[mask], self.mdata.rf1[mask], linestyle=':', marker='o', markersize=4, color=(0, 0.7, 0))
+# 			self.ax1.plot(self.mdata.Idc_mA[mask], self.mdata.rf2[mask], linestyle=':', marker='o', markersize=4, color=(0, 0, 0.7))
+# 			self.ax1.plot(self.mdata.Idc_mA[mask], self.mdata.rf3[mask], linestyle=':', marker='o', markersize=4, color=(0.7, 0, 0))
+# 			self.ax1.set_xlabel("Measured DC Bias (mA)")
+# 		else:
+# 			self.ax1.plot(self.mdata.requested_Idc_mA[mask], self.mdata.rf1[mask], linestyle=':', marker='o', markersize=4, color=(0, 0.7, 0))
+# 			self.ax1.plot(self.mdata.requested_Idc_mA[mask], self.mdata.rf2[mask], linestyle=':', marker='o', markersize=4, color=(0, 0, 0.7))
+# 			self.ax1.plot(self.mdata.requested_Idc_mA[mask], self.mdata.rf3[mask], linestyle=':', marker='o', markersize=4, color=(0.7, 0, 0))
+# 			self.ax1.set_xlabel("Requested DC Bias (mA)")
+			
+# 		self.ax1.set_title(f"f = {f} GHz, p = {p} dBm")
+# 		self.ax1.set_ylabel("Power (dBm)")
+# 		self.ax1.legend(["Fundamental", "2nd Harm.", "3rd Harm."])
+# 		self.ax1.grid(True)
+		
+# 		if self.get_condition('fix_scale'):
+# 			self.ax1.set_ylim(self.ylims1)
+			
+# 			if self.get_condition(GCOND_BIASXAXIS_ISMEAS):
+# 				self.ax1.set_xlim(self.xlims1m)
+# 			else:
+# 				self.ax1.set_xlim(self.xlims1r)
+				
+# 		self.fig1.tight_layout()
+		
+# 		self.fig1.canvas.draw_idle()
+		
+# 		self.plot_is_current = True
+
 class SpectrumPIDomainPlotWidget(TabPlotWidget):
 	
 	ZOOM_MODE_FULL = 0
@@ -2639,6 +2746,36 @@ class SpectrumPIDomainPlotWidget(TabPlotWidget):
 		
 		self.plot_is_current = True
 
+# class PowerDomainTabWidget(QTabWidget):
+#	
+# 	def __init__(self, global_conditions:dict, main_window):
+# 		super().__init__()
+		
+# 		self.main_window = main_window
+# 		self.object_list = []
+# 		self._is_active = False
+		
+# 		#------------ Max Bias widget
+		
+# 		self.object_list.append(HarmGenBiasDomainPlotWidget(global_conditions, self.main_window.log, self.main_window.mdata))
+# 		self.main_window.gcond_subscribers.append(self.object_list[-1])
+# 		self.addTab(self.object_list[-1], "Harmonic Generation")
+		
+# 		self.currentChanged.connect(self.update_active_tab)
+#		
+# 	def set_active(self, b:bool):
+# 		self._is_active = b
+# 		self.update_active_tab()
+#	
+# 	def update_active_tab(self):
+		
+		# Set all objects to inactive
+		for obj in self.object_list:
+			obj.set_active(False)
+		
+		# Set only the active widget to active
+		if self._is_active:
+			self.object_list[self.currentIndex()].set_active(True)
 
 class BiasDomainTabWidget(QTabWidget):
 	

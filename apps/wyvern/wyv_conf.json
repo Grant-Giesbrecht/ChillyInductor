@@ -18,7 +18,7 @@
 		{
 			"model": "D",
 			"width_um": 3.7,
-			"ids": ["R3C1", "R3C3"]
+			"ids": ["R3C1", "R3C3", "R4C0W0"]
 		},
 		{
 			"model": "E",
@@ -46,6 +46,21 @@
 			"chip_name": "R3C1",
 			"track": "Track 2  (43 mm)",
 			"path": ["ARC0*", "RP-22*", "Data", "SMC-B*", "*R3C1*", "Track 2*"]
+		},
+		{
+			"chip_name": "R3C1",
+			"track": "Track 3  (454 mm)",
+			"path": ["ARC0*", "RP-22*", "Data", "SMC-B*", "*R3C1*", "Track 3*"]
+		},
+		{
+			"chip_name": "R3C3",
+			"track": "Track 3  (454 mm)",
+			"path": ["ARC0*", "RP-22*", "Data", "SMC-B*", "*R3C3*", "Track 3*"]
+		},
+		{
+			"chip_name": "R4C0W0",
+			"track": "Track 3  (454 mm)",
+			"path": ["ARC0*", "RP-22*", "Data", "SMC-B*", "*R4C0W0*", "Track 3*"]
 		}
 	],
 	"sparam_sources": [

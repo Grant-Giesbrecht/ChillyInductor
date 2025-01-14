@@ -1,4 +1,6 @@
 from graf.base import *
+from ganymede import *
+from scipy.interpolate import interp1d
 
 plt.rcParams['font.family'] = 'Aptos'
 
@@ -12,6 +14,10 @@ graf_R3C1_cc.load_hdf("C:\\Users\\grant\\Desktop\\Comparable conditions\\R3C1_CE
 graf_R3C1T3_cc = Graf()
 graf_R3C1T3_cc.load_hdf(os.path.join(".", "comparable_conditions", "R3C1T3_CE2.graf"))
 
+sparam_cc = Graf()
+sparam_cc.load_hdf(os.path.join(".", "R4C1T2_Sparameters.graf"))
+
+
 # Access X and Y data
 R4C1_x = graf_R4C1_cc.axes['Ax0'].traces['Tr0'].x_data
 R4C1_y = graf_R4C1_cc.axes['Ax0'].traces['Tr0'].y_data
@@ -21,6 +27,35 @@ R3C1_y = graf_R3C1_cc.axes['Ax0'].traces['Tr0'].y_data
 
 R3C1T3_x = graf_R3C1T3_cc.axes['Ax0'].traces['Tr0'].x_data
 R3C1T3_y = graf_R3C1T3_cc.axes['Ax0'].traces['Tr0'].y_data
+
+sp_x = np.array(sparam_cc.axes['Ax0'].traces['Tr1'].x_data)
+sp_y_dB = np.array(sparam_cc.axes['Ax0'].traces['Tr1'].y_data)
+sp_y = dB_to_lin(np.array(sp_y_dB)/2, True)
+
+# Add a point way off to oblivion
+sp_x = np.append(sp_x, 40)
+sp_y = np.append(sp_y, sp_y[-1])
+
+interp_func_linear_GHz = interp1d(sp_x, sp_y, kind='linear')
+
+
+# Apply S-parameter compensation
+new_list = []
+for xval, yval in zip(R4C1_x, R4C1_y):
+	new_list.append(yval/interp_func_linear_GHz(xval)*interp_func_linear_GHz(xval/2))
+R4C1_y = new_list
+
+new_list = []
+for xval, yval in zip(R3C1_x, R3C1_y):
+	new_list.append(yval/interp_func_linear_GHz(xval)*interp_func_linear_GHz(xval/2))
+R3C1_y = new_list
+
+new_list = []
+for xval, yval in zip(R3C1T3_x, R3C1T3_y):
+	new_list.append(yval/interp_func_linear_GHz(xval)*interp_func_linear_GHz(xval/2))
+R3C1T3_y = new_list
+
+
 
 # Make new plot
 plt.figure(1)
@@ -104,13 +139,13 @@ COLOR1 = (0, 0.2, 0.5)
 COLOR2 = (0, 0.5, 0.2)
 COLOR3 = (0.3, 0, 0.55)
 
-plt.figure(2, figsize=(4.5, 3))
-line1, = plt.plot(R4C1_x_rdu, R4C1_y_mean, linestyle=':', marker='.', color=COLOR1)
-plt.errorbar(R4C1_x_rdu, R4C1_y_mean, xerr=R4C1_x_stdev, yerr=R4C1_y_stdev, elinewidth=0.5, color=COLOR1)
+plt.figure(2, figsize=(8.5, 5))
+line1, = plt.plot(R4C1_x_rdu, R4C1_y_mean, linestyle='--', marker='.', color=COLOR1)
+plt.errorbar(R4C1_x_rdu, R4C1_y_mean, xerr=R4C1_x_stdev, yerr=R4C1_y_stdev, elinewidth=0.5, color=COLOR1, linewidth=0)
 plt.fill_between(R4C1_x_rdu, R4C1_y_mean - R4C1_y_stdev, R4C1_y_mean + R4C1_y_stdev, color=COLOR1, alpha=0.2, linewidth=0)
 
-line2, = plt.plot(R3C1_x_rdu, R3C1_y_mean, linestyle=':', marker='.', color=COLOR2)
-plt.errorbar(R3C1_x_rdu, R3C1_y_mean, xerr=R3C1_x_stdev, yerr=R3C1_y_stdev, elinewidth=0.5, color=COLOR2)
+line2, = plt.plot(R3C1_x_rdu, R3C1_y_mean, linestyle='--', marker='.', color=COLOR2)
+plt.errorbar(R3C1_x_rdu, R3C1_y_mean, xerr=R3C1_x_stdev, yerr=R3C1_y_stdev, elinewidth=0.5, color=COLOR2, linewidth=0)
 plt.fill_between(R3C1_x_rdu, R3C1_y_mean - R3C1_y_stdev, R3C1_y_mean + R3C1_y_stdev, color=COLOR2, alpha=0.2, linewidth=0)
 
 plt.grid(True)
@@ -118,6 +153,8 @@ plt.xlabel("2nd Harmonic Frequency (GHz)")
 plt.ylabel("Conversion Efficiency (%)")
 plt.legend([line1, line2], ["4.4 $\mu m$ device", "3.7 $\mu m$ device"])
 plt.title("Second Harmonic Conversion Efficiency\n$P_{RF}$ = -25 dBm, $I_{dc}$ = 700 $\mu$A, L = 43 mm")
+plt.xlim([0, 18])
+plt.ylim([0, 25])
 plt.tight_layout()
 
 ## Print conditiosn
@@ -134,7 +171,7 @@ print(graf_R3C1_cc.info.conditions)
 plt.figure(3, figsize=(8.5, 5))
 # plt.figure(3, figsize=(6, 4))
 line1, = plt.plot(R4C1_x_rdu, R4C1_y_mean, linestyle='--', marker='.', color=COLOR1)
-plt.errorbar(R4C1_x_rdu, R4C1_y_mean, xerr=R4C1_x_stdev, yerr=R4C1_y_stdev, elinewidth=0.5, color=COLOR1)
+plt.errorbar(R4C1_x_rdu, R4C1_y_mean, xerr=R4C1_x_stdev, yerr=R4C1_y_stdev, elinewidth=0.5, color=COLOR1, linewidth=0)
 plt.fill_between(R4C1_x_rdu, R4C1_y_mean - R4C1_y_stdev, R4C1_y_mean + R4C1_y_stdev, color=COLOR1, alpha=0.2, linewidth=0)
 
 line2, = plt.plot(R3C1_x_rdu, R3C1_y_mean, linestyle='--', marker='.', color=COLOR2)
@@ -151,6 +188,8 @@ plt.ylabel("Conversion Efficiency (%)")
 plt.legend([line1, line2, line3], ["4.4 $\mu m$ device, L = 43 mm", "3.7 $\mu m$ device, L = 43 mm", "3.7 $\mu m$ device, L = 454 mm"])
 plt.title("Second Harmonic Conversion Efficiency\n$P_{RF}$ = -25 dBm, $I_{dc}$ = 700 $\mu$A")
 plt.tight_layout()
+plt.xlim([0, 18])
+plt.ylim([0, 30])
 
 plt.savefig("PS1_fig3.png", format='png', dpi=500)
 

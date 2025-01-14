@@ -20,37 +20,13 @@ plt.rcParams['font.family'] = 'Consolas'
 #------------------------------------------------------------
 # Import Data
 
-# datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 1 4mm', 'tdr'])
-# if datapath is None:
-# 	print(f"{Fore.RED}Failed to find data location{Style.RESET_ALL}")
-# 	sys.exit()
-# else:
-# 	print(f"{Fore.GREEN}Located data directory at: {Fore.LIGHTBLACK_EX}{datapath}{Style.RESET_ALL}")
+datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R3C1*D', 'Track 3 454mm', 'tdr'])
+if datapath is None:
+	print(f"{Fore.RED}Failed to find data location{Style.RESET_ALL}")
+	sys.exit()
+else:
+	print(f"{Fore.GREEN}Located data directory at: {Fore.LIGHTBLACK_EX}{datapath}{Style.RESET_ALL}")
 
-# filename = "MP4_13Aug2024_R4C4T1_r1.hdf"
-# use_old_tdr_file_format = True
-# Z0x = 49.5
-# # Z0x = 50
-
-# datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R3C1*D', 'Track 2 43mm', 'tdr'])
-# if datapath is None:
-# 	print(f"{Fore.RED}Failed to find data location{Style.RESET_ALL}")
-# 	sys.exit()
-# else:
-# 	print(f"{Fore.GREEN}Located data directory at: {Fore.LIGHTBLACK_EX}{datapath}{Style.RESET_ALL}")
-
-# filename = "RP22B_MP4_24Sept2024_R3C1T2_r1.hdf"
-# use_old_tdr_file_format = False
-# Z0x = 49.25
-# # Z0x = 50
-
-# datapath = "L:\\datafile_transfer\\"
-# filename = "RP22B_MP4_05Oct2024_R3C1T3_r1.hdf"
-# use_old_tdr_file_format = False
-# Z0x = 48.5
-# # Z0x = 50
-
-datapath = "L:\\datafile_transfer\\"
 filename = "RP22B_MP4_05Oct2024_R3C1T3_r2.hdf"
 use_old_tdr_file_format = False
 Z0x = 49.2
@@ -110,76 +86,6 @@ averaging_cryo_L_x_ns = [57.75, 75]
 fig2, (ax2_1, ax2_2) = plt.subplots(2, 1, figsize=(8, 10))
 fig3, ((ax3_1, ax3_2), (ax3_3, ax3_4)) = plt.subplots(2, 2, figsize=(8, 10))
 
-# ##-------------------------------------------
-# # Plot TDR graphs - 13 dB
-
-# display_name = '13-dB'
-
-# # fig1 = plt.figure(1, figsize=(8, 10))
-
-# if use_old_tdr_file_format:
-# 	srcy = (data['dataset']['atten13dB']['open']['y'])
-# 	src = data['dataset']['atten13dB']['open']
-# else:
-# 	srcy = (data['dataset']['atten13dB']['open']['Z']['y'])
-# 	src = data['dataset']['atten13dB']['open']['Z']
-
-# ax1_1.plot(np.array(src['x'])*1e9, srcy, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
-# ax1_1.set_xlabel("Time (ns)")
-# ax1_1.set_ylabel("Impedance (Ohms)")
-# ax1_1.grid(True)
-# ax1_1.set_title("Cable Open-Circuit")
-# # ax1_1.set_xlim(XLIM)
-# # ax1_1.set_ylim(YLIM1)
-
-# if use_old_tdr_file_format:
-# 	srcy = (data['dataset']['atten13dB']['50_term']['y'])
-# 	src = data['dataset']['atten13dB']['50_term']
-# else:
-# 	srcy = (data['dataset']['atten13dB']['match']['Z']['y'])
-# 	src = data['dataset']['atten13dB']['match']['Z']
-# # plt.subplot(4, 1, 2)
-# ax1_2.plot(np.array(src['x'])*1e9, srcy, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
-# ax1_2.set_xlabel("Time (ns)")
-# ax1_2.set_ylabel("Impedance (Ohms)")
-# ax1_2.grid(True)
-# ax1_2.set_title("Cable 50-Ohm Termination")
-# # ax1_2.set_xlim(XLIM)
-# # ax1_2.set_ylim(YLIM1)
-
-# if use_old_tdr_file_format:
-# 	srcy = (data['dataset']['atten13dB']['50_term']['y'])
-# 	src = data['dataset']['atten13dB']['50_term']
-# else:
-# 	srcy = (data['dataset']['atten13dB']['CryoR_MatchL']['Z']['y'])
-# 	src = data['dataset']['atten13dB']['CryoR_MatchL']['Z']
-# # plt.subplot(4, 1, 3)
-# ax1_3.plot(np.array(src['x'])*1e9, srcy, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
-# ax1_3.set_xlabel("Time (ns)")
-# ax1_3.set_ylabel("Impedance (Ohms)")
-# ax1_3.grid(True)
-# ax1_3.set_title("Cable Cryostat-R")
-# # ax1_3.set_xlim(XLIM)
-# # ax1_3.set_ylim(YLIM1)
-
-# if use_old_tdr_file_format:
-# 	srcy = (data['dataset']['atten13dB']['cryostat_left']['opposite_50_term']['y'])
-# 	src = data['dataset']['atten13dB']['cryostat_left']['opposite_50_term']
-# else:
-# 	srcy = (data['dataset']['atten13dB']['CryoL_MatchR']['Z']['y'])
-# 	src = data['dataset']['atten13dB']['CryoL_MatchR']['Z']
-# # plt.subplot(4, 1, 4)
-# ax1_4.plot(np.array(src['x'])*1e9, srcy, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
-# ax1_4.set_xlabel("Time (ns)")
-# ax1_4.set_ylabel("Impedance (Ohms)")
-# ax1_4.grid(True)
-# ax1_4.set_title("Cable Cryostat-L")
-# # ax1_4.set_xlim(XLIM)
-# # ax1_4.set_ylim(YLIM1)
-
-# # fig1.suptitle("13 dB Attenuator")
-# fig1.tight_layout()
-
 ###################################################################
 # Figure 2 - transformed to compensate for attenuator
 
@@ -201,72 +107,74 @@ else:
 	src = data['dataset']['atten13dB']['open']['Z']
 # plt.subplot(4, 1, 1)
 ax2_1.axhline(y = 50, color=(0.7, 0.7, 0.7), linestyle = '--') 
-ax2_1.plot(np.array(src['x'])*1e9, atten_tdr_transform(srcy, atten_dB, Z0x), linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
-ax2_1.plot(np.array(src['x'])*1e9, srcy, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
+line1, = ax2_1.plot(np.array(src['x'])*1e9, atten_tdr_transform(srcy, atten_dB, Z0x), linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
+line2, = ax2_1.plot(np.array(src['x'])*1e9, srcy, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
 ax2_1.set_xlabel("Time (ns)")
 ax2_1.set_ylabel("Impedance (Ohms)")
 ax2_1.grid(True)
 ax2_1.set_title("Cable, Open")
-ax2_1.legend(["Corrected", "Raw"])
+ax2_1.legend([line1, line2], ["Corrected", "Raw"])
 
 # ax2_1.set_xlim(XLIM)
-# ax2_1.set_ylim(YLIM2T)
+ax2_1.set_ylim([0, 150])
 
 srcy = (data['dataset']['atten13dB']['match']['Z']['y'])
 src = data['dataset']['atten13dB']['match']['Z']
 # plt.subplot(4, 1, 2)
 ax2_2.axhline(y = 50, color=(0.7, 0.7, 0.7), linestyle = '--') 
-ax2_2.plot(np.array(src['x'])*1e9, atten_tdr_transform(srcy, atten_dB, Z0x), linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
-ax2_2.plot(np.array(src['x'])*1e9, srcy, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
+line1, = ax2_2.plot(np.array(src['x'])*1e9, atten_tdr_transform(srcy, atten_dB, Z0x), linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
+line2, = ax2_2.plot(np.array(src['x'])*1e9, srcy, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
 ax2_2.set_xlabel("Time (ns)")
 ax2_2.set_ylabel("Impedance (Ohms)")
 ax2_2.grid(True)
 ax2_2.set_title("Cable, Matched")
-ax2_2.legend(["Corrected", "Raw"])
+ax2_2.legend([line1, line2], ["Corrected", "Raw"])
+ax2_2.set_ylim([0, 150])
 
 fig2.suptitle("Cable Measurements")
 
+drift_correction = atten_tdr_transform(srcy, atten_dB, Z0x) - 50
+
 ##--------------------------------- Cryostat measurements
 
-srcy = (data['dataset']['atten13dB']['CryoR_MatchL']['Z']['y'])
-drift_correction_R = atten_tdr_transform(srcy, atten_dB, Z0x) - 50
-srcy = (data['dataset']['atten13dB']['CryoL_MatchR']['Z']['y'])
-drift_correction_L = atten_tdr_transform(srcy, atten_dB, Z0x) - 50
+# srcy = (data['dataset']['atten13dB']['CryoR_MatchL']['Z']['y'])
+# drift_correction_R = atten_tdr_transform(srcy, atten_dB, Z0x) - 50
+# srcy = (data['dataset']['atten13dB']['CryoL_MatchR']['Z']['y'])
+# drift_correction_L = atten_tdr_transform(srcy, atten_dB, Z0x) - 50
 
-drift_correction = (drift_correction_R + drift_correction_L)/2
+# drift_correction = (drift_correction_R + drift_correction_L)/2
 
 srcy = (data['dataset']['atten13dB']['CryoR_MatchL']['Z']['y'])
 src = data['dataset']['atten13dB']['CryoR_MatchL']['Z']
 cryo_R = atten_tdr_transform(srcy, atten_dB, Z0x)
 ax3_1.axhline(y = 50, color=(0.7, 0.7, 0.7), linestyle = '--') 
-ax3_1.plot(np.array(src['x'])*1e9, cryo_R-drift_correction, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
-ax3_1.plot(np.array(src['x'])*1e9, cryo_R, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
-ax3_1.plot(np.array(src['x'])*1e9, srcy, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
+line1, = ax3_1.plot(np.array(src['x'])*1e9, cryo_R-drift_correction, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
+line2, = ax3_1.plot(np.array(src['x'])*1e9, cryo_R, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
+line3, = ax3_1.plot(np.array(src['x'])*1e9, srcy, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
 ax3_1.set_xlabel("Time (ns)")
 ax3_1.set_ylabel("Impedance (Ohms)")
 ax3_1.grid(True)
 srcy = (data['dataset']['atten13dB']['CryoL_MatchR']['Z']['y'])
 src = data['dataset']['atten13dB']['CryoL_MatchR']['Z']
 cryo_L = atten_tdr_transform(srcy, atten_dB, Z0x)
-ax3_1.plot(np.array(src['x'])*1e9, cryo_L-drift_correction, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
-ax3_1.plot(np.array(src['x'])*1e9, cryo_L, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
-ax3_1.plot(np.array(src['x'])*1e9, srcy, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
+line4, = ax3_1.plot(np.array(src['x'])*1e9, cryo_L-drift_correction, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
+line5, = ax3_1.plot(np.array(src['x'])*1e9, cryo_L, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
+line6, = ax3_1.plot(np.array(src['x'])*1e9, srcy, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
 ax3_1.set_xlabel("Time (ns)")
 ax3_1.set_ylabel("Impedance (Ohms)")
 ax3_1.grid(True)
 ax3_1.set_title("Cryostat, Matched")
-ax3_1.legend(["Corrected v2 (R)", "Corrected (R)", "Raw (R)", "Corrected v2 (L)", "Corrected (L)", "Raw (R)"])
-# ax2_4.set_xlim(XLIM)
-# ax2_4.set_ylim(YLIM2B)
+ax3_1.legend([line1, line2, line3, line4, line5, line6], ["Corrected v2 (R)", "Corrected (R)", "Raw (R)", "Corrected v2 (L)", "Corrected (L)", "Raw (R)"])
+ax3_1.set_ylim([50, 60])
 
 srcy = (data['dataset']['atten13dB']['CryoR_OpenL']['Z']['y'])
 src = data['dataset']['atten13dB']['CryoR_OpenL']['Z']
 # plt.subplot(4, 1, 4)
 cryo_L = atten_tdr_transform(srcy, atten_dB, Z0x)
 ax3_3.axhline(y = 50, color=(0.7, 0.7, 0.7), linestyle = '--') 
-ax3_3.plot(np.array(src['x'])*1e9, cryo_L-drift_correction, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
-ax3_3.plot(np.array(src['x'])*1e9, cryo_L, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
-ax3_3.plot(np.array(src['x'])*1e9, srcy, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
+line1, = ax3_3.plot(np.array(src['x'])*1e9, cryo_L-drift_correction, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
+line2, = ax3_3.plot(np.array(src['x'])*1e9, cryo_L, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
+line3, = ax3_3.plot(np.array(src['x'])*1e9, srcy, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
 ax3_3.set_xlabel("Time (ns)")
 ax3_3.set_ylabel("Impedance (Ohms)")
 ax3_3.grid(True)
@@ -274,27 +182,28 @@ srcy = (data['dataset']['atten13dB']['CryoL_OpenR']['Z']['y'])
 src = data['dataset']['atten13dB']['CryoL_OpenR']['Z']
 # plt.subplot(4, 1, 4)
 cryo_L = atten_tdr_transform(srcy, atten_dB, Z0x)
-ax3_3.plot(np.array(src['x'])*1e9, cryo_L-drift_correction, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
-ax3_3.plot(np.array(src['x'])*1e9, cryo_L, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
-ax3_3.plot(np.array(src['x'])*1e9, srcy, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
+line4, = ax3_3.plot(np.array(src['x'])*1e9, cryo_L-drift_correction, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
+line5, = ax3_3.plot(np.array(src['x'])*1e9, cryo_L, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
+line6, = ax3_3.plot(np.array(src['x'])*1e9, srcy, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
 ax3_3.set_xlabel("Time (ns)")
 ax3_3.set_ylabel("Impedance (Ohms)")
 ax3_3.grid(True)
 ax3_3.set_title("Cryostat, Open")
-ax3_1.legend(["Corrected v2 (R)", "Corrected (R)", "Raw (R)", "Corrected v2 (L)", "Corrected (L)", "Raw (R)"])
+ax3_1.legend([line1, line2, line3, line4, line5, line6], ["Corrected v2 (R)", "Corrected (R)", "Raw (R)", "Corrected v2 (L)", "Corrected (L)", "Raw (R)"])
+ax3_1.set_ylim([50, 60])
 # ax2_4.set_xlim(XLIM)
 # ax2_5.set_ylim(YLIM2B)
 
 srcy = (data['dataset']['atten13dB']['BNC_AB_Open']['Z']['y'])
 src = data['dataset']['atten13dB']['BNC_AB_Open']['Z']
 cryo_L = atten_tdr_transform(srcy, atten_dB, Z0x)
-ax3_4.plot(np.array(src['x'])*1e9, cryo_L-drift_correction, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
-ax3_4.plot(np.array(src['x'])*1e9, srcy, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
+line1, = ax3_4.plot(np.array(src['x'])*1e9, cryo_L-drift_correction, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
+line2, = ax3_4.plot(np.array(src['x'])*1e9, srcy, linestyle=':', marker='.', markersize=2, linewidth=0.5, label=display_name)
 ax3_4.set_xlabel("Time (ns)")
 ax3_4.set_ylabel("Impedance (Ohms)")
 ax3_4.grid(True)
 ax3_4.set_title("BNC Cable, Open")
-ax3_4.legend(["Corrected", "Raw"])
+ax3_4.legend([line1, line2], ["Corrected", "Raw"])
 
 # fig1.suptitle("13 dB Attenuator")
 fig3.tight_layout()
