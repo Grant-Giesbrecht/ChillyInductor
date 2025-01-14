@@ -1,0 +1,17 @@
+{
+	"frequency_RF":{
+		"type": "range",
+		"unit": "Hz",
+		"start": 1e9,
+		"end": 5e9,
+		"step": 1e9
+	},
+	"power_RF":{
+		"type": "list",
+		"unit": "dBm",
+		"values": [-40, -30]
+	},
+	"Idc_coarse_step_mA": 0.25,
+	"Idc_resolution_step_mA": 0.01,
+	"extra_Z_norm_ohm": 30
+}
