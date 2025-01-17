@@ -2806,7 +2806,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 		self.tab_widget_widgets = []
 		self.tab_widget = QtWidgets.QTabWidget()
 		self.tab_widget.currentChanged.connect(self.update_active_tab)
-		self.make_tabs() # Make tabs
+		# self.make_tabs() # Make tabs
 		
 		# Make sliders
 		self.slider_box = QtWidgets.QWidget()
