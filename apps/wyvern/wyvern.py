@@ -23,6 +23,7 @@ import matplotlib.pyplot as plt
 from chillyinductor.rp22_helper import *
 from colorama import Fore, Style
 from ganymede import *
+from graf.base import *
 from pylogfile.base import *
 import sys
 import numpy as np
@@ -1608,6 +1609,8 @@ class TabPlotWidget(QWidget):
 		self.zscore_x_data = []
 		self.zscore_x_label = ""
 		
+		self.fig_list = [] # List of figures to save when save graph is activated
+		
 	def init_zscore_data(self, y_data:list, legend_labels:list, x_data:list=[], x_label:str="Datapoint Index"):
 		''' y_data, x_data are lists of lists. legend_label is a list of strings. Each list row corresponds to one trace.
 		 Only one x-label provided. '''
@@ -1641,6 +1644,14 @@ class TabPlotWidget(QWidget):
 			return self.gcond[c]
 		else:
 			return None
+	
+	def get_fig_if_active(self):
+		
+		# Return if not active
+		if not self.is_active():
+			return None
+		
+		return self.fig_list
 	
 	def plot_zscore_if_active(self):
 		''' Generates a Z-Score breakout window if window is active and if z-score window is possible. Requires:
@@ -1718,6 +1729,7 @@ class HarmGenFreqDomainPlotWidget(TabPlotWidget):
 		
 		# Create figure
 		self.fig1, self.ax1 = plt.subplots(1, 1)
+		self.fig_list.append(self.fig1)
 		
 		# Estimate system Z
 		expected_Z = self.mdata.MFLI_V_offset_V[1]/(self.mdata.requested_Idc_mA[1]/1e3) #TODO: Do something more general than index 1
@@ -1829,6 +1841,8 @@ class CE23FreqDomainPlotWidget(TabPlotWidget):
 		# Create figure
 		self.fig1, self.ax1 = plt.subplots(1, 1)
 		self.fig2, self.ax2 = plt.subplots(1, 1)
+		self.fig_list.append(self.fig1)
+		self.fig_list.append(self.fig2)
 		
 		# Estimate system Z
 		expected_Z = self.mdata.MFLI_V_offset_V[1]/(self.mdata.requested_Idc_mA[1]/1e3) #TODO: Do something more general than index 1
@@ -1956,6 +1970,8 @@ class CE23BiasDomainPlotWidget(TabPlotWidget):
 		# Create figure
 		self.fig1, self.ax1 = plt.subplots(1, 1)
 		self.fig2, self.ax2 = plt.subplots(1, 1)
+		self.fig_list.append(self.fig1)
+		self.fig_list.append(self.fig2)
 		
 		# Estimate system Z
 		expected_Z = self.mdata.MFLI_V_offset_V[1]/(self.mdata.requested_Idc_mA[1]/1e3) #TODO: Do something more general than index 1
@@ -2082,6 +2098,8 @@ class IVPlotWidget(TabPlotWidget):
 		# Create figure
 		self.fig1, ax_arr1 = plt.subplots(2, 1)
 		self.fig2, ax_arr2 = plt.subplots(2, 1)
+		self.fig_list.append(self.fig1)
+		self.fig_list.append(self.fig2)
 		self.ax1t = ax_arr1[0]
 		self.ax1b = ax_arr1[1]
 		self.ax2t = ax_arr2[0]
@@ -2246,6 +2264,7 @@ class SParamSPDPlotWidget(TabPlotWidget):
 		# Create figure
 		self.fig1, self.ax1 = plt.subplots(1, 1, figsize=(12, 7))
 		self.fig1.subplots_adjust(left=0.065, bottom=0.065, top=0.95, right=0.8)
+		self.fig_list.append(self.fig1)
 		
 		self.render_plot()
 		
@@ -2332,6 +2351,7 @@ class HarmGenBiasDomainPlotWidget(TabPlotWidget):
 		# Create figure
 		self.fig1, self.ax1 = plt.subplots(1, 1, figsize=(12, 7))
 		self.fig1.subplots_adjust(left=0.065, bottom=0.065, top=0.95, right=0.8)
+		self.fig_list.append(self.fig1)
 		
 		self.render_plot()
 		
@@ -2425,6 +2445,113 @@ class HarmGenBiasDomainPlotWidget(TabPlotWidget):
 		
 		self.plot_is_current = True
 
+# class MaxBiasBiasDomainPlotWidget(TabPlotWidget):
+#	
+#	def __init__(self, global_conditions:dict, log:LogPile, mdata:MasterData):
+# 		super().__init__(global_conditions, log, mdata)
+		
+# 		# Conditions dictionaries
+# 		self.conditions = {'rounding_step':10}
+		
+# 		self.manual_init()
+		
+# 		# Create figure
+# 		self.fig1, self.ax1 = plt.subplots(1, 1, figsize=(12, 7))
+# 		self.fig1.subplots_adjust(left=0.065, bottom=0.065, top=0.95, right=0.8)
+# 		self.fig_list.append(self.fig1)
+		
+# 		self.render_plot()
+		
+# 		# Create widgets
+# 		self.fig1c = FigureCanvas(self.fig1)
+# 		self.toolbar = NavigationToolbar2QT(self.fig1c, self)
+		
+# 		# Add widgets to parent-widget and set layout
+# 		self.grid = QtWidgets.QGridLayout()
+# 		self.grid.addWidget(self.toolbar, 0, 0)
+# 		self.grid.addWidget(self.fig1c, 1, 0)
+# 		self.setLayout(self.grid)
+#	
+#	def calc_mask(self):
+# 		f = self.get_condition('sel_freq_GHz')
+# 		p = self.get_condition('sel_power_dBm')
+		
+# 		# Filter relevant data
+# 		mask_freq = (self.mdata.freq_rf_GHz == f)
+# 		mask_pwr = (self.mdata.power_rf_dBm == p)
+# 		loc_mask = (mask_freq & mask_pwr)
+	
+# 		if self.get_condition(GCOND_REMOVE_OUTLIERS):
+# 			mask = np.array(loc_mask) & np.array(self.mdata.outlier_mask)
+# 			self.log.lowdebug(f"Removing outliers. Mask had {loc_mask.sum()} vals, now {mask.sum()} vals.")
+# 		else:
+# 			self.log.lowdebug(f"Ignoring outlier spec")
+# 			mask = loc_mask
+		
+# 		return mask
+#	
+#	def manual_init(self, is_reinit:bool=False):
+		
+# 		self.init_zscore_data([self.mdata.zs_rf1, self.mdata.zs_rf2, self.mdata.zs_rf3], ['Fundamental', '2nd Harmonic', '3rd Harmonic'], [self.mdata.Idc_mA, self.mdata.Idc_mA, self.mdata.Idc_mA], "Bias Current (mA)")
+		
+# 		if is_reinit:
+# 			if self.get_condition(GCOND_REMOVE_OUTLIERS):
+# 				mask = np.array(self.mdata.outlier_mask)
+# 			if not np.any(mask):
+# 				self.log.warning(f"No points matched when calculating mask for graph limits. Aborting graph limit calculation.")
+# 				return
+# 		else:
+# 			mask = np.full(len(self.mdata.rf1), True)
+		
+# 		self.ylims1 = get_graph_lims(np.concatenate((self.mdata.rf1[mask], self.mdata.rf2[mask], self.mdata.rf3[mask])), step=10)
+# 		self.xlims1m = get_graph_lims(self.mdata.Idc_mA[mask], step=0.25)
+# 		self.xlims1r = get_graph_lims(self.mdata.requested_Idc_mA[mask], step=0.25)
+#	
+#	@updateRenderPB
+#	def render_plot(self):
+# 		f = self.get_condition('sel_freq_GHz')
+# 		p = self.get_condition('sel_power_dBm')
+		
+# 		# Filter relevant data
+# 		mask = self.calc_mask()
+		
+# 		# Plot results
+# 		self.ax1.cla()
+		
+# 		if not self.mdata.is_valid_sweep():
+# 			self.log.debug(f"Invalid sweep data. Aborting plot.")
+# 			return
+		
+# 		if self.get_condition(GCOND_BIASXAXIS_ISMEAS):
+# 			self.ax1.plot(self.mdata.Idc_mA[mask], self.mdata.rf1[mask], linestyle=':', marker='o', markersize=4, color=(0, 0.7, 0))
+# 			self.ax1.plot(self.mdata.Idc_mA[mask], self.mdata.rf2[mask], linestyle=':', marker='o', markersize=4, color=(0, 0, 0.7))
+# 			self.ax1.plot(self.mdata.Idc_mA[mask], self.mdata.rf3[mask], linestyle=':', marker='o', markersize=4, color=(0.7, 0, 0))
+# 			self.ax1.set_xlabel("Measured DC Bias (mA)")
+# 		else:
+# 			self.ax1.plot(self.mdata.requested_Idc_mA[mask], self.mdata.rf1[mask], linestyle=':', marker='o', markersize=4, color=(0, 0.7, 0))
+# 			self.ax1.plot(self.mdata.requested_Idc_mA[mask], self.mdata.rf2[mask], linestyle=':', marker='o', markersize=4, color=(0, 0, 0.7))
+# 			self.ax1.plot(self.mdata.requested_Idc_mA[mask], self.mdata.rf3[mask], linestyle=':', marker='o', markersize=4, color=(0.7, 0, 0))
+# 			self.ax1.set_xlabel("Requested DC Bias (mA)")
+			
+# 		self.ax1.set_title(f"f = {f} GHz, p = {p} dBm")
+# 		self.ax1.set_ylabel("Power (dBm)")
+# 		self.ax1.legend(["Fundamental", "2nd Harm.", "3rd Harm."])
+# 		self.ax1.grid(True)
+		
+# 		if self.get_condition('fix_scale'):
+# 			self.ax1.set_ylim(self.ylims1)
+			
+# 			if self.get_condition(GCOND_BIASXAXIS_ISMEAS):
+# 				self.ax1.set_xlim(self.xlims1m)
+# 			else:
+# 				self.ax1.set_xlim(self.xlims1r)
+				
+# 		self.fig1.tight_layout()
+		
+# 		self.fig1.canvas.draw_idle()
+		
+# 		self.plot_is_current = True
+
 class SpectrumPIDomainPlotWidget(TabPlotWidget):
 	
 	ZOOM_MODE_FULL = 0
@@ -2444,6 +2571,7 @@ class SpectrumPIDomainPlotWidget(TabPlotWidget):
 		self.fig1, self.ax1 = plt.subplots(1, 1)
 		self.default_xlims = None
 		self.zoom_mode = SpectrumPIDomainPlotWidget.ZOOM_MODE_FULL
+		self.fig_list.append(self.fig1)
 		
 		# Estimate system Z
 		expected_Z = self.mdata.MFLI_V_offset_V[1]/(self.mdata.requested_Idc_mA[1]/1e3) #TODO: Do something more general than index 1
@@ -2618,6 +2746,36 @@ class SpectrumPIDomainPlotWidget(TabPlotWidget):
 		
 		self.plot_is_current = True
 
+# class PowerDomainTabWidget(QTabWidget):
+#	
+# 	def __init__(self, global_conditions:dict, main_window):
+# 		super().__init__()
+		
+# 		self.main_window = main_window
+# 		self.object_list = []
+# 		self._is_active = False
+		
+# 		#------------ Max Bias widget
+		
+# 		self.object_list.append(HarmGenBiasDomainPlotWidget(global_conditions, self.main_window.log, self.main_window.mdata))
+# 		self.main_window.gcond_subscribers.append(self.object_list[-1])
+# 		self.addTab(self.object_list[-1], "Harmonic Generation")
+		
+# 		self.currentChanged.connect(self.update_active_tab)
+#		
+# 	def set_active(self, b:bool):
+# 		self._is_active = b
+# 		self.update_active_tab()
+#	
+# 	def update_active_tab(self):
+		
+		# Set all objects to inactive
+		for obj in self.object_list:
+			obj.set_active(False)
+		
+		# Set only the active widget to active
+		if self._is_active:
+			self.object_list[self.currentIndex()].set_active(True)
 
 class BiasDomainTabWidget(QTabWidget):
 	
@@ -2870,6 +3028,30 @@ class HGA1Window(QtWidgets.QMainWindow):
 		
 		for sub in self.gcond_subscribers:
 			sub.plot_zscore_if_active()
+	
+	def save_active_graph(self):
+		
+		# Scan over subscribers and get figures
+		for sub in self.gcond_subscribers:
+			active_figs = sub.get_fig_if_active()
+			
+			if active_figs is not None:
+				break
+		
+		if active_figs is not None:
+			
+			for afig in active_figs:
+				name_tup = QFileDialog.getSaveFileName(self, 'Save File')
+				name = name_tup[0]
+				
+				# Ensure proper extension
+				if len(name) < 5 or name[-5:].upper() != ".GRAF":
+					name = name + ".graf"
+				
+				# Create graf
+				write_GrAF(afig, name, conditions=self.gcond)
+				self.log.info(f"Saved figure to file '{name}'.")
+				
 
 	def reinit_all(self):
 		
@@ -3216,7 +3398,9 @@ class HGA1Window(QtWidgets.QMainWindow):
 	def _process_file_menu(self, q):
 		
 		if q.text() == "Save Graph":
-			self.log.warning("TODO: Implement save graph")
+			
+			self.save_active_graph()
+			
 		if q.text() == "Close Window":
 			self.close()
 			sys.exit(0)

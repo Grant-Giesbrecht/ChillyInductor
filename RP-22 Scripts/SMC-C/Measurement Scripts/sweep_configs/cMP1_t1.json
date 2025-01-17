@@ -1,0 +1,27 @@
+{
+	"frequency_RF":{
+		"type": "range",
+		"unit": "Hz",
+		"start": 1e9,
+		"end": 2e9,
+		"step": 1e9
+	},
+	"power_RF":{
+		"type": "list",
+		"unit": "dBm",
+		"values": [-120, -40]
+	},
+	"Idc_coarse_step_mA": 0.25,
+	"Idc_resolution_step_mA": 0.01,
+	"extra_Z_norm_ohm": 30,
+	"Ic_uncert_backoff_mult": 4,
+	"Idc_fine_step_mA": 0.0025,
+	"spectrum_analyzer":[
+		{
+			"mode": "fixed",
+			"freq_start_Hz": 100e6,
+			"freq_end_Hz": 4.2e9,
+			"RBW_Hz": 100e3
+		}
+	]
+}

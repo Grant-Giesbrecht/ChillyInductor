@@ -66,18 +66,13 @@ def rounding_bin(x:list, y:list, step:float=0.2, tol:float=0.05):
 	return (x_out, y_out, used_x_bins, y_means, y_stds)
 			
 
-# datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R3C4*B', 'Track 1 4mm'])
-datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 1 4mm'])
-# datapath = "C:\\Users\\Grant Giesbrecht\\Documents\\GitHub\\ChillyInductor\\RP-22 Scripts\\SMC-B\\Measurement Scripts\\data"
+datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R3C1*D', 'Track 3 454mm', 'cooldown'])
 if datapath is None:
 	print(f"{Fore.RED}Failed to find data location{Style.RESET_ALL}")
 	sys.exit()
 else:
 	print(f"{Fore.GREEN}Located data directory at: {Fore.LIGHTBLACK_EX}{datapath}{Style.RESET_ALL}")
-# filename = "RP22B_MS2_28Jul2024_r3_autosave.hdf"
-filename = "RP22B_MS2_30July2024_r3.hdf"
-
-
+filename = "RP22B_MS2_t1_04Oct2024_R3C1T3_r1.hdf"
 
 analysis_file = os.path.join(datapath, filename)
 
@@ -91,7 +86,6 @@ print("Loading file contents into memory")
 
 t_hdfr_0 = time.time()
 with h5py.File(analysis_file, 'r') as fh:
-	
 	
 	# Read SC calibration point
 	GROUP = 'calibration'
@@ -131,15 +125,32 @@ fig1 = plt.figure(1)
 ax1 = fig1.gca()
 ax2 = ax1.twinx()
 
-END_IDX = -1
-ax1.plot(timestamps[:END_IDX], temperatures[:END_IDX], linestyle=':', label="Temp (K)", color=(0, 0, 0.7), marker='.')
-ax2.plot(timestamps[:END_IDX], resistances[:END_IDX]-sc_res, linestyle='--', label="Resistance (Ohms)", color=(0.7, 0, 0), marker='.')
+timestamps_seconds = [(ts - timestamps[0]).total_seconds() for ts in timestamps]
+
+# START_IDX = 1350
+# END_IDX = 3000
+# line1, = ax1.plot(timestamps[START_IDX:END_IDX], temperatures[START_IDX:END_IDX], linestyle=':', label="Temp (K)", color=(0, 0, 0.7), marker='.')
+# line2, = ax2.plot(timestamps[START_IDX:END_IDX], np.array(resistances[START_IDX:END_IDX]-sc_res)/1e3, linestyle='--', label="Resistance (Ohms)", color=(0.7, 0, 0), marker='.')
+# plt.grid(True)
+# plt.legend([line1, line2], ["Temp (K)", "Resistance ($\Omega$)"])
+# plt.xlabel("Time")
+# ax1.set_ylabel("Temperature (K)")
+# ax2.set_ylabel("Resistance (Ohms)")
+# ax1.set_title("Cooldown over Time")
+
+START_IDX = 1350
+END_IDX = 3000
+line1, = ax1.plot(np.array(timestamps_seconds[START_IDX:END_IDX])-timestamps_seconds[START_IDX], temperatures[START_IDX:END_IDX], linestyle=':', label="Temp (K)", color=(0, 0, 0.7), marker='.')
+line2, = ax2.plot(np.array(timestamps_seconds[START_IDX:END_IDX])-timestamps_seconds[START_IDX], np.array(resistances[START_IDX:END_IDX]-sc_res)/1e3, linestyle='--', label="Resistance (Ohms)", color=(0.7, 0, 0), marker='.')
 plt.grid(True)
-plt.legend()
-plt.xlabel("Time")
+plt.legend([line1, line2], ["Temp (K)", "Resistance ($\Omega$)"])
+ax1.set_xlabel("Time (s)")
 ax1.set_ylabel("Temperature (K)")
-ax2.set_ylabel("Resistance (Ohms)")
-ax1.set_title("Cooldown over Time")
+ax2.set_ylabel("Resistance (k$\Omega$)")
+ax1.set_title("Critical Temperature Measurement")
+plt.show()
+
+sys.exit()
 
 fig2 = plt.figure(2)
 ax1_2 = fig2.gca()
@@ -150,7 +161,7 @@ ax1_2.set_title("Resistance over Temperature")
 # ax1_2.set_xlim([2.8, 4.4])
 plt.grid(True)
 
-xytup = rounding_bin(x=temperatures, y=(resistances-sc_res), step=0.2, tol=0.05)
+xytup = rounding_bin(x=temperatures[START_IDX:END_IDX], y=(resistances[START_IDX:END_IDX]-sc_res), step=0.2, tol=0.05)
 temp_rd = xytup[0]
 res_rd = np.array(xytup[1])
 temp_bins = np.array(xytup[2])
@@ -185,7 +196,7 @@ ax1_4.scatter(temp_rd, res_rd/1e3, marker='.', color=(0, 0.7, 0.9), edgecolors=(
 
 ax1_4.set_ylabel("Resistance (kOhms)")
 ax1_4.set_xlabel("Measured Temperature (K)")
-ax1_4.set_title("Critical Tempertature Measurement, 3.3 $\mu m$ Device")
+ax1_4.set_title("Critical Tempertature Measurement, 3.7 $\mu m$ Device")
 # ax1_2.set_xlim([2.8, 4.4])
 plt.grid(True)
 
@@ -195,7 +206,7 @@ plt.grid(True)
 pickle.dump(fig1, open(os.path.join("..", "Figures", f"AS3-fig1-{filename}.pklfig"), 'wb'))
 pickle.dump(fig2, open(os.path.join("..", "Figures", f"AS3-fig2-{filename}.pklfig"), 'wb'))
 
-fig4.savefig(os.path.join("saved_figures", "AS3_fig4.png"), dpi=500)
+fig4.savefig(os.path.join("saved_figures", "AS3a_fig4.png"), dpi=500)
 
 # # Save pickled-figs
 # pickle.dump(fig1, open(os.path.join("..", "Figures", "RP22B-AS1-MS1 24Jul2024-r1 fig1.pklfig"), 'wb'))
