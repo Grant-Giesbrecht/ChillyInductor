@@ -1,0 +1,21 @@
+{
+	"frequency_RF":{
+		"type": "range",
+		"unit": "Hz",
+		"start": 1e9,
+		"end": 2e9,
+		"step": 1e9
+	},
+	"power_RF":{
+		"type": "list",
+		"unit": "dBm",
+		"values": [-40, -30]
+	},
+	"extra_Z_norm_ohm": 30,
+	"Idc_points": 7,
+	"VNA": {
+		"resolution_bw_Hz": 1e5,
+		"num_points": 500
+	}
+	
+}

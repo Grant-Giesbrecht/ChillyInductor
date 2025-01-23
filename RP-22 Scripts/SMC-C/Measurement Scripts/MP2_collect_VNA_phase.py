@@ -31,11 +31,77 @@ class SystemRP22:
 
 		self.dataset = {"calibration":self.calibration_dict, "dataset":self.dataset_dict, "summary_dataset":self.summary_dict, 'info':self.info_dict}
 	
-	def save_point(self):
-		pass
+	def autosave(self):
+		# Save data and log
+		log.save_hdf(os.path.join(LOG_DIRECTORY, f"{sweep_name}_autosave.log.hdf"))
+		
+		dict_to_hdf(dataset, os.path.join(DATA_DIRECTORY, f"{sweep_name}_autosave.hdf"))
+		log.debug(f"Autosaved logs and data.")
 	
-	def measure_point(self):
-		pass
+	def measure_point(self, f_rf, p_rf, idc):
+		
+		log.info(f"Setting bias current to >{idc}< mA.")
+			
+		# Set offset voltage
+		Voffset = current_set_res * idc/1e3
+		log.debug(f"Selected offset voltage {Voffset} V from current_set_res={current_set_res} Ohms and idc={idc} mA")
+		mfli.set_offset(Voffset)
+		mfli.set_output_enable(True)
+		
+		# Prepare the VNA
+		vna.set_freq_start(f_rf)
+		vna.set_freq_end(f_rf)
+		vna.set_power(p_rf)
+		vna.set_rf_enable(True)
+		
+		# Read Vdc (-> Idc)
+		v_cs_read = np.abs(dmm.trigger_and_read())
+		
+		log.info(f"Measured bias current at {v_cs_read/cs_res*1e3} mA", detail=f"V_current_sense_read = {v_cs_read} V, CS-resistor = {cs_res} ohms.")
+		if (idc != 0) and (np.abs((v_cs_read/cs_res*1e3) - idc)/idc > 0.2):
+			log.warning(f"Measured Idc missed target by more than 20%. (Error = {np.abs((v_cs_read/cs_res*1e3) - idc)/idc*100} %)")
+		
+		# Read temperature
+		t_meas = tempctrl.get_temp()
+		
+		vna.send_manual_trigger()
+		vna.get_channel_data()
+		
+		# Check for chip going normal
+		if v_cs_read < THRESHOLD_NORMAL_V * Voffset:
+			# Chip has gone normal
+			log.warning(f"Chip has gone normal. Moving to next power condition. {v_cs_read} > {THRESHOLD_NORMAL_V}*{Voffset}.")
+			norm_detected = True
+		else:
+			log.debug(f"Chip has not gone normal. {v_cs_read} > {THRESHOLD_NORMAL_V}*{Voffset}.")
+			norm_detected = False
+		
+		self.dataset['dataset']['freq_rf_GHz'].append(f_rf/1e9)
+		self.dataset['dataset']['power_rf_dBm'].append(p_rf)
+		
+		self.dataset['dataset']['MFLI_V_offset_V'].append(Voffset)
+		self.dataset['dataset']['requested_Idc_mA'].append(idc)
+		self.dataset['dataset']['raw_meas_Vdc_V'].append(v_cs_read)
+		self.dataset['dataset']['Idc_mA'].append(v_cs_read/cs_res*1e3)
+		self.dataset['dataset']['detect_normal'].append(norm_detected)
+		
+		self.dataset['dataset']['temperature_K'].append(t_meas)
+		self.dataset['dataset']['times'].append(str(datetime.datetime.now()))
+		
+		self.dataset['dataset']
+		
+	def recover_normal(self):
+		
+		# Let chip recover
+		log.info("Turning off DC bias and signal generator to let chip recover")
+		
+		vna.set_enable_rf(False)
+		mfli.set_offset(0)
+		
+		log.debug(f"Waiting {RECOVERY_TIME_S} seconds for chip to recover.")
+		time.sleep(RECOVERY_TIME_S)
+		
+		log.debug("Post-normal recovery procedure complete. Proceeding to next sweep point.")
 	
 
 # Set directories for data and sweep configuration
@@ -96,13 +162,18 @@ except Exception as e:
 	log.critical(f"Failed to read configuration file >{conf_file_name}<. ({e})")
 	exit()
 
+##======================================================
 # Interpret data
+
 try:
 	freq_rf = interpret_range(conf_data['frequency_RF'], print_err=True)
 	power_rf_dBm = interpret_range(conf_data['power_RF'], print_err=True)
-	idc_list_mA = interpret_range(conf_data['dc_current_mA'], print_err=True)
 	
-	sa_conf = conf_data['spectrum_analyzer']
+	extra_z_norm = float(conf_data['extra_Z_norm_ohm'])
+	idc_points = int(conf_data['Idc_points'])
+	
+	vna_rbw = conf_data['VNA']['resolution_bw_Hz']
+	vna_npoints = conf_data['VNA']['num_points']
 except:
 	log.critical(f"Corrupt configuration file >{conf_file_name}<.")
 	exit()
@@ -146,11 +217,30 @@ meas_sys = SystemRP22(dmm, tempctrl, mfli, vna)
 
 sweep_name = input("Sweep name: ")
 operator_notes = input("Operator notes: ")
+while True:
+	
+	# Get user input
+	try:
+		Ic_expected_mA = float(input("Expected critical current (mA): "))
+	except Exception as e:
+		print(f"Failed to interpret data. ({e})")
+		continue
+	
+	# Verify units
+	if (Ic_expected_mA < 0.1) or (Ic_expected_mA > 10):
+		print(f"{Fore.RED}CHECK UNITS:{Style.RESET_ALL} Expected critical current set to {Ic_expected_mA} mA.")
+		confirm_string = input(f"Y to confirm, N to re-enter:")
+		if confirm_string != "Y":
+			continue
+	
+	log.info(f"Set expected critical current to >{Ic_expected_mA}< mA.")
+	break
 
 ##======================================================
 # Configure VNA
 
 # Reset VNA
+vna.send_preset()
 vna.clear_traces()
 
 # Add trace and initialize with reasonable values
@@ -158,9 +248,11 @@ vna.add_trace(1, 1, VectorNetworkAnalyzerCtg1.MEAS_S21)
 vna.set_freq_start(1e9)
 vna.set_freq_end(1e9)
 vna.set_power(-50)
-vna.set_num_points(500)
-vna.set_res_bandwidth(1e5)
+vna.set_num_points(vna_npoints)
+vna.set_res_bandwidth(vna_rbw)
 vna.set_rf_enable(False)
+vna.set_continuous_trigger(False)
+vna.set_averaging_enable(False)
 
 ##======================================================
 # Configure MFLI
@@ -248,6 +340,10 @@ log.info(f"Setting system impedance to {current_set_res} Ohms.")
 
 mfli.set_offset(0)
 
+# Pick Idc list
+idc_list_mA = np.linspace(0, Ic_expected_mA, num=idc_points)
+log.debug(f"Selected Idc values: {idc_list_mA}")
+
 # Scan over all frequencies
 abort = False
 for f_rf in freq_rf:
@@ -273,148 +369,17 @@ for f_rf in freq_rf:
 			if abort:
 				break
 			
-			log.info(f"Setting bias current to >{idc}< mA.")
-			
-			# Set offset voltage
-			Voffset = current_set_res * idc/1e3
-			log.debug(f"Selected offset voltage {Voffset} V from current_set_res={current_set_res} Ohms and idc={idc} mA")
-			mfli.set_offset(Voffset)
-			mfli.set_output_enable(True)
-			
-			# Prepare the signal generator
-			sig_gen.set_freq(f_rf)
-			sig_gen.set_power(p_rf)
-			sig_gen.set_enable_rf(True)
-			
-			# Prepare the spectrum analyzer
-			sa_conditions = calc_sa_conditions(sa_conf, f_rf, f_lo=None)
-			
-			# Read Vdc (-> Idc)
-			v_cs_read = np.abs(dmm.trigger_and_read())
-			
-			log.info(f"Measured bias current at {v_cs_read/cs_res*1e3} mA", detail=f"V_current_sense_read = {v_cs_read} V, CS-resistor = {cs_res} ohms.")
-			if (idc != 0) and (np.abs((v_cs_read/cs_res*1e3) - idc)/idc > 0.2):
-				log.warning(f"Measured Idc missed target by more than 20%. (Error = {np.abs((v_cs_read/cs_res*1e3) - idc)/idc*100} %)")
-			
-			# Read temperature
-			t_meas = tempctrl.get_temp()
-			
-			# Set conditions for spectrum analyzer
-			wav_rbw = None
-			wav_f = None
-			wav_s = None
-			for idx_sac, sac in enumerate(sa_conditions):
-				
-				fstart = sac['f_start']
-				fend = sac['f_end']
-				frbw = sac['rbw']
-				
-				log.debug(f"Measuring frequency range >{fstart/1e6}< MHz to >{fend/1e6}< MHz, RBW = >:q{frbw/1e3}< kHz.")
-				
-				# count += 1
-				# log.debug(f"Beginning measurement {count} of {npts}.")
-				
-				# Configure spectrum analyzer
-				spec_an.set_res_bandwidth(frbw)
-				spec_an.set_freq_start(fstart)
-				spec_an.set_freq_end(fend)
-				
-				# Start trigger on spectrum analyzer
-				spec_an.send_manual_trigger()
-				
-				# Wait for FSQ to finish sweep
-				spec_an.wait_ready()
-				
-				# Get waveform
-				wvfrm = spec_an.get_trace_data(1)
-				
-				# Save data
-				rbw_list = [sac['rbw']]*len(wvfrm['x'])
-				if wav_f is None:
-					wav_f = wvfrm['x']
-					wav_s = wvfrm['y']
-					wav_rbw = rbw_list
-				else:
-					wav_f_temp = wav_f + wvfrm['x']
-					wav_s_temp = wav_s + wvfrm['y']
-					wav_rbw_temp = wav_rbw+ rbw_list
-					
-					# # Find duplicate frequencies
-					# dupl_freqs = [k for k,v in Counter(wav_x).items() if v>1]
-					
-					# # Found duplicates - resolve duplicates
-					# if len(dupl_freqs) > 0:
-					# 	pass
-					
-					# Sort result
-					wav_f = []
-					wav_s = []
-					wav_rbw = []
-					for wx,wy,wr in sorted(zip(wav_f_temp, wav_s_temp, wav_rbw_temp)):
-						wav_f.append(wx)
-						wav_s.append(wy)
-						wav_rbw.append(wr)
-			
-			# Check for chip going normal
-			if v_cs_read < THRESHOLD_NORMAL_V * Voffset:
-				# Chip has gone normal
-				log.warning(f"Chip has gone normal. Moving to next power condition. {v_cs_read} > {THRESHOLD_NORMAL_V}*{Voffset}.")
-				norm_detected = True
-			else:
-				log.debug(f"Chip has not gone normal. {v_cs_read} > {THRESHOLD_NORMAL_V}*{Voffset}.")
-				norm_detected = False
-			
-			log.debug(f"Saving datapoint.")
-			
-			# After all spectrum analyzer data has been captured, save all data to master dataset
-			dataset['dataset']['freq_rf_GHz'].append(f_rf/1e9)
-			dataset['dataset']['power_rf_dBm'].append(p_rf)
-			
-			dataset['dataset']['waveform_f_Hz'].append(wav_f)
-			dataset['dataset']['waveform_s_dBm'].append(wav_s)
-			dataset['dataset']['waveform_rbw_Hz'].append(wav_rbw)
-			
-			dataset['dataset']['MFLI_V_offset_V'].append(Voffset)
-			dataset['dataset']['requested_Idc_mA'].append(idc)
-			dataset['dataset']['raw_meas_Vdc_V'].append(v_cs_read)
-			dataset['dataset']['Idc_mA'].append(v_cs_read/cs_res*1e3)
-			dataset['dataset']['detect_normal'].append(norm_detected)
-			
-			dataset['dataset']['temperature_K'].append(t_meas)
-			dataset['dataset']['times'].append(str(datetime.datetime.now()))
+			# Set instruments and measure point
+			SystemRP22.measure_point(f_rf, p_rf, idc)
 			
 			# Check for autosave
 			if time.time() - time_last_save > TIME_AUTOSAVE_S:
-				
-				# Save data and log
-				log.save_hdf(os.path.join(LOG_DIRECTORY, f"{sweep_name}_autosave.log.hdf"))
-				
-				dict_to_hdf(dataset, os.path.join(DATA_DIRECTORY, f"{sweep_name}_autosave.hdf"))
-				log.debug(f"Autosaved logs and data.")
-				
+				SystemRP22.autosave()
 				time_last_save = time.time()
-			
-			# Wait for user input - check to quit
-			try:
-				usr_input = inputimeout(prompt="Enter 'q' to quit (will work next cycle): ", timeout=0.01)
-			except TimeoutOccurred:
-				usr_input = ''
-				
-			# Quit if told
-			if usr_input.lower() == "q":
-				log.info(f"Received exit signal quitting.")
-				abort = True
 			
 			# Check for skip to next power condition
 			if norm_detected:
-				
-				# Let chip recover
-				log.info("Turning off DC bias and signal generator to let chip recover")
-				sig_gen.set_enable_rf(False)
-				mfli.set_offset(0)
-				log.debug(f"Waiting {RECOVERY_TIME_S} seconds for chip to recover.")
-				time.sleep(RECOVERY_TIME_S)
-				log.debug("Post-normal recovery procedure complete. Proceeding to next sweep point.")
+				SystemRP22.recover_normal()
 				break
 
 if abort:
@@ -422,8 +387,8 @@ if abort:
 else:
 	log.info("Sweep completed. Shutting off signal generator and DC bias.")
 
-sig_gen.set_enable_rf(False)
-sig_gen.set_power(-50)
+vna.set_enable_rf(False)
+vna.set_power(-50)
 
 mfli.set_offset(0)
 mfli.set_output_enable(False)
