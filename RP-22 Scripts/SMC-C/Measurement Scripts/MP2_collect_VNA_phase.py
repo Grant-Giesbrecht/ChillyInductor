@@ -13,6 +13,31 @@ import datetime
 from pathlib import Path
 import argparse
 
+class SystemRP22:
+	
+	def __init__(self, dmm, tempctrl, mfli, vna):
+		self.dmm = dmm
+		self.tempctrl = tempctrl
+		self.mfli = mfli
+		self.vna = vna
+		
+		# Define dataset dictionary
+		self.calibration_dict = {"current_sense_res_ohms": cs_res, "time_of_meas": str(cs_time)}
+		self.dataset_dict = {"freq_rf_GHz":[], "power_rf_dBm":[], "times":[], "MFLI_V_offset_V":[], "requested_Idc_mA":[], "raw_meas_Vdc_V":[], "Idc_mA":[], "detect_normal":[], "temperature_K":[], "waveform_f_Hz":[], "waveform_s_dBm":[], "waveform_rbw_Hz":[], "measurement_stage":[]}
+
+		self.summary_dict = {'Ic_meas_mA':[], "Ic_set_mA":[], "Ic_uncert_mA": [], "power_rf_dBm":[], "freq_rf_GHz":[], "times":[], "temperature_K":[]}
+
+		self.info_dict = {'source_script': __file__, 'operator_notes':operator_notes, 'configuration': json.dumps(conf_data), 'source_script_full':self_contents}
+
+		self.dataset = {"calibration":self.calibration_dict, "dataset":self.dataset_dict, "summary_dataset":self.summary_dict, 'info':self.info_dict}
+	
+	def save_point(self):
+		pass
+	
+	def measure_point(self):
+		pass
+	
+
 # Set directories for data and sweep configuration
 CONF_DIRECTORY = "sweep_configs"
 # DATA_DIRECTORY = "data"
@@ -82,9 +107,6 @@ except:
 	log.critical(f"Corrupt configuration file >{conf_file_name}<.")
 	exit()
 
-
-# log.info(f"Detected {len(temp_sp_list)} measurement points.", detail=f"Measurement points = {temp_sp_list} [K]")
-
 ##======================================================
 # Initialize instruments
 
@@ -109,26 +131,36 @@ else:
 	log.critical("Failed to connect to Zurich Instruments MFLI!")
 	exit()
 
-sig_gen = Keysight8360L("GPIB::18::INSTR", log)
-if sig_gen.online:
-	log.info("Keysight signal generator >ONLINE<")
+vna = RohdeSchwarzZVA("TCPIP0::something:INSTR", log)
+if vna.online:
+	log.info("Rohde & Schwarz ZVA >ONLINE<")
 else:
-	log.critical("Failed to connect to Keysight signal generator!")
+	log.critical("Failed to connect to Rohde & Schwarz ZVA!")
 	exit()
-sig_gen.set_enable_rf(False)
 
-spec_an = RohdeSchwarzFSE("GPIB::20::INSTR", log)
-if spec_an.online:
-	log.info("Rohde & Schwarz FSEK spectrum analyzer >ONLINE<")
-else:
-	log.critical("Failed to connect to Rohde & Schwarz FSEK spectrum analyzer!")
-	exit()
+# Initialize system object
+meas_sys = SystemRP22(dmm, tempctrl, mfli, vna)
 
 ##======================================================
-# Get User Input re: sweep
+# Get User input re: sweep
 
 sweep_name = input("Sweep name: ")
 operator_notes = input("Operator notes: ")
+
+##======================================================
+# Configure VNA
+
+# Reset VNA
+vna.clear_traces()
+
+# Add trace and initialize with reasonable values
+vna.add_trace(1, 1, VectorNetworkAnalyzerCtg1.MEAS_S21)
+vna.set_freq_start(1e9)
+vna.set_freq_end(1e9)
+vna.set_power(-50)
+vna.set_num_points(500)
+vna.set_res_bandwidth(1e5)
+vna.set_rf_enable(False)
 
 ##======================================================
 # Configure MFLI
@@ -140,14 +172,6 @@ mfli.set_output_ac_enable(False)
 mfli.set_differential_enable(True)
 mfli.set_offset(0)
 mfli.set_output_enable(True)
-
-##======================================================
-# Configure spectrum analuzer
-
-spec_an.set_ref_level(10)
-
-spec_an.set_continuous_trigger(False) # Otherwise wait-ready will not work!
-spec_an.set_y_div(20) # Set y scale so *everything* is visible
 
 ##======================================================
 # Calibrate current-sense resistor
@@ -170,10 +194,6 @@ try:
 	self_contents = Path(__file__).read_text()
 except Exception as e:
 	self_contents = f"ERROR: Failed to read script source. ({e})"
-
-# Define dataset dictionary
-dataset = {"calibration":{"current_sense_res_ohms": cs_res, "time_of_meas": str(cs_time)}, "dataset":{"freq_rf_GHz":[], "power_rf_dBm":[], "times":[], "waveform_f_Hz":[], "waveform_s_dBm":[], "waveform_rbw_Hz":[], "MFLI_V_offset_V":[], "requested_Idc_mA":[], "raw_meas_Vdc_V":[], "Idc_mA":[], "detect_normal":[], "temperature_K":[]}, 'info': {'source_script': __file__, 'operator_notes':operator_notes, 'configuration': json.dumps(conf_data), 'source_script_full':self_contents}}
-
 
 # Prepare DMM to measure voltage
 dmm.set_measurement(DigitalMultimeterCtg1.MEAS_VOLT_DC, DigitalMultimeterCtg1.RANGE_AUTO)
@@ -199,12 +219,11 @@ if args.tempwait is not None:
 		
 		log.debug(f"Temperature (>{t_meas} K<) is above starting threshold (>:a{args.tempwait} K<).")
 		time.sleep(TEMPWAIT_PERIOD_S)
+
 ##======================================================
 # Begin logging data
 
-
 time_last_save = time.time()
-
 
 # Initialize current set resistance from the current sense resistor
 current_set_res = None
@@ -255,25 +274,6 @@ for f_rf in freq_rf:
 				break
 			
 			log.info(f"Setting bias current to >{idc}< mA.")
-			
-			# # Initialize current set resistance
-			# if current_set_res is None:
-			# 	log.debug(f"Preparing to measure system impedance.")
-			# 	Voffset = cs_res * idc/1e3
-			# 	mfli.set_offset(Voffset)
-			# 	mfli.set_output_enable(True)
-				
-			# 	# Wait
-			# 	time.sleep(0.01)
-				
-			# 	# Read current
-			# 	v_cs_read = np.abs(dmm.trigger_and_read())
-			# 	idc_read = v_cs_read/cs_res*1e3
-			# 	log.info(f"With current target of {idc} mA, set Vout={Voffset*1e3} mV, measured Idc={idc_read} mA.")
-				
-			# 	# Update resistance figure
-			# 	current_set_res = Voffset/(idc_read/1e3)
-			# 	log.info(f"Setting system impedance to {current_set_res} Ohms.")
 			
 			# Set offset voltage
 			Voffset = current_set_res * idc/1e3
