@@ -3,10 +3,12 @@ import pandas as pd
 import numpy as np
 from scipy.optimize import curve_fit
 
+DATADIR = "G:\ARC0 PhD Data\RP-23 Qubit Readout\Data\SMC-A\Time Domain Measurements"
+
 #===========================================================================
 
-dfA1 = pd.read_csv("./C1NOBIAS-F4,8GHZ_3dBm00000.txt", skiprows=4, encoding='utf-8')
-dfB1 = pd.read_csv("./C10,1VBIAS-F2,4GHZ_3dBm00000.txt", skiprows=4, encoding='utf-8')
+dfA1 = pd.read_csv(f"{DATADIR}/C1NOBIAS-F4,8GHZ_3dBm00000.txt", skiprows=4, encoding='utf-8')
+dfB1 = pd.read_csv(f"{DATADIR}/C10,1VBIAS-F2,4GHZ_3dBm00000.txt", skiprows=4, encoding='utf-8')
 
 CaCOLOR = (0.6, 0, 0)
 CbCOLOR = (0, 0, 0.7)
@@ -53,9 +55,9 @@ plt.tight_layout()
 
 #===========================================================================
 
-dfC1 = pd.read_csv("./C1NOBIAS-F4,8GHZ_-4dBm00000.txt", skiprows=4, encoding='utf-8')
-dfD1 = pd.read_csv("./C10,275VBIAS-F2,4GHZ_-4dBm00000.txt", skiprows=4, encoding='utf-8')
-dfD2 = pd.read_csv("./C20,275VBIAS-F2,4GHZ_-4dBm00000.txt", skiprows=4, encoding='utf-8')
+dfC1 = pd.read_csv(f"{DATADIR}/C1NOBIAS-F4,8GHZ_-4dBm00000.txt", skiprows=4, encoding='utf-8')
+dfD1 = pd.read_csv(f"{DATADIR}/C10,275VBIAS-F2,4GHZ_-4dBm00000.txt", skiprows=4, encoding='utf-8')
+dfD2 = pd.read_csv(f"{DATADIR}/C20,275VBIAS-F2,4GHZ_-4dBm00000.txt", skiprows=4, encoding='utf-8')
 
 fig2 = plt.figure(3)
 ax2 = fig2.gca()

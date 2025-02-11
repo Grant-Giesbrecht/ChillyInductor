@@ -1,10 +1,12 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 
+DATADIR = "G:\ARC0 PhD Data\RP-23 Qubit Readout\Data\SMC-A\Time Domain Measurements"
+
 #===========================================================================
 
-dfA1 = pd.read_csv("/Volumes/M4 PHD/C1NOBIAS-F24GHZ_6dBm00000.txt", skiprows=4, encoding='utf-8')
-dfA4 = pd.read_csv("/Volumes/M4 PHD/C4NOBIAS-F24GHZ_6dBm00000.txt", skiprows=4, encoding='utf-8')
+dfA1 = pd.read_csv(f"{DATADIR}/C1NOBIAS-F24GHZ_6dBm00000.txt", skiprows=4, encoding='utf-8')
+dfA4 = pd.read_csv(f"{DATADIR}/C4NOBIAS-F24GHZ_6dBm00000.txt", skiprows=4, encoding='utf-8')
 
 C1COLOR = (0.7, 0.65, 0)
 C4COLOR = (0.2, 0.7, 0.1)
@@ -24,8 +26,8 @@ plt.tight_layout()
 
 #===========================================================================
 
-dfB1 = pd.read_csv("/Volumes/M4 PHD/C10,1VBIAS-F24GHZ_6dBm00000.txt", skiprows=4, encoding='utf-8')
-dfB4 = pd.read_csv("/Volumes/M4 PHD/C40,1VBIAS-F24GHZ_6dBm00000.txt", skiprows=4, encoding='utf-8')
+dfB1 = pd.read_csv(f"{DATADIR}/C10,1VBIAS-F24GHZ_6dBm00000.txt", skiprows=4, encoding='utf-8')
+dfB4 = pd.read_csv(f"{DATADIR}/C40,1VBIAS-F24GHZ_6dBm00000.txt", skiprows=4, encoding='utf-8')
 
 C1COLOR = (0.7, 0.65, 0)
 C4COLOR = (0.2, 0.7, 0.1)
@@ -45,8 +47,8 @@ plt.tight_layout()
 
 #===========================================================================
 
-dfC1 = pd.read_csv("/Volumes/M4 PHD/C10,1VBIAS-F48GHZ_2dBm00000.txt", skiprows=4, encoding='utf-8')
-dfC4 = pd.read_csv("/Volumes/M4 PHD/C40,1VBIAS-F48GHZ_2dBm00000.txt", skiprows=4, encoding='utf-8')
+dfC1 = pd.read_csv(f"{DATADIR}/C10,1VBIAS-F48GHZ_2dBm00000.txt", skiprows=4, encoding='utf-8')
+dfC4 = pd.read_csv(f"{DATADIR}/C40,1VBIAS-F48GHZ_2dBm00000.txt", skiprows=4, encoding='utf-8')
 
 C1COLOR = (0.7, 0.65, 0)
 C4COLOR = (0.2, 0.7, 0.1)
@@ -66,8 +68,8 @@ plt.tight_layout()
 
 #===========================================================================
 
-dfD1 = pd.read_csv("/Volumes/M4 PHD/C1NOBIAS-F48GHZ_2dBm00000.txt", skiprows=4, encoding='utf-8')
-dfD4 = pd.read_csv("/Volumes/M4 PHD/C4NOBIAS-F48GHZ_2dBm00000.txt", skiprows=4, encoding='utf-8')
+dfD1 = pd.read_csv(f"{DATADIR}/C1NOBIAS-F48GHZ_2dBm00000.txt", skiprows=4, encoding='utf-8')
+dfD4 = pd.read_csv(f"{DATADIR}/C4NOBIAS-F48GHZ_2dBm00000.txt", skiprows=4, encoding='utf-8')
 
 C1COLOR = (0.7, 0.65, 0)
 C4COLOR = (0.2, 0.7, 0.1)

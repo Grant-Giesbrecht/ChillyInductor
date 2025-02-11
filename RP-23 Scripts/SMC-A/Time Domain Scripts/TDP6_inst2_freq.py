@@ -2,6 +2,7 @@ import numpy as np
 import matplotlib.pyplot as plt
 from scipy.signal import hilbert, chirp
 
+DATADIR = "G:\ARC0 PhD Data\RP-23 Qubit Readout\Data\SMC-A\Time Domain Measurements"
 
 duration, fs = 1, 400  # 1 s signal with sampling frequency of 400 Hz
 t = np.arange(int(fs*duration)) / fs  # timestamps of samples

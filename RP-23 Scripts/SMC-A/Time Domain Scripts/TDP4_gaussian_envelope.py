@@ -5,17 +5,19 @@ from scipy.optimize import curve_fit
 from colorama import Fore, Style
 import csv 
 
+DATADIR = "G:\ARC0 PhD Data\RP-23 Qubit Readout\Data\SMC-A\Time Domain Measurements"
+
 pi = 3.1415926535
 merge = True
-include_3rd = True
+include_3rd = False
 
-dfA1 = pd.read_csv("./C1NOBIAS-F4,8GHZ_3dBm00000.txt", skiprows=4, encoding='utf-8')
-dfB1 = pd.read_csv("./C10,1VBIAS-F2,4GHZ_3dBm00000.txt", skiprows=4, encoding='utf-8')
-dfB2 = pd.read_csv("./C20,1VBIAS-F2,4GHZ_3dBm00000.txt", skiprows=4, encoding='utf-8')
+dfA1 = pd.read_csv(f"{DATADIR}/C1NOBIAS-F4,8GHZ_3dBm00000.txt", skiprows=4, encoding='utf-8')
+dfB1 = pd.read_csv(f"{DATADIR}/C10,1VBIAS-F2,4GHZ_3dBm00000.txt", skiprows=4, encoding='utf-8')
+dfB2 = pd.read_csv(f"{DATADIR}/C20,1VBIAS-F2,4GHZ_3dBm00000.txt", skiprows=4, encoding='utf-8')
 
-dfC1 = pd.read_csv("./C1NOBIAS-F4,8GHZ_-4dBm00000.txt", skiprows=4, encoding='utf-8')
-dfD1 = pd.read_csv("./C10,275VBIAS-F2,4GHZ_-4dBm00000.txt", skiprows=4, encoding='utf-8')
-dfD2 = pd.read_csv("./C20,275VBIAS-F2,4GHZ_-4dBm00000.txt", skiprows=4, encoding='utf-8')
+dfC1 = pd.read_csv(f"{DATADIR}/C1NOBIAS-F4,8GHZ_-4dBm00000.txt", skiprows=4, encoding='utf-8')
+dfD1 = pd.read_csv(f"{DATADIR}/C10,275VBIAS-F2,4GHZ_-4dBm00000.txt", skiprows=4, encoding='utf-8')
+dfD2 = pd.read_csv(f"{DATADIR}/C20,275VBIAS-F2,4GHZ_-4dBm00000.txt", skiprows=4, encoding='utf-8')
 
 red = (0.6, 0, 0)
 blue = (0, 0, 0.7)
@@ -57,9 +59,9 @@ def plot_test(ampl, b, sigma, omega, phi):
 	
 	ax0.plot(time_ns, ampl_mV, linestyle=':', marker='.', color=red, alpha=0.2)
 	# ax0.plot(time_ns, env_mV, linestyle='-', color=(1, 0.2, 0.2), alpha=0.2)
-	ax0.set_ylim([-200, 200])
+	ax0.set_ylim([-300, 300])
 	ax1.plot(time_ns, soln_y, linestyle=':', marker='.', color=blue, alpha=0.2)
-	ax1.set_ylim([-200, 200])
+	ax1.set_ylim([-300, 300])
 	
 	if merge:
 		ax23.plot(time_ns, ampl_mV, linestyle=':', marker='.', color=red, alpha=0.2)

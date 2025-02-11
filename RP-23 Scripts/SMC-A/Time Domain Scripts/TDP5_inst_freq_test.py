@@ -2,6 +2,8 @@ import numpy as np
 from scipy.signal import hilbert
 import matplotlib.pyplot as plt
 
+DATADIR = "G:\ARC0 PhD Data\RP-23 Qubit Readout\Data\SMC-A\Time Domain Measurements"
+
 # Generate a sample signal (e.g., a chirp signal)
 t = np.linspace(0, 1, 1000)
 signal = np.sin(2 * np.pi * (5 * t + 10 * t**2))
