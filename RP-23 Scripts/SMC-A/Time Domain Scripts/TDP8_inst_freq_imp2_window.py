@@ -219,7 +219,7 @@ ax1.set_xlabel("Time (ns)")
 ax1.set_ylabel("Frequency (GHz)")
 ax1.set_title("Windowed Fit Frequency")
 ax1.grid(True)
-ax1.set_ylim([4.6, 5])
+ax1.set_ylim([4.78, 4.84])
 
 plt.tight_layout()
 
