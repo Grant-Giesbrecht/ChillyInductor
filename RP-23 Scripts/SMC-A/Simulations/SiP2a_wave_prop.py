@@ -32,19 +32,20 @@ phi = 0
 
 # Set some coefficients
 L0 = 1
-I_star = 0.75
+I_star = 3
 C0 = 1
-nonlinear_region = [15e-9, 25e-9]
+nonlinear_region = [15e-9, 100e-9]
 
-tmax = 50e-9
-dt = 0.75e-9
+tmax = 120e-9
+dt = 0.25e-9
 
 x_start = -30e-9
-x_end = 100e-9
+x_end = 130e-9
 x_step = 10e-12
 
 mp4_dpi = 200
-mp4_bitrate = 2000
+mp4_bitrate = 16000
+mp4_fps = 40
 
 #=========================== Initialization ===========================
 
@@ -166,7 +167,7 @@ if args.savemp4:
 	print(f"Saving MP4")
 	
 	# Create writer
-	writer = FFMpegWriter(fps=15, bitrate=mp4_bitrate)
+	writer = FFMpegWriter(fps=mp4_fps, bitrate=mp4_bitrate)
 	
 	# Loop over each frame
 	with writer.saving(fig1, mp4_filename, dpi=mp4_dpi): #, dpi=300):

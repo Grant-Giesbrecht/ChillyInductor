@@ -49,13 +49,13 @@ ampl_mV_full = list(dfC1['Ampl']*1e3)
 supertitle = "No Doubler"
 pulse_range_ns = (10, 48)
 
-# High RF Power
-time_ns_full = list(dfB1['Time']*1e9)
-ampl_mV_full = list(dfB1['Ampl']*1e3)
-if include_3rd:
-	ampl_mV_full = ampl_mV_full + dfB2['Ampl']*1e3
-supertitle = "Using Doubler"
-pulse_range_ns = (20, 40)
+# # High RF Power
+# time_ns_full = list(dfB1['Time']*1e9)
+# ampl_mV_full = list(dfB1['Ampl']*1e3)
+# if include_3rd:
+# 	ampl_mV_full = ampl_mV_full + dfB2['Ampl']*1e3
+# supertitle = "Using Doubler"
+# pulse_range_ns = (20, 40)
 
 # # Low RF Power
 # time_ns_full = list(dfD1['Time']*1e9)
