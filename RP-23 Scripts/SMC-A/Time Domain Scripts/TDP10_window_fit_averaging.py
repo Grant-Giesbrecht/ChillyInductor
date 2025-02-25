@@ -35,12 +35,11 @@ merge = True
 include_3rd = False
 
 trim_time = True
-fit_method = GUIDED_SINE_FIT
+fit_method = HILBERT_NORMALIZED
 
 # Window fit options
-window_size_ns = 5
+window_size_ns = 2
 window_step_points = 10
-
 
 
 #====================== Load data =================
@@ -48,12 +47,14 @@ window_step_points = 10
 # DATADIR = "/Volumes/M4 PHD/13FebTimeDomain"
 DATADIR = os.path.join("G:", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Time Domain Measurements", "13_Feb_2025")
 
-# df_100mV_3dBm_df = []
-# df_100mV_3dBm_df.append(pd.read_csv(f"{DATADIR}/C1BIAS0,1V-F2,4GHZ_3dBm00000.txt", skiprows=4, encoding='utf-8'))
-# df_100mV_3dBm_df.append(pd.read_csv(f"{DATADIR}/C1BIAS0,1V-F2,4GHZ_3dBm00001.txt", skiprows=4, encoding='utf-8'))
-# df_100mV_3dBm_df.append(pd.read_csv(f"{DATADIR}/C1BIAS0,1V-F2,4GHZ_3dBm00002.txt", skiprows=4, encoding='utf-8'))
-# df_100mV_3dBm_df.append(pd.read_csv(f"{DATADIR}/C1BIAS0,1V-F2,4GHZ_3dBm00003.txt", skiprows=4, encoding='utf-8'))
-# df_100mV_3dBm_df.append(pd.read_csv(f"{DATADIR}/C1BIAS0,1V-F2,4GHZ_3dBm00004.txt", skiprows=4, encoding='utf-8'))
+df_100mV_3dBm_df = []
+df_100mV_3dBm_df.append(pd.read_csv(f"{DATADIR}/C1BIAS0,1V-F2,4GHZ_3dBm00000.txt", skiprows=4, encoding='utf-8'))
+df_100mV_3dBm_df.append(pd.read_csv(f"{DATADIR}/C1BIAS0,1V-F2,4GHZ_3dBm00001.txt", skiprows=4, encoding='utf-8'))
+df_100mV_3dBm_df.append(pd.read_csv(f"{DATADIR}/C1BIAS0,1V-F2,4GHZ_3dBm00002.txt", skiprows=4, encoding='utf-8'))
+df_100mV_3dBm_df.append(pd.read_csv(f"{DATADIR}/C1BIAS0,1V-F2,4GHZ_3dBm00003.txt", skiprows=4, encoding='utf-8'))
+df_100mV_3dBm_df.append(pd.read_csv(f"{DATADIR}/C1BIAS0,1V-F2,4GHZ_3dBm00004.txt", skiprows=4, encoding='utf-8'))
+shifts_ns = [0.147, 0.089, 0.008, -0.009]
+shifts_ns = [0.163, 0.135, 0.048, -0.020]
 
 # df_100mV_3dBm_df = []
 # df_100mV_3dBm_df.append(pd.read_csv(f"{DATADIR}/C1BIAS0,30V-F2,4GHZ_3dBm00000.txt", skiprows=4, encoding='utf-8'))
@@ -76,21 +77,17 @@ DATADIR = os.path.join("G:", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SM
 # df_100mV_3dBm_df.append(pd.read_csv(f"{DATADIR}/C1BIAS0,10V-F2,4GHZ_0dBm00003.txt", skiprows=4, encoding='utf-8'))
 # df_100mV_3dBm_df.append(pd.read_csv(f"{DATADIR}/C1BIAS0,10V-F2,4GHZ_0dBm00004.txt", skiprows=4, encoding='utf-8'))
 
-df_100mV_3dBm_df = []
-df_100mV_3dBm_df.append(pd.read_csv(f"{DATADIR}/C1BIAS0,20V-F2,4GHZ_0dBm00000.txt", skiprows=4, encoding='utf-8'))
-df_100mV_3dBm_df.append(pd.read_csv(f"{DATADIR}/C1BIAS0,20V-F2,4GHZ_0dBm00001.txt", skiprows=4, encoding='utf-8'))
-df_100mV_3dBm_df.append(pd.read_csv(f"{DATADIR}/C1BIAS0,20V-F2,4GHZ_0dBm00002.txt", skiprows=4, encoding='utf-8'))
-df_100mV_3dBm_df.append(pd.read_csv(f"{DATADIR}/C1BIAS0,20V-F2,4GHZ_0dBm00003.txt", skiprows=4, encoding='utf-8'))
-df_100mV_3dBm_df.append(pd.read_csv(f"{DATADIR}/C1BIAS0,20V-F2,4GHZ_0dBm00004.txt", skiprows=4, encoding='utf-8'))
-shifts_ns = [0.026, 0.055, 0.0565, 0.032]
+# df_100mV_3dBm_df = []
+# df_100mV_3dBm_df.append(pd.read_csv(f"{DATADIR}/C1BIAS0,20V-F2,4GHZ_0dBm00000.txt", skiprows=4, encoding='utf-8'))
+# df_100mV_3dBm_df.append(pd.read_csv(f"{DATADIR}/C1BIAS0,20V-F2,4GHZ_0dBm00001.txt", skiprows=4, encoding='utf-8'))
+# df_100mV_3dBm_df.append(pd.read_csv(f"{DATADIR}/C1BIAS0,20V-F2,4GHZ_0dBm00002.txt", skiprows=4, encoding='utf-8'))
+# df_100mV_3dBm_df.append(pd.read_csv(f"{DATADIR}/C1BIAS0,20V-F2,4GHZ_0dBm00003.txt", skiprows=4, encoding='utf-8'))
+# df_100mV_3dBm_df.append(pd.read_csv(f"{DATADIR}/C1BIAS0,20V-F2,4GHZ_0dBm00004.txt", skiprows=4, encoding='utf-8'))
+# shifts_ns = [0.026, 0.055, 0.0565, 0.032]
 
-# Apply test time-shift
-shifts_ns = [0.026, 0.055, 0.0565, 0.032]
-for idx, frame in enumerate(df_100mV_3dBm_df):
-	
-	if idx < len(shifts_ns):
-		frame['Time'] += shifts_ns[idx]*1e-9
-
+master_df = pd.concat(df_100mV_3dBm_df)
+master_df.sort_values(by='Time')
+master_df.reset_index(drop=True, inplace=True)
 
 def find_closest_index(lst, X):
 	closest_index = min(range(len(lst)), key=lambda i: abs(lst[i] - X))
@@ -514,36 +511,52 @@ def add_fitparam_data(dpacket, ax2a, ax2b, ax2c, ax2d, color=(0.6, 0, 0.2)):
 		ax2c.fill_between(tempx, dpacket['slope_bounds_low'], dpacket['slope_bounds_hi'], color=color, alpha=0.1)
 		ax2a.fill_between(tempx, dpacket['ampl_bounds_low'], dpacket['ampl_bounds_hi'], color=color, alpha=0.1)
 
+
+# Apply test time-shift
+# shifts_ns = [0.026, 0.055, 0.0565, 0.032]
+df_100mV_3dBm_trim = []
+pulse_range_ns = (10, 48)
+for idx, frame in enumerate(df_100mV_3dBm_df):
+	
+	if idx < len(shifts_ns):
+		frame['Time'] += shifts_ns[idx]*1e-9
+	
+	# Trim timeseries
+	if trim_time:
+		idx_start = find_closest_index(frame['Time'], pulse_range_ns[0]*1e-9)
+		idx_end = find_closest_index(frame['Time'], pulse_range_ns[1]*1e-9)
+		time_ns = frame['Time'][idx_start:idx_end+1]
+		ampl_mV = frame['Ampl'][idx_start:idx_end+1]
+	else:
+		time_ns = frame['Time']
+		ampl_mV = frame['Ampl']
+	df_100mV_3dBm_trim.append(pd.DataFrame({'Time':time_ns, 'Ampl':ampl_mV}))
+
 # #====================== Crunch numbers ========================
 
-df_100mV_3dBm_analyzed = []
-for df in df_100mV_3dBm_df:
-	if fit_method == HILBERT_NORMALIZED:
-		df_100mV_3dBm_analyzed.append(windowed_freq_analysis_norm(df))
-	elif fit_method == LINEAR_SINE_FIT:
-		df_100mV_3dBm_analyzed.append(windowed_freq_analysis_linear(df))
-	elif fit_method == GUIDED_SINE_FIT:
-		df_100mV_3dBm_analyzed.append(windowed_freq_analysis_linear_guided(df))
+
+if fit_method == HILBERT_NORMALIZED:
+	master_analyzed = windowed_freq_analysis_norm(master_df)
+elif fit_method == LINEAR_SINE_FIT:
+	master_analyzed = windowed_freq_analysis_linear(master_df)
+elif fit_method == GUIDED_SINE_FIT:
+	master_analyzed = windowed_freq_analysis_linear_guided(master_df)
 
 # #====================== Perform plotting ========================
-
-
 
 fig1 = plt.figure(figsize=(8,6))
 gs = fig1.add_gridspec(2, 1)
 ax1a = fig1.add_subplot(gs[0, 0])
 ax1b = fig1.add_subplot(gs[1, 0])
 
-# Add to plot
-cmap = get_colormap_colors('plasma', len(df_100mV_3dBm_df))
-for idx, frame in enumerate(df_100mV_3dBm_df):
-	(frame, ax1a, ax1b, color=cmap[idx], label=f"idx={idx}")
+add_freqfit_data(master_analyzed, ax1a, ax1b, color=(0, 0, 0.7))
+
+ax1a.scatter([15, 20, 25, 30, 35, 40], [4.8515, 4.8821, 4.8742, 4.8933, 4.8931, 4.8816], marker='o', color=(0, 0.65, 0))
 
 ax1a.set_xlabel("Time (ns)")
 ax1a.set_ylabel("Frequency (GHz)")
 ax1a.set_title("Fit Frequency")
 ax1a.grid(True)
-ax1a.legend()
 
 ax1b.set_xlabel("Time (ns)")
 ax1b.set_ylabel("Amplitude (mV)")
@@ -566,8 +579,8 @@ else:
 	ax2d = fig2.add_subplot(gs2[3, 0])
 
 
-for idx, frame in enumerate(df_100mV_3dBm_analyzed):
-	add_fitparam_data(frame, ax2a, ax2b, ax2c, ax2d, color=cmap[idx])
+
+add_fitparam_data(master_analyzed, ax2a, ax2b, ax2c, ax2d, color=(0, 0, 0.7))
 
 ax2a.set_title("Amplitude")
 ax2d.set_title("phis")
@@ -588,19 +601,34 @@ if fit_method == LINEAR_SINE_FIT or fit_method == GUIDED_SINE_FIT:
 	ax2c.grid(True)
 
 if fit_method == HILBERT_NORMALIZED or fit_method == LINEAR_SINE_FIT:
-	ax2a.axhline(y=df_100mV_3dBm_analyzed[0]['bounds'][0][0], color=(0,0,0), linestyle='--')
-	ax2a.axhline(y=df_100mV_3dBm_analyzed[0]['bounds'][1][0], color=(0,0,0), linestyle='--')
-ax2d.axhline(y=df_100mV_3dBm_analyzed[0]['bounds'][0][2], color=(0,0,0), linestyle='--')
-ax2d.axhline(y=df_100mV_3dBm_analyzed[0]['bounds'][1][2], color=(0,0,0), linestyle='--')
+	ax2a.axhline(y=master_analyzed['bounds'][0][0], color=(0,0,0), linestyle='--')
+	ax2a.axhline(y=master_analyzed['bounds'][1][0], color=(0,0,0), linestyle='--')
+ax2d.axhline(y=master_analyzed['bounds'][0][2], color=(0,0,0), linestyle='--')
+ax2d.axhline(y=master_analyzed['bounds'][1][2], color=(0,0,0), linestyle='--')
 if fit_method == LINEAR_SINE_FIT or fit_method == GUIDED_SINE_FIT:
-	ax2b.axhline(y=df_100mV_3dBm_analyzed[0]['bounds'][0][4], color=(0,0,0), linestyle='--')
-	ax2b.axhline(y=df_100mV_3dBm_analyzed[0]['bounds'][1][4], color=(0,0,0), linestyle='--')
+	ax2b.axhline(y=master_analyzed['bounds'][0][4], color=(0,0,0), linestyle='--')
+	ax2b.axhline(y=master_analyzed['bounds'][1][4], color=(0,0,0), linestyle='--')
 if fit_method == LINEAR_SINE_FIT:
-	ax2c.axhline(y=df_100mV_3dBm_analyzed[0]['bounds'][0][3], color=(0,0,0), linestyle='--')
-	ax2c.axhline(y=df_100mV_3dBm_analyzed[0]['bounds'][1][3], color=(0,0,0), linestyle='--')
-	
+	ax2c.axhline(y=master_analyzed['bounds'][0][3], color=(0,0,0), linestyle='--')
+	ax2c.axhline(y=master_analyzed['bounds'][1][3], color=(0,0,0), linestyle='--')
+
+fig3 = plt.figure(figsize=(10,4.5))
+gs = fig3.add_gridspec(1, 1)
+ax3a = fig3.add_subplot(gs[0, 0])	
+
+# Add to plot
+cmap = get_colormap_colors('plasma', len(df_100mV_3dBm_trim))
+for idx, frame in enumerate(df_100mV_3dBm_trim):
+	ax3a.plot(frame['Time']*1e9, frame['Ampl'], linestyle=':', marker='.', color=cmap[idx], label=f"idx={idx}")
+
+ax3a.set_xlabel("Time (ns)")
+ax3a.set_ylabel("Amplitude (mV)")
+ax3a.set_title("Waveform Alignment")
+ax3a.grid(True)
+ax3a.legend()
 
 fig1.tight_layout()
 fig2.tight_layout()
+fig3.tight_layout()
 plt.show()
 
