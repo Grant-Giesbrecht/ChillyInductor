@@ -27,13 +27,19 @@ else:
 	log.set_terminal_level("DEBUG")
 log.str_format.show_detail = args.detail
 
+#=================== Science Code ==========================
+
+def linear_sine (x, ampl, omega, phi, m, offset):
+	''' Fitting function '''
+	return np.sin(omega*x-phi)*(ampl + m*(x-x[0])) + offset
+
 #==================== Define control parameters =======================
 
 AMPLITUDE_CTRL = "amplitude"
-
-#===================== Custom Functions for plotting ==================
-
-
+FREQUENCY_CTRL = "freq"
+PHI_CTRL = "phi"
+SLOPE_CTRL = "slope"
+OFFSET_CTRL = "offset"
 
 ##==================== Create custom classes for Black-Hole ======================
 
@@ -61,16 +67,32 @@ class ChirpAnalyzerMainWindow(bh.BHMainWindow):
 		# Create select widget
 		self.select_widget = bh.BHDatasetSelectBasicWidget(data_manager, log)
 		
+		# Initialize control state
+		self.control_requested.add_param(AMPLITUDE_CTRL, 50)
+		self.control_requested.add_param(FREQUENCY_CTRL, 4.85)
+		self.control_requested.add_param(PHI_CTRL, 0)
+		self.control_requested.add_param(SLOPE_CTRL, 0)
+		self.control_requested.add_param(OFFSET_CTRL, 0)
+		
 		#TODO: Create a useful widget
 		self.plot = bhw.BHPlotWidget(self.control_requested, custom_render_func=render_sine)
 		self.add_control_subscriber(self.plot)
 		
 		#TODO: Create a controller
-		self.slider = bhw.BHSliderWidget(self, param=AMPLITUDE_CTRL, header_label="Slider 1", initial_val=2, min=1, max=10, step=1, unit_label="V", tick_step=1)
+		self.ampl_slider = bhw.BHSliderWidget(self, param=AMPLITUDE_CTRL, header_label="Amplitude", min=0, max=200, step=1, unit_label="mV", tick_step=1)
+		self.freq_slider = bhw.BHSliderWidget(self, param=FREQUENCY_CTRL, header_label="Frequency", min=4800, max=4900, step=10, unit_label="MHz", tick_step=100)
+		self.phi_slider = bhw.BHSliderWidget(self, param=PHI_CTRL, header_label="Phi", min=-3, max=3, step=1, unit_label="rad", tick_step=1)
+		self.slope_slider = bhw.BHSliderWidget(self, param=SLOPE_CTRL, header_label="Slope", min=-50, max=50, step=1, unit_label="mV/ns", tick_step=10)
+		self.offset_slider = bhw.BHSliderWidget(self, param=OFFSET_CTRL, header_label="Offset", min=-20, max=20, step=1, unit_label="mV", tick_step=5)
+		
 		
 		# Position widgets
 		self.main_grid.addWidget(self.plot, 0, 0)
-		self.main_grid.addWidget(self.slider, 0, 1)
+		self.main_grid.addWidget(self.ampl_slider, 0, 1)
+		self.main_grid.addWidget(self.freq_slider, 0, 2)
+		self.main_grid.addWidget(self.phi_slider, 0, 3)
+		self.main_grid.addWidget(self.slope_slider, 0, 4)
+		self.main_grid.addWidget(self.offset_slider, 0, 5)
 		self.main_grid.addWidget(self.select_widget, 1, 0)
 		
 		# Create central widget
@@ -82,8 +104,7 @@ class ChirpAnalyzerMainWindow(bh.BHMainWindow):
 
 ##==================== Create custom functions for Black-Hole ======================
 
-time = np.linspace(0, 10, 101)
-omega = 2*np.pi*0.5
+time = np.linspace(0, 10, 301)
 
 def load_chirp_dataset(source, log):
 	return ChirpDataset(log, source)
@@ -94,7 +115,13 @@ def render_sine(plot_widget):
 	
 	# Calculate sine
 	ampl = plot_widget.control_requested.get_param(AMPLITUDE_CTRL)
-	y = np.sin(time*omega)*ampl
+	freq = plot_widget.control_requested.get_param(FREQUENCY_CTRL)
+	phi = plot_widget.control_requested.get_param(PHI_CTRL)
+	slope = plot_widget.control_requested.get_param(SLOPE_CTRL)
+	offset = plot_widget.control_requested.get_param(OFFSET_CTRL)
+	
+	omega = freq/1e3*2*np.pi
+	y = linear_sine(time, ampl, freq, phi, slope, offset)
 	
 	# Clear old data
 	plot_widget.ax1a.cla()
@@ -103,7 +130,7 @@ def render_sine(plot_widget):
 	plot_widget.ax1a.plot(time, y, linestyle=':', marker='.', color=(0.65, 0, 0))
 	plot_widget.ax1a.set_xlabel("Time (ns)")
 	plot_widget.ax1a.set_ylabel("Amplitude (mV)")
-	plot_widget.ax1a.set_ylim([-15, 15])
+	plot_widget.ax1a.set_ylim([-300, 300])
 	plot_widget.ax1a.grid(True)
 	plot_widget.ax1a.set_title("Sine")
 	
