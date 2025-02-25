@@ -9,6 +9,22 @@ import pylogfile.base as plf
 import numpy as np
 import sys
 
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument('-d', '--detail', help="Show log details.", action='store_true')
+parser.add_argument('--loglevel', help="Set the logging display level.", choices=['LOWDEBUG', 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], type=str.upper)
+args = parser.parse_args()
+
+# Initialize log
+log = plf.LogPile()
+if args.loglevel is not None:
+	print(f"\tSetting log level to {args.loglevel}")
+	log.set_terminal_level(args.loglevel)
+else:
+	log.set_terminal_level("DEBUG")
+log.str_format.show_detail = args.detail
+
 # class ChirpDataManager(bh.BHDatasetManager):
 	
 # 	def __init__(self, log):
@@ -31,11 +47,9 @@ app = QtWidgets.QApplication(sys.argv)
 app.setStyle(f"Fusion")
 # app.setWindowIcon
 
-# Create Log
-log = plf.LogPile()
-
 # Create Data Manager
 data_manager = bh.BHDatasetManager(log)
+data_manager.load_configuration("chirpy_conf.json")
 
 window = ChirpAnalyzerMainWindow(log, app, data_manager)
 
