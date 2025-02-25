@@ -20,17 +20,38 @@
 				"group": "Pi & Half Pi: 20-Feb-2025"
 			},
 			"valid_active_set_indices": [0]
+		},
+		{
+			"file_path": ["$20FEB2025$", "C1 BIAS0,30V_2,368GHz_HalfPiOut_-14dBm00000.txt"],
+			"parameters": {
+				"fund_freq_GHz": 2.36,
+				"bias_V": 0.30,
+				"P_RF_dBm": -14,
+				"channel": 1,
+				"group": "Pi & Half Pi: 20-Feb-2025"
+			},
+			"valid_active_set_indices": [0]
 		}
 	],
 	"organization_structure":[
 		{
 			"layer":0,
-			"group_parameters": ["group"],
+			"group_parameters": "group",
 			"include_all_option": true
 		},
 		{
 			"layer":1,
-			"group_parameters": ["fund_freq_GHz", "bias_V", "P_RF_dBm"],
+			"group_parameters": "fund_freq_GHz",
+			"include_all_option": true
+		},
+		{
+			"layer":2,
+			"group_parameters": "bias_V",
+			"include_all_option": true
+		},
+		{
+			"layer":3,
+			"group_parameters": "P_RF_dBm",
 			"include_all_option": true
 		}
 	]

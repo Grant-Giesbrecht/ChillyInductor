@@ -1,4 +1,5 @@
 import blackhole.base as bh
+import blackhole.widgets as bhw
 import pandas as pd
 
 from PyQt6 import QtCore, QtGui, QtWidgets
@@ -31,6 +32,9 @@ log.str_format.show_detail = args.detail
 # 	def __init__(self, log):
 # 		super().__init__(log)
 
+#==================== Define control parameters =======================
+
+AMPLITUDE_CTRL = "amplitude"
 
 ##==================== Create custom classes for Black-Hole ======================
 
@@ -55,9 +59,20 @@ class ChirpAnalyzerMainWindow(bh.BHMainWindow):
 		
 		self.main_grid = QGridLayout()
 		
+		# Create select widget
 		self.select_widget = bh.BHDatasetSelectBasicWidget(data_manager, log)
 		
-		self.main_grid.addWidget(self.select_widget, 0, 0)
+		#TODO: Create a useful widget
+		self.plot = bhw.BHPlotWidget(self.control_requested)
+		self.add_control_subscriber(self.plot)
+		
+		#TODO: Create a controller
+		self.slider = bhw.BHSliderWidget(self, param=AMPLITUDE_CTRL, header_label="Slider 1", initial_val=2, min=1, max=10, step=1, unit_label="V", tick_step=1)
+		
+		# Position widgets
+		self.main_grid.addWidget(self.plot, 0, 0)
+		self.main_grid.addWidget(self.slider, 0, 1)
+		self.main_grid.addWidget(self.select_widget, 1, 0)
 		
 		# Create central widget
 		self.central_widget = QtWidgets.QWidget()
