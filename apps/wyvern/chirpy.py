@@ -429,6 +429,7 @@ class FitExplorerWidget(QWidget):
 	def __init__(self, main_window):
 		super().__init__()
 		
+		self.main_window = main_window
 		self.listener_widgets = []
 		
 		# Create plot widget
@@ -437,7 +438,8 @@ class FitExplorerWidget(QWidget):
 		
 		
 		# Create slider
-		self.fit_idx_slider = bhw.BHSliderWidget(main_window, FIT_EXPLORE_IDX_CTRL, header_label="Fit Number", step=1, min=0, max=1, tick_step=1, dataset_changed_callback=self.dataset_changed) #TODO: Update slider when change dataset
+		self.fit_idx_slider = bhw.BHSliderWidget(main_window, FIT_EXPLORE_IDX_CTRL, header_label="Fit Number", step=1, min=0, max=1, tick_step=1, dataset_changed_callback=self.dataset_changed) #TODO: Update slider when 
+		self.main_window.add_dataset_subscriber(self.fit_idx_slider)
 		
 		# Apply widgets
 		self.grid = QGridLayout()
@@ -450,11 +452,13 @@ class FitExplorerWidget(QWidget):
 	@staticmethod
 	def dataset_changed(wid):
 		
+		print("Update slider scale")
+		
 		# Get current dataset
 		ds = wid.data_manager.get_active()
 		
 		# Change slider maximum to ds length-1
-		wid.fit_idx_slider.setMaximum(len(ds.fit_times)-1)
+		wid.slider.setMaximum(len(ds.fit_times)-1)
 	
 	@staticmethod
 	def render_manual_fit(pw):
