@@ -188,7 +188,6 @@ class ChirpDataset(bh.BHDataset):
 			ampl_mV = []
 
 			for prange in pulse_range_ns:
-				print(prange)
 				idx_start = find_closest_index(time_ns_full, prange[0])
 				idx_end = find_closest_index(time_ns_full, prange[1])
 				time_ns = np.concat([time_ns, time_ns_full[idx_start:idx_end+1]])
@@ -433,7 +432,8 @@ class FitExplorerWidget(QWidget):
 		self.listener_widgets = []
 		
 		# Create plot widget
-		self.plot_widget = bhw.BHMultiPlotWidget(main_window, grid_dim=[4, 2], plot_locations=[[slice(0,2), 0], [slice(2,4), 0], [0, 1], [1, 1], [2, 1], [3, 1]], custom_render_func=self.render_manual_fit)
+		self.plot_widget = bhw.BHMultiPlotWidget(main_window, grid_dim=[2, 2], plot_locations=[[0, slice(0, 2)], [1, 0], [1, 1]], custom_render_func=self.render_manual_fit)
+		self.main_window.add_control_subscriber(self.plot_widget)
 		self.listener_widgets.append(self.plot_widget)
 		
 		
@@ -452,8 +452,6 @@ class FitExplorerWidget(QWidget):
 	@staticmethod
 	def dataset_changed(wid):
 		
-		print("Update slider scale")
-		
 		# Get current dataset
 		ds = wid.data_manager.get_active()
 		
@@ -464,6 +462,9 @@ class FitExplorerWidget(QWidget):
 	def render_manual_fit(pw):
 		''' Callback for plot update. '''
 		global sim_time
+		
+		NUM_PLOTS = 3
+		ds = pw.data_manager.get_active()
 		
 		# Calculate sine
 		ampl = pw.control_requested.get_param(AMPLITUDE_CTRL)
@@ -476,15 +477,30 @@ class FitExplorerWidget(QWidget):
 		y = linear_sine(sim_time, ampl, freq, phi, slope, offset)
 		
 		# Clear old data
-		pw.axes[0].cla()
+		for i in range(NUM_PLOTS):
+			pw.axes[i].cla()
 		
 		# Replot
 		pw.axes[0].plot(sim_time, y, linestyle=':', marker='.', color=(0.65, 0, 0))
-		pw.axes[0].set_xlabel("Time (ns)")
 		pw.axes[0].set_ylabel("Amplitude (mV)")
 		pw.axes[0].set_ylim([-300, 300])
-		pw.axes[0].grid(True)
-		pw.axes[0].set_title("Sine")
+		pw.axes[0].set_title("Fit Section")
+		
+		if ds is None:
+			return
+		
+		pw.axes[1].plot(ds.fit_times, ds.fit_freqs, linestyle=':', marker='.', color=(0, 0.75, 0))
+		pw.axes[1].set_ylabel("Frequency (GHz)")
+		pw.axes[1].set_title("Auto-fit Frequency")
+		
+		pw.axes[2].plot(ds.time_ns_full, ds.volt_mV_full, linestyle=':', marker='.', color=(0, 0, 0.65))
+		pw.axes[2].set_ylabel("Amplitude (mV)")
+		pw.axes[2].set_title("Full Chirp")
+		
+		# Apply universal settings
+		for i in range(NUM_PLOTS):
+			pw.axes[i].grid(True)
+			pw.axes[i].set_xlabel("Time (ns)")
 	
 	def set_active(self, b:bool):
 		
@@ -560,8 +576,6 @@ def load_chirp_dataset(source, log):
 	return ChirpDataset(log, source)
 
 def render_auto_fit(pw):
-	
-	print("Autofit")
 	
 	NUM_PLOTS = 6
 	
