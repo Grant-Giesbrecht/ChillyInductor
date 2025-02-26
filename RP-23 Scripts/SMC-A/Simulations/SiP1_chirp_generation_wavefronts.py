@@ -18,7 +18,7 @@ phi = 0
 
 tmax = 65
 
-show_target = True
+show_target = False
 
 # Create time points when wavefronts occur
 T_ns = 1/f0_GHz

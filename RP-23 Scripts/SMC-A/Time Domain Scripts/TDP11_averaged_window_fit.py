@@ -40,7 +40,7 @@ trim_time = True
 fit_method = GUIDED_SINE_FIT
 
 # Window fit options
-window_size_ns = 3.5
+window_size_ns = 5
 window_step_points = 10
 
 # Show fits
