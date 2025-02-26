@@ -99,6 +99,15 @@ def is_interstitial(regions, time):
 	# Outside all bounds
 	return -2
 
+class FitResult():
+	
+	def __init__(self, window, times, param, param_err):
+		
+		self.window = copy.deepcopy(window)
+		self.times = copy.deepcopy(times)
+		self.param = copy.deepcopy(param)
+		self.param_errs = copy.deepcopy(param_err)
+
 class ChirpDataset(bh.BHDataset):
 	
 	def __init__(self, log:plf.LogPile, source_info:bh.BHDataSource):
@@ -106,6 +115,8 @@ class ChirpDataset(bh.BHDataset):
 		
 		self.time_ns = []
 		self.volt_mV = []
+		
+		self.fit_results = []
 		
 		# TODO: Some kind of error handling
 		self.master_df = pd.read_csv(source_info.file_fullpath, skiprows=4, encoding='utf-8')
@@ -137,7 +148,6 @@ class ChirpDataset(bh.BHDataset):
 		self.time_reversal = False
 		self.trim_time = True
 		self.window_step_points = 10
-		
 		
 		self.windowed_freq_analysis_linear_guided()
 		
@@ -368,6 +378,8 @@ class ChirpDataset(bh.BHDataset):
 				
 			param_err = np.sqrt(np.diag(param_cov))
 			
+			self.fit_results.append(FitResult(window, time_ns_fit, param, param_err))
+			
 			# Save data
 			fit_times.append((time_ns_fit[0]+time_ns_fit[-1])/2)
 			fit_omegas.append(param[1])
@@ -429,10 +441,17 @@ class FitExplorerWidget(QWidget):
 		super().__init__()
 		
 		self.main_window = main_window
-		self.listener_widgets = []
+		self.listener_widgets = [] # Used to set the active state for all listeners in widget
 		
 		# Create plot widget
-		self.plot_widget = bhw.BHMultiPlotWidget(main_window, grid_dim=[2, 2], plot_locations=[[0, slice(0, 2)], [1, 0], [1, 1]], custom_render_func=self.render_manual_fit)
+		self.plot_widget = bhw.BHMultiPlotWidget(main_window, grid_dim=[2, 2], plot_locations=[[0, slice(0, 2)], [1, 0], [1, 1]], custom_render_func=self.render_manual_fit, include_settings_button=True)
+		
+		# Add parameters for adjustable bounds
+		self.plot_widget.configure_integrated_bounds(ax=0, xlim=None, ylim=[-300, 300])
+		self.plot_widget.configure_integrated_bounds(ax=1, xlim=None, ylim=None)
+		self.plot_widget.configure_integrated_bounds(ax=2, xlim=None, ylim=None)
+		
+		# Add to control subscriber and local listeners
 		self.main_window.add_control_subscriber(self.plot_widget)
 		self.listener_widgets.append(self.plot_widget)
 		
@@ -446,8 +465,6 @@ class FitExplorerWidget(QWidget):
 		self.grid.addWidget(self.plot_widget, 0, 0)
 		self.grid.addWidget(self.fit_idx_slider, 0, 1)
 		self.setLayout(self.grid)
-		
-		
 	
 	@staticmethod
 	def dataset_changed(wid):
@@ -461,10 +478,18 @@ class FitExplorerWidget(QWidget):
 	@staticmethod
 	def render_manual_fit(pw):
 		''' Callback for plot update. '''
-		global sim_time
 		
 		NUM_PLOTS = 3
 		ds = pw.data_manager.get_active()
+		
+		# Abort if no dataset exists
+		if ds is None:
+			return
+		
+		# Get window size and fit result
+		fit_idx = pw.control_requested.get_param(FIT_EXPLORE_IDX_CTRL)
+		window = ds.fit_results[fit_idx].window
+		fit_y = linear_sine(ds.fit_results[fit_idx].times, *ds.fit_results[fit_idx].param)
 		
 		# Calculate sine
 		ampl = pw.control_requested.get_param(AMPLITUDE_CTRL)
@@ -474,33 +499,40 @@ class FitExplorerWidget(QWidget):
 		offset = pw.control_requested.get_param(OFFSET_CTRL)
 		
 		omega = freq/1e3*2*np.pi
-		y = linear_sine(sim_time, ampl, freq, phi, slope, offset)
+		y = linear_sine(ds.fit_results[fit_idx].times, ampl, freq, phi, slope, offset)
 		
 		# Clear old data
 		for i in range(NUM_PLOTS):
 			pw.axes[i].cla()
 		
 		# Replot
-		pw.axes[0].plot(sim_time, y, linestyle=':', marker='.', color=(0.65, 0, 0))
+		pw.axes[0].plot(ds.fit_results[fit_idx].times, y, linestyle=':', marker='.', color=(0, 0.65, 0), label='Manual Fit')
 		pw.axes[0].set_ylabel("Amplitude (mV)")
-		pw.axes[0].set_ylim([-300, 300])
 		pw.axes[0].set_title("Fit Section")
 		
-		if ds is None:
-			return
+		pw.axes[0].plot(ds.fit_results[fit_idx].times, fit_y, linestyle=':', marker='.', color=(0.75, 0, 0), label='Auto-fit')
+		pw.axes[0].grid(True)
+		pw.axes[0].legend()
 		
-		pw.axes[1].plot(ds.fit_times, ds.fit_freqs, linestyle=':', marker='.', color=(0, 0.75, 0))
+		pw.axes[1].plot(ds.fit_times, ds.fit_freqs, linestyle=':', marker='.', color=(0.65, 0, 0.35))
 		pw.axes[1].set_ylabel("Frequency (GHz)")
 		pw.axes[1].set_title("Auto-fit Frequency")
+		pw.axes[1].grid(True)
+		
+		rect = patches.Rectangle((window[0], np.min(ds.volt_mV_full)-5), window[1]-window[0], np.max(ds.volt_mV_full)-np.min(ds.volt_mV_full)+10, color=(0, 0.8, 0), alpha=0.15)
 		
 		pw.axes[2].plot(ds.time_ns_full, ds.volt_mV_full, linestyle=':', marker='.', color=(0, 0, 0.65))
+		pw.axes[2].add_patch(rect)
 		pw.axes[2].set_ylabel("Amplitude (mV)")
 		pw.axes[2].set_title("Full Chirp")
+		pw.axes[2].grid(True)
 		
 		# Apply universal settings
 		for i in range(NUM_PLOTS):
 			pw.axes[i].grid(True)
 			pw.axes[i].set_xlabel("Time (ns)")
+		
+		pw.apply_integrated_plot_bounds()
 	
 	def set_active(self, b:bool):
 		
@@ -545,7 +577,7 @@ class ChirpAnalyzerMainWindow(bh.BHMainWindow):
 		
 		#TODO: Create a controller
 		self.ampl_slider = bhw.BHSliderWidget(self, param=AMPLITUDE_CTRL, header_label="Amplitude", min=0, max=200, step=1, unit_label="mV", tick_step=1)
-		self.freq_slider = bhw.BHSliderWidget(self, param=FREQUENCY_CTRL, header_label="Frequency", min=4800, max=4900, step=10, unit_label="MHz", tick_step=100)
+		self.freq_slider = bhw.BHSliderWidget(self, param=FREQUENCY_CTRL, header_label="Frequency", min=4800, max=4830, step=10, unit_label="MHz", tick_step=100)
 		self.phi_slider = bhw.BHSliderWidget(self, param=PHI_CTRL, header_label="Phi", min=-3, max=3, step=1, unit_label="rad", tick_step=1)
 		self.slope_slider = bhw.BHSliderWidget(self, param=SLOPE_CTRL, header_label="Slope", min=-50, max=50, step=1, unit_label="mV/ns", tick_step=10)
 		self.offset_slider = bhw.BHSliderWidget(self, param=OFFSET_CTRL, header_label="Offset", min=-20, max=20, step=1, unit_label="mV", tick_step=5)
@@ -569,8 +601,6 @@ class ChirpAnalyzerMainWindow(bh.BHMainWindow):
 		self.show()
 
 ##==================== Create custom functions for Black-Hole ======================
-
-sim_time = np.linspace(0, 10, 301)
 
 def load_chirp_dataset(source, log):
 	return ChirpDataset(log, source)
