@@ -448,8 +448,6 @@ class FitExplorerWidget(QWidget):
 		
 		# Add parameters for adjustable bounds
 		self.plot_widget.configure_integrated_bounds(ax=0, xlim=None, ylim=[-300, 300])
-		self.plot_widget.configure_integrated_bounds(ax=1, xlim=None, ylim=None)
-		self.plot_widget.configure_integrated_bounds(ax=2, xlim=None, ylim=None)
 		
 		# Add to control subscriber and local listeners
 		self.main_window.add_control_subscriber(self.plot_widget)
@@ -531,8 +529,6 @@ class FitExplorerWidget(QWidget):
 		for i in range(NUM_PLOTS):
 			pw.axes[i].grid(True)
 			pw.axes[i].set_xlabel("Time (ns)")
-		
-		pw.apply_integrated_plot_bounds()
 	
 	def set_active(self, b:bool):
 		
