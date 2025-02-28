@@ -11,6 +11,7 @@ import copy
 import time
 from matplotlib.animation import FFMpegWriter
 import collections
+from colorama import Fore,Style
 
 import pylogfile.base as plf
 from pylogfile.base import markdown
@@ -86,7 +87,7 @@ class Waveform:
 		self.positions += vp*dt
 		
 		# Re-bin waveform positions
-		self.positions = np.floor(self.positions/sim_area.bin_size)
+		self.positions = np.floor(self.positions/sim_area.bin_size)*sim_area.bin_size
 		
 		# Find duplicate indices
 		dupls_dict = find_duplicate_indices(self.positions)
@@ -136,7 +137,7 @@ class SimArea:
 		self.sim_region = [0, 30]
 		self.nonlinear_region = [10, 20]
 		
-		self.I_star = 1
+		self.I_star = 10
 		self.L0 = 1
 		self.C_ = 1
 		
@@ -171,7 +172,7 @@ class SimArea:
 			return np.array(v_phase_0_list)
 		elif xmin > self.nonlinear_region[1]: # Sim is entirely after nonlin region (E)
 			return np.array(v_phase_0_list)
-		elif xmax < self.nonlinear_region[1] and xmin > self.nonlinear_region[0]: # Sim is entirely within nonlinear region (C)
+		elif xmax <= self.nonlinear_region[1] and xmin >= self.nonlinear_region[0]: # Sim is entirely within nonlinear region (C)
 			return np.array(v_phase_nl)
 		elif xmin < self.nonlinear_region[0] and xmax > self.nonlinear_region[1]: # Sim spans before, during, and after nonlin region (F)
 			
@@ -181,16 +182,16 @@ class SimArea:
 			
 			# TODO: Should repeat the 'find' class, I can make that more efficient
 			return np.array(np.concatenate( (v_phase_0_list[:idx_start], v_phase_nl[idx_start:idx_end+1], v_phase_0_list[idx_end+1:]) ))
-		elif xmin < self.nonlinear_region[0] and xmax < self.nonlinear_region[1]: # Sim starts before, and ends during nonlin region (B)
+		elif xmin < self.nonlinear_region[0] and xmax <= self.nonlinear_region[1]: # Sim starts before, and ends during nonlin region (B)
 			idx_start = find_first_gte_index(position, self.nonlinear_region[0])
 			
 			return np.array(np.concatenate( (v_phase_0_list[:idx_start], v_phase_nl[idx_start:]) ))
-		elif xmin > self.nonlinear_region[0] and xmax > self.nonlinear_region[1]: # Sim starts during, ends after nonlin region (D)
+		elif xmin >= self.nonlinear_region[0] and xmax > self.nonlinear_region[1]: # Sim starts during, ends after nonlin region (D)
 			idx_end = find_first_gte_index(position, self.nonlinear_region[1])
 			
 			return np.array(np.concatenate( (v_phase_nl[:idx_end+1], v_phase_0_list[idx_end+1:]) ))
 		else:
-			self.log.critical(f"Logical error in `get_phase_velocities`.")
+			self.log.critical(f"Logical error in `get_phase_velocities`.", detail=f"xmin={xmin}, xmax={xmax}, Nonlinear region={self.nonlinear_region}")
 		# if np.max(position) < self.nonlinear_region[0]: # Sim area ends before nonlinear region
 		# 	return v_phase_0_list
 		# elif np.max(position) > self.nonlinear_region[1]: # Sim area is entirely after nonlinear region
@@ -249,7 +250,7 @@ class ChirpSimulation:
 		
 		self.frame_idx += 1
 	
-	def run(self, artist=None, fig=None):
+	def run(self, artist=None, fig=None, manual_step:bool=False):
 		
 		t0 = time.time()
 		self.log.info("Beginning simulation.")
@@ -265,8 +266,37 @@ class ChirpSimulation:
 		tlast = time.time() - 10
 		frame_time = 1/self.fps_limit
 		
+		if manual_step:
+			num_run = 0
+		else:
+			num_run = -1
+		
+		# Initialize waveform on graph
+		artist.set_data(self.waveform.positions, self.waveform.amplitudes)
+		fig.canvas.draw()
+		fig.canvas.flush_events()
+		
+		
 		# Run until time runs out
 		while (self.t_current < self.t_stop):
+			
+			# Wait for user input if set to manually step
+			if num_run == 0:
+				usr_input = input(f"{Fore.LIGHTBLUE_EX}Number of frames to progress (default=1, quit to stop):{Style.RESET_ALL} ")
+				if (usr_input.upper() == "QUIT") or (usr_input.upper() == "EXIT"):
+					self.log.info("Aborting simulation.")
+					break
+				try:
+					num_run = int(usr_input)
+					if num_run < 1:
+						num_run = 1
+				except:
+					num_run = 1
+				self.log.info(f"Advancing {num_run} frame(s).")
+				tlast = time.time()
+				num_run -= 1
+			elif num_run > 0:
+				num_run -= 1
 			
 			# Calculate next frame
 			self.next_frame()
@@ -280,8 +310,7 @@ class ChirpSimulation:
 				fig.canvas.flush_events()
 			
 			# Limit frame rate if requested
-			if self.limit_frame_rate:
-				
+			if (self.limit_frame_rate) and (num_run != 0):
 				# Wait until frame rate is hit
 				t_proceed = tlast + frame_time
 				while time.time() < t_proceed:
