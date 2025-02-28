@@ -42,19 +42,20 @@ def find_duplicate_indices(input_list):
 
 	return duplicates
 
-# Example usage:
-input_list = [1, 2, 3, 2, 1, 4, 5, 1]
-print(find_duplicate_indices(input_list))
-
 class Waveform:
 	''' Represents a waveform, defined by non-uniformly spaced positions. '''
 	
-	def __init__(self):
+	def __init__(self, positions:list, amplitudes:list, log:plf.LogPile):
 		
-		self.amplitudes = []
-		self.positions = []
+		self.log = log
+		self.amplitudes = np.array(amplitudes)
+		self.positions = np.array(positions)
 		
 		self.timestamp = None
+	
+	def get_positions(self):
+		
+		return self.positions
 	
 	def get_envelope(self):
 		''' Returns the amplitude of the waveform envelope. Format is a list, with each value referring to self.positions.'''
@@ -64,21 +65,54 @@ class Waveform:
 	def propagate(self, vp, dt, sim_area):
 		''' Propagate waveform by vp and time '''
 		
+		self.log.lowdebug(f"Propagating waveform.")
+		self.log.lowdebug(f"propagate:  vp = {vp}")
+		self.log.lowdebug(f"propagate: dt = {dt}")
+		self.log.lowdebug(f"propagate: amplitudes = {self.amplitudes}")
+		self.log.lowdebug(f"propagate: positions = {self.positions}")
+		
 		# Update positions
 		self.positions += vp*dt
 		
 		# Re-bin waveform positions
 		self.positions = np.floor(self.positions/sim_area.bin_size)
 		
-		# Find duplicates
+		# Find duplicate indices
 		dupls = find_duplicate_indices(self.positions)
+		
+		# Get duplicate positions
+		dup_pos = []
 		for dup in dupls:
+			dup_pos.append(self.positions[dup])
+		
+		# Create new positions list
+		new_positions = np.unique(self.positions)
+		
+		# Iterate over new positions
+		new_ampl = []
+		for npos in new_positions:
 			
-			#TODO
+			# New position has mult Ys to sum
+			if npos in dup_pos:
+				
+				# Sum each duplicate point
+				y = 0
+				for dup in dupls:
+					y += self.amplitudes[dup]
+				new_ampl.append(y)
+			
+			# New position does not have mult Ys to sum
+			else:
+				nav = self.amplitudes[np.where(self.positions == npos)[0][0]]
+				new_ampl.append(nav)
+		
+		# Update position and amplitude with new values
+		self.positions = new_positions
+		self.amplitudes = new_ampl
 		
 class SimArea:
 	
-	def __init__(self, sim_length:int, bin_size:float):
+	def __init__(self, bin_size:float):
 		
 		self.sim_region = [0, 30]
 		self.nonlinear_region = [10, 20]
@@ -88,7 +122,7 @@ class SimArea:
 		self.C_ = 1
 		
 		self.v_phase_0 = 1/np.sqrt(self.L0*self.C_)
-		self.v_phase_0_list = [self.v_phase_0]*len(sim_length)
+		
 		
 		self.bin_size = bin_size
 	
@@ -100,38 +134,136 @@ class SimArea:
 		amplitude = wave.get_envelope()
 		
 		# Initialize modified phase velocities
-		L_tot = self.L0*(1 + amplitude**2/self.I_star**2) # Calcualte total
+		L_tot = self.L0*(1 + np.power(amplitude, 2))/np.power(self.I_star, 2) # Calcualte total
 		v_phase_nl= 1/np.sqrt(L_tot*self.C_) # Calculate phase velocity if in nonlinear region
 		
-		# Find nonlinear region
-		idx_start = find_first_gte_index(position, self.nonlinear_region[0])
-		idx_end = find_first_gte_index(position, self.nonlinear_region[1])
+		# Make list of Vp0s
+		v_phase_0_list = [self.v_phase_0]*len(position)
 		
-		# Splice together list
-		return np.concatenate( (self.v_phase_0_list[:idx_start], self.v_phase_0_list[idx_start:idx_end+1], self.v_phase_0_list[self.idx_end+1:]) )
+		# Get bounds of sim area
+		xmin = np.min(position)
+		xmax = np.max(position)
+		
+		if xmax < self.nonlinear_region[0]: # Sim is entirely before nonlin region (A)
+			return v_phase_0_list
+		elif xmin > self.nonlinear_region[1]: # Sim is entirely after nonlin region (E)
+			return v_phase_0_list
+		elif xmax < self.nonlinear_region[1] and xmin > self.nonlinear_region[0]: # Sim is entirely within nonlinear region (C)
+			return v_phase_nl
+		elif xmin < self.nonlinear_region[0] and xmax > self.nonlinear_region[1]: # Sim spans before, during, and after nonlin region (F)
+			
+			# Find nonlinear region
+			idx_start = find_first_gte_index(position, self.nonlinear_region[0])
+			idx_end = find_first_gte_index(position, self.nonlinear_region[1])
+			
+			# TODO: Should repeat the 'find' class, I can make that more efficient
+			return np.concatenate( (v_phase_0_list[:idx_start], v_phase_nl[idx_start:idx_end+1], v_phase_0_list[idx_end+1:]) )
+		elif xmin < self.nonlinear_region[0] and xmax < self.nonlinear_region[1]: # Sim starts before, and ends during nonlin region (B)
+			idx_start = find_first_gte_index(position, self.nonlinear_region[0])
+			
+			return np.concatenate( (v_phase_0_list[:idx_start], v_phase_nl[idx_start:]) )
+		elif xmin > self.nonlinear_region[0] and xmax > self.nonlinear_region[1]: # Sim starts during, ends after nonlin region (D)
+			idx_end = find_first_gte_index(position, self.nonlinear_region[1])
+			
+			return np.concatenate( (v_phase_nl[:idx_end+1], v_phase_0_list[idx_end+1:]) )
+		else:
+			self.log.critical(f"Logical error in `get_phase_velocities`.")
+		# if np.max(position) < self.nonlinear_region[0]: # Sim area ends before nonlinear region
+		# 	return v_phase_0_list
+		# elif np.max(position) > self.nonlinear_region[1]: # Sim area is entirely after nonlinear region
+		# 	return v_phase_0_list
+		
+		
+		# if idx_start == -1 and idx_end == -1: # Nonlinear region is not in range
+		# 	# Splice together list
+		# elif idx_start == -1: # Starts in nonlinear region
+		# 	return np.concatenate( (v_phase_nl[:idx_end+1], v_phase_0_list[idx_end+1:]) )
+		# else: # Simulation area spans both sides of nonlinear region
+			
 
 class ChirpSimulation:
 	
-	def __init__(self, wave:Waveform, sim_area:SimArea, log:plf.LogPile, dt:float=1e-9):
+	def __init__(self, wave:Waveform, sim_area:SimArea, log:plf.LogPile, dt:float=1e-9, t_start:float=0, t_stop:float=1):
+		
+		self.log = log
+		
+		datestr = f"{datetime.datetime.now()}"
+		self.hash_id = hashlib.sha1(datestr.encode("utf-8")).hexdigest()
+		self.hash_id_short = self.hash_id[-6:]
 		
 		self.waveform = wave
 		self.sim_area = sim_area
 		
-		self.dt = 1e-9
+		self.t_start = t_start
+		self.t_stop = t_stop
+		self.dt = dt
+		self.t_current = t_start
+		self.frame_idx = 0
+		
+		self.limit_frame_rate = False
+		self.fps_limit = 60
+	
+	def reset(self):
+		self.frame_idx = 0
+		self.t_current = self.t_start
+	
+	def set_frame_rate(self, fps:int):
+		self.limit_frame_rate = True
+		self.fps_limit = fps
 	
 	def next_frame(self):
 		
-		# Get envelope
+		self.log.debug(f"Calculating frame {self.frame_idx}. t={self.t_current}, num_points={len(self.waveform.positions)}")
 		
 		# Get phase velocity
 		vp = self.sim_area.get_phase_velocities(self.waveform)
 		
-		# Update waveform
-		self.wave.propagate(vp, self.dt)
-	
-	def get_phase_velocity(self):
+		# Update time
+		self.t_current += self.dt
 		
-		env = self.waveform.get_envelope()
+		# Update waveform
+		self.waveform.propagate(vp, self.dt, self.sim_area)
+		
+		self.frame_idx += 1
+	
+	def run(self, artist=None, fig=None):
+		
+		t0 = time.time()
+		self.log.info("Beginning simulation.")
+		
+		# Reset time
+		self.reset()
+		
+		# Set a bogus last time so no delay on first frame
+		tlast = time.time() - 10
+		frame_time = 1/self.fps_limit
+		
+		# Run until time runs out
+		while (self.t_current < self.t_stop):
+			
+			# Calculate next frame
+			self.next_frame()
+			
+			# Update plot if provided
+			if (artist is not None) and (fig is not None):
+				artist.set_data(self.waveform.positions, self.waveform.amplitudes)
+				fig.canvas.draw()
+				fig.canvas.flush_events()
+			
+			# Limit frame rate if requested
+			if self.limit_frame_rate:
+				
+				# Wait until frame rate is hit
+				t_proceed = tlast + frame_time
+				while time.time() < t_proceed:
+					time.sleep(0.001)
+				tlast = time.time()
+		
+		self.log.info(f"Simulation finished in {time.time()-t0} s.")
+	
+	# def get_phase_velocity(self):
+		
+	# 	env = self.waveform.get_envelope()
 		
 		
 		
