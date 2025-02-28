@@ -48,17 +48,10 @@ waveform = (1+x_init/10)*np.sin(x_init*2*np.pi*0.25)
 wav = Waveform(x_init, waveform, log)
 sa = SimArea(bin_size=0.01, log=log)
 
-sim = ChirpSimulation(wav, sa, log, t_stop=10, dt=0.1)
+sim = ChirpSimulation(wav, sa, log, t_stop=15, dt=0.025)
 sim.set_frame_rate(args.fps)
 
 #================== Prepare simulation graphics ========================
-
-fig0 = plt.figure(figsize=(12,6))
-gs0 = fig0.add_gridspec(1, 1)
-ax0a = fig0.add_subplot(gs0[0, 0])
-ax0a.plot(wav.positions, wav.amplitudes)
-plt.show()
-
 
 # Create figure and turn on interactive mode
 plt.ion()

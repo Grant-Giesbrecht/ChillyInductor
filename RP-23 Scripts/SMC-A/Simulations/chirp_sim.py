@@ -137,7 +137,7 @@ class SimArea:
 		self.sim_region = [0, 30]
 		self.nonlinear_region = [10, 20]
 		
-		self.I_star = 10
+		self.I_star = 2
 		self.L0 = 1
 		self.C_ = 1
 		
@@ -158,7 +158,7 @@ class SimArea:
 		self.log.lowdebug(f"get_phase_velocities: I_star={self.I_star}")
 		
 		# Initialize modified phase velocities
-		L_tot = self.L0*(1 + np.power(amplitude, 2))/np.power(self.I_star, 2) # Calcualte total
+		L_tot = self.L0*(1 + np.power(amplitude, 2)/np.power(self.I_star, 2)) # Calcualte total
 		v_phase_nl= 1/np.sqrt(L_tot*self.C_) # Calculate phase velocity if in nonlinear region
 		
 		# Make list of Vp0s
