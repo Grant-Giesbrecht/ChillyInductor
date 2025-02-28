@@ -10,7 +10,7 @@ import matplotlib.animation as animation
 import copy
 import time
 from matplotlib.animation import FFMpegWriter
-import argparse
+import collections
 
 import pylogfile.base as plf
 from pylogfile.base import markdown
@@ -27,19 +27,30 @@ def find_first_lte_index(lst, X):
 			return index
 	return -1  # Return -1 if no such value is found
 
-def find_duplicate_indices(input_list):
-	from collections import defaultdict
+# def find_duplicate_indices(input_list):
+# 	from collections import defaultdict
+# 
+# 	index_map = defaultdict(list)
+# 	duplicates = []
+# 
+# 	for index, value in enumerate(input_list):
+# 		index_map[value].append(index)
+# 
+# 	for indices in index_map.values():
+# 		if len(indices) > 1:
+# 			duplicates.append(indices)
 
-	index_map = defaultdict(list)
-	duplicates = []
+# 	return duplicates
 
-	for index, value in enumerate(input_list):
-		index_map[value].append(index)
-
-	for indices in index_map.values():
-		if len(indices) > 1:
-			duplicates.append(indices)
-
+def find_duplicate_indices(lst):
+	duplicates = {}
+	counter = collections.Counter(lst)
+	
+	for index, value in enumerate(lst):
+		if counter[value] > 1:
+			if value not in duplicates:
+				duplicates[value] = []
+			duplicates[value].append(index)
 	return duplicates
 
 class Waveform:
@@ -68,8 +79,8 @@ class Waveform:
 		self.log.lowdebug(f"Propagating waveform.")
 		self.log.lowdebug(f"propagate:  vp = {vp}")
 		self.log.lowdebug(f"propagate: dt = {dt}")
-		self.log.lowdebug(f"propagate: amplitudes = {self.amplitudes}")
-		self.log.lowdebug(f"propagate: positions = {self.positions}")
+		# self.log.lowdebug(f"propagate: amplitudes = {self.amplitudes}")
+		# self.log.lowdebug(f"propagate: positions = {self.positions}")
 		
 		# Update positions
 		self.positions += vp*dt
@@ -78,33 +89,39 @@ class Waveform:
 		self.positions = np.floor(self.positions/sim_area.bin_size)
 		
 		# Find duplicate indices
-		dupls = find_duplicate_indices(self.positions)
+		dupls_dict = find_duplicate_indices(self.positions)
+		# self.log.lowdebug(f"propagate: dupls: {dupls}")
 		
-		# Get duplicate positions
-		dup_pos = []
-		for dup in dupls:
-			dup_pos.append(self.positions[dup])
-		
+		# Get positions that are duplicated
+		dup_pos = dupls_dict.keys()
+			
 		# Create new positions list
 		new_positions = np.unique(self.positions)
+		# self.log.lowdebug(f"propagate: new_positions: {new_positions}")
 		
 		# Iterate over new positions
 		new_ampl = []
 		for npos in new_positions:
+			
+			# self.log.lowdebug(f"propagate: npos: {npos}")
+			# self.log.lowdebug(f"propagate: dup_pos: {dup_pos}")
 			
 			# New position has mult Ys to sum
 			if npos in dup_pos:
 				
 				# Sum each duplicate point
 				y = 0
-				for dup in dupls:
+				for dup in dupls_dict[npos]:
 					y += self.amplitudes[dup]
-				new_ampl.append(y)
+				try:
+					new_ampl.append(float(y))
+				except Exception as e:
+					self.log.error(f"Tried to add incorrect type to amplitude array. y={y}, type(y)={type(y)}", detail=f"{e}")
 			
 			# New position does not have mult Ys to sum
 			else:
 				nav = self.amplitudes[np.where(self.positions == npos)[0][0]]
-				new_ampl.append(nav)
+				new_ampl.append(float(nav))
 		
 		# Update position and amplitude with new values
 		self.positions = new_positions
@@ -112,7 +129,9 @@ class Waveform:
 		
 class SimArea:
 	
-	def __init__(self, bin_size:float):
+	def __init__(self, bin_size:float, log:plf.LogPile):
+		
+		self.log = log
 		
 		self.sim_region = [0, 30]
 		self.nonlinear_region = [10, 20]
@@ -133,6 +152,10 @@ class SimArea:
 		position = wave.get_positions()
 		amplitude = wave.get_envelope()
 		
+		self.log.lowdebug(f"get_phase_velocities: L0={self.L0}")
+		self.log.lowdebug(f"get_phase_velocities: amplitude={amplitude}")
+		self.log.lowdebug(f"get_phase_velocities: I_star={self.I_star}")
+		
 		# Initialize modified phase velocities
 		L_tot = self.L0*(1 + np.power(amplitude, 2))/np.power(self.I_star, 2) # Calcualte total
 		v_phase_nl= 1/np.sqrt(L_tot*self.C_) # Calculate phase velocity if in nonlinear region
@@ -145,11 +168,11 @@ class SimArea:
 		xmax = np.max(position)
 		
 		if xmax < self.nonlinear_region[0]: # Sim is entirely before nonlin region (A)
-			return v_phase_0_list
+			return np.array(v_phase_0_list)
 		elif xmin > self.nonlinear_region[1]: # Sim is entirely after nonlin region (E)
-			return v_phase_0_list
+			return np.array(v_phase_0_list)
 		elif xmax < self.nonlinear_region[1] and xmin > self.nonlinear_region[0]: # Sim is entirely within nonlinear region (C)
-			return v_phase_nl
+			return np.array(v_phase_nl)
 		elif xmin < self.nonlinear_region[0] and xmax > self.nonlinear_region[1]: # Sim spans before, during, and after nonlin region (F)
 			
 			# Find nonlinear region
@@ -157,15 +180,15 @@ class SimArea:
 			idx_end = find_first_gte_index(position, self.nonlinear_region[1])
 			
 			# TODO: Should repeat the 'find' class, I can make that more efficient
-			return np.concatenate( (v_phase_0_list[:idx_start], v_phase_nl[idx_start:idx_end+1], v_phase_0_list[idx_end+1:]) )
+			return np.array(np.concatenate( (v_phase_0_list[:idx_start], v_phase_nl[idx_start:idx_end+1], v_phase_0_list[idx_end+1:]) ))
 		elif xmin < self.nonlinear_region[0] and xmax < self.nonlinear_region[1]: # Sim starts before, and ends during nonlin region (B)
 			idx_start = find_first_gte_index(position, self.nonlinear_region[0])
 			
-			return np.concatenate( (v_phase_0_list[:idx_start], v_phase_nl[idx_start:]) )
+			return np.array(np.concatenate( (v_phase_0_list[:idx_start], v_phase_nl[idx_start:]) ))
 		elif xmin > self.nonlinear_region[0] and xmax > self.nonlinear_region[1]: # Sim starts during, ends after nonlin region (D)
 			idx_end = find_first_gte_index(position, self.nonlinear_region[1])
 			
-			return np.concatenate( (v_phase_nl[:idx_end+1], v_phase_0_list[idx_end+1:]) )
+			return np.array(np.concatenate( (v_phase_nl[:idx_end+1], v_phase_0_list[idx_end+1:]) ))
 		else:
 			self.log.critical(f"Logical error in `get_phase_velocities`.")
 		# if np.max(position) < self.nonlinear_region[0]: # Sim area ends before nonlinear region
@@ -231,6 +254,10 @@ class ChirpSimulation:
 		t0 = time.time()
 		self.log.info("Beginning simulation.")
 		
+		# Set X-bounds manually. This will not autoset on each frame, so animation can miss.
+		if (artist is not None) and (fig is not None):
+			artist.axes.set_xlim(self.sim_area.sim_region)
+		
 		# Reset time
 		self.reset()
 		
@@ -246,6 +273,8 @@ class ChirpSimulation:
 			
 			# Update plot if provided
 			if (artist is not None) and (fig is not None):
+				self.log.lowdebug(f"Updateing graph: pos={self.waveform.positions}")
+				self.log.lowdebug(f"Updateing graph: amp={self.waveform.amplitudes}")
 				artist.set_data(self.waveform.positions, self.waveform.amplitudes)
 				fig.canvas.draw()
 				fig.canvas.flush_events()
