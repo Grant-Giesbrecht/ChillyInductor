@@ -70,7 +70,7 @@ ax1.set_ylim([-10, 10])
 
 # Initialize artists
 pulse_artist, = ax1.plot([], [], linestyle=':', marker='.', color=(0.35, 0.3, 0.65))
-# region_artist = ax1.fill_between([nonlinear_region[0]/1e-9, nonlinear_region[1]/1e-9], [-100, -100], [100, 100], color=(0.4, 0.4, 0.4), alpha=0.2)
+
 
 #================== Run Sim ========================
 

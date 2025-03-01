@@ -258,6 +258,7 @@ class ChirpSimulation:
 		# Set X-bounds manually. This will not autoset on each frame, so animation can miss.
 		if (artist is not None) and (fig is not None):
 			artist.axes.set_xlim(self.sim_area.sim_region)
+			region_artist = artist.axes..fill_between([self.SimArea.nonlinear_region[0], self.sim_area.nonlinear_region[1]], [-100, -100], [100, 100], color=(0.4, 0.4, 0.4), alpha=0.2)
 		
 		# Reset time
 		self.reset()
