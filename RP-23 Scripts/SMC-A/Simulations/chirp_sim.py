@@ -28,6 +28,9 @@ def find_first_lte_index(lst, X):
 			return index
 	return -1  # Return -1 if no such value is found
 
+def on_close(event):
+	event.canvas.figure.axes[0].has_been_closed = True
+
 # def find_duplicate_indices(input_list):
 # 	from collections import defaultdict
 # 
@@ -255,10 +258,12 @@ class ChirpSimulation:
 		t0 = time.time()
 		self.log.info("Beginning simulation.")
 		
-		# Set X-bounds manually. This will not autoset on each frame, so animation can miss.
+		# Configure figure if provided
 		if (artist is not None) and (fig is not None):
+			
+			# Set X-bounds manually. This will not autoset on each frame, so animation can miss.
 			artist.axes.set_xlim(self.sim_area.sim_region)
-			region_artist = artist.axes..fill_between([self.SimArea.nonlinear_region[0], self.sim_area.nonlinear_region[1]], [-100, -100], [100, 100], color=(0.4, 0.4, 0.4), alpha=0.2)
+			region_artist = artist.axes.fill_between([self.sim_area.nonlinear_region[0], self.sim_area.nonlinear_region[1]], [-100, -100], [100, 100], color=(0.4, 0.4, 0.4), alpha=0.2)
 		
 		# Reset time
 		self.reset()
@@ -298,6 +303,12 @@ class ChirpSimulation:
 				num_run -= 1
 			elif num_run > 0:
 				num_run -= 1
+			
+			# Update plot if provided
+			if (artist is not None) and (fig is not None):
+				if not plt.fignum_exists(fig.number):
+					self.log.info(f"Window has been manually closed. Aborting simulation.")
+					break
 			
 			# Calculate next frame
 			self.next_frame()
