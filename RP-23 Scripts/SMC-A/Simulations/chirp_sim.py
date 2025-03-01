@@ -28,24 +28,6 @@ def find_first_lte_index(lst, X):
 			return index
 	return -1  # Return -1 if no such value is found
 
-def on_close(event):
-	event.canvas.figure.axes[0].has_been_closed = True
-
-# def find_duplicate_indices(input_list):
-# 	from collections import defaultdict
-# 
-# 	index_map = defaultdict(list)
-# 	duplicates = []
-# 
-# 	for index, value in enumerate(input_list):
-# 		index_map[value].append(index)
-# 
-# 	for indices in index_map.values():
-# 		if len(indices) > 1:
-# 			duplicates.append(indices)
-
-# 	return duplicates
-
 def find_duplicate_indices(lst):
 	duplicates = {}
 	counter = collections.Counter(lst)
@@ -133,12 +115,12 @@ class Waveform:
 		
 class SimArea:
 	
-	def __init__(self, bin_size:float, log:plf.LogPile):
+	def __init__(self, bin_size:float, log:plf.LogPile, sim_region:list=[0, 30], nl_region=[10, 20]):
 		
 		self.log = log
 		
-		self.sim_region = [0, 30]
-		self.nonlinear_region = [10, 20]
+		self.sim_region = sim_region
+		self.nonlinear_region = nl_region
 		
 		self.I_star = 2
 		self.L0 = 1
@@ -148,6 +130,13 @@ class SimArea:
 		
 		
 		self.bin_size = bin_size
+	
+	def configure_media(self, L0:float=1, C:float=1, I_star:float=1):
+		
+		self.L0 = L0
+		self.C_ = C
+		self.I_star = I_star
+		
 	
 	def get_phase_velocities(self, wave):
 		''' Returns the phase velocity for a given position with a given amplitude. Position must
@@ -238,9 +227,9 @@ class ChirpSimulation:
 		self.limit_frame_rate = True
 		self.fps_limit = fps
 	
-	def next_frame(self):
+	def next_frame(self, detail_msg:str=""):
 		
-		self.log.debug(f"Calculating frame {self.frame_idx}. t={self.t_current}, num_points={len(self.waveform.positions)}")
+		self.log.debug(f"Calculating frame {self.frame_idx}. t={self.t_current}, num_points={len(self.waveform.positions)}", detail=detail_msg)
 		
 		# Get phase velocity
 		vp = self.sim_area.get_phase_velocities(self.waveform)
@@ -268,8 +257,8 @@ class ChirpSimulation:
 		# Reset time
 		self.reset()
 		
-		# Set a bogus last time so no delay on first frame
-		tlast = time.time() - 10
+		# Initialize tlast
+		tlast = [time.time()]
 		frame_time = 1/self.fps_limit
 		
 		if manual_step:
@@ -284,6 +273,7 @@ class ChirpSimulation:
 		
 		
 		# Run until time runs out
+		t_fps_delay = None
 		while (self.t_current < self.t_stop):
 			
 			# Wait for user input if set to manually step
@@ -299,7 +289,7 @@ class ChirpSimulation:
 				except:
 					num_run = 1
 				self.log.info(f"Advancing {num_run} frame(s).")
-				tlast = time.time()
+				tlast.append(time.time())
 				num_run -= 1
 			elif num_run > 0:
 				num_run -= 1
@@ -310,8 +300,21 @@ class ChirpSimulation:
 					self.log.info(f"Window has been manually closed. Aborting simulation.")
 					break
 			
+			# Calculate fps data
+			if self.limit_frame_rate:
+				detail_msg = f"Target frame rate: {self.fps_limit} fps."
+				if t_fps_delay is not None:
+					t_elapsed = t_fps_delay - tlast[-2]
+					detail_msg = detail_msg + f" Est. max frame rate = {1/t_elapsed} fps."
+			else:
+				detail_msg = f"Frame rate not limited."
+				if len(tlast) >= 2:
+					t_elapsed = tlast[-1] - tlast[-2]
+					detail_msg = detail_msg + f" Est. max frame rate = {1/t_elapsed} fps."
+					
+			
 			# Calculate next frame
-			self.next_frame()
+			self.next_frame(detail_msg=detail_msg)
 			
 			# Update plot if provided
 			if (artist is not None) and (fig is not None):
@@ -322,12 +325,14 @@ class ChirpSimulation:
 				fig.canvas.flush_events()
 			
 			# Limit frame rate if requested
+			t_fps_delay = None
 			if (self.limit_frame_rate) and (num_run != 0):
+				t_fps_delay = time.time()
 				# Wait until frame rate is hit
-				t_proceed = tlast + frame_time
+				t_proceed = tlast[-1] + frame_time
 				while time.time() < t_proceed:
 					time.sleep(0.001)
-				tlast = time.time()
+				tlast.append(time.time())
 		
 		self.log.info(f"Simulation finished in {time.time()-t0} s.")
 	
