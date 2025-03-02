@@ -455,7 +455,7 @@ class FitExplorerWidget(QWidget):
 		
 		
 		# Create slider
-		self.fit_idx_slider = bhw.BHSliderWidget(main_window, FIT_EXPLORE_IDX_CTRL, header_label="Fit Number", min=0, max=1, tick_step=1, dataset_changed_callback=self.dataset_changed) #TODO: Update slider when 
+		self.fit_idx_slider = bhw.BHSliderWidget(main_window, FIT_EXPLORE_IDX_CTRL, header_label="Fit Number", min=0, max=1, step=1, dataset_changed_callback=self.dataset_changed) #TODO: Update slider when 
 		self.main_window.add_dataset_subscriber(self.fit_idx_slider)
 		
 		# Apply widgets
@@ -471,7 +471,7 @@ class FitExplorerWidget(QWidget):
 		ds = wid.data_manager.get_active()
 		
 		# Change slider maximum to ds length-1
-		wid.slider.setMaximum(len(ds.fit_times)-1)
+		wid.set_maximum(len(ds.fit_times)-1)
 	
 	@staticmethod
 	def render_manual_fit(pw):
@@ -570,6 +570,7 @@ class ChirpAnalyzerMainWindow(bh.BHMainWindow):
 		self.tab_widget = bh.BHTabWidget(self)
 		self.tab_widget.addTab(self.auto_fit_plot, "Fit Viewer")
 		self.tab_widget.addTab(self.fit_explorer, "Manual Fit Explorer")
+		self.tab_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 		
 		#TODO: Create a controller
 		self.ampl_slider = bhw.BHSliderWidget(self, param=AMPLITUDE_CTRL, header_label="Amplitude", min=0, max=75, unit_label="mV", step=0.5)
