@@ -39,16 +39,56 @@ def find_duplicate_indices(lst):
 			duplicates[value].append(index)
 	return duplicates
 
+def re_bin(positions, amplitudes, bin_size, log):
+	
+	# Re-bin waveform positions
+	rb_positions = np.floor(positions/bin_size)*bin_size
+	
+	# Find duplicate indices
+	dupls_dict = find_duplicate_indices(rb_positions)
+	
+	# Get positions that are duplicated
+	dup_pos = dupls_dict.keys()
+		
+	# Create new positions list
+	new_positions = np.unique(positions)
+	
+	# Iterate over new positions
+	new_ampl = []
+	for npos in new_positions:
+		
+		# New position has mult Ys to sum
+		if npos in dup_pos:
+			
+			# Sum each duplicate point
+			y = 0
+			for dup in dupls_dict[npos]:
+				y += amplitudes[dup]
+			try:
+				new_ampl.append(float(y))
+			except Exception as e:
+				log.error(f"Tried to add incorrect type to amplitude array. y={y}, type(y)={type(y)}", detail=f"{e}")
+		
+		# New position does not have mult Ys to sum
+		else:
+			nav = amplitudes[np.where(positions == npos)[0][0]]
+			new_ampl.append(float(nav))
+	
+	# Update position and amplitude with new values
+	positions = new_positions
+	amplitudes = new_ampl
+	
+	return (positions, amplitudes)
+
 class Waveform:
 	''' Represents a waveform, defined by non-uniformly spaced positions. '''
 	
-	def __init__(self, positions:list, amplitudes:list, log:plf.LogPile):
+	def __init__(self, positions:list, amplitudes:list, log:plf.LogPile, reverse_prop:bool=False):
 		
 		self.log = log
 		self.amplitudes = np.array(amplitudes)
 		self.positions = np.array(positions)
-		
-		self.timestamp = None
+		self.reverse_prop = reverse_prop
 	
 	def get_positions(self):
 		
@@ -71,47 +111,49 @@ class Waveform:
 		# Update positions
 		self.positions += vp*dt
 		
-		# Re-bin waveform positions
-		self.positions = np.floor(self.positions/sim_area.bin_size)*sim_area.bin_size
+		self.positions, self.amplitudes = re_bin(self.positions, self.amplitudes, self.sim_area.bin_size, self.log)
 		
-		# Find duplicate indices
-		dupls_dict = find_duplicate_indices(self.positions)
-		# self.log.lowdebug(f"propagate: dupls: {dupls}")
-		
-		# Get positions that are duplicated
-		dup_pos = dupls_dict.keys()
-			
-		# Create new positions list
-		new_positions = np.unique(self.positions)
-		# self.log.lowdebug(f"propagate: new_positions: {new_positions}")
-		
-		# Iterate over new positions
-		new_ampl = []
-		for npos in new_positions:
-			
-			# self.log.lowdebug(f"propagate: npos: {npos}")
-			# self.log.lowdebug(f"propagate: dup_pos: {dup_pos}")
-			
-			# New position has mult Ys to sum
-			if npos in dup_pos:
-				
-				# Sum each duplicate point
-				y = 0
-				for dup in dupls_dict[npos]:
-					y += self.amplitudes[dup]
-				try:
-					new_ampl.append(float(y))
-				except Exception as e:
-					self.log.error(f"Tried to add incorrect type to amplitude array. y={y}, type(y)={type(y)}", detail=f"{e}")
-			
-			# New position does not have mult Ys to sum
-			else:
-				nav = self.amplitudes[np.where(self.positions == npos)[0][0]]
-				new_ampl.append(float(nav))
-		
-		# Update position and amplitude with new values
-		self.positions = new_positions
-		self.amplitudes = new_ampl
+		# # Re-bin waveform positions
+		# self.positions = np.floor(self.positions/sim_area.bin_size)*sim_area.bin_size
+		# 
+		# # Find duplicate indices
+		# dupls_dict = find_duplicate_indices(self.positions)
+		# # self.log.lowdebug(f"propagate: dupls: {dupls}")
+		# 
+		# # Get positions that are duplicated
+		# dup_pos = dupls_dict.keys()
+		# 	
+		# # Create new positions list
+		# new_positions = np.unique(self.positions)
+		# # self.log.lowdebug(f"propagate: new_positions: {new_positions}")
+		# 
+		# # Iterate over new positions
+		# new_ampl = []
+		# for npos in new_positions:
+		# 	
+		# 	# self.log.lowdebug(f"propagate: npos: {npos}")
+		# 	# self.log.lowdebug(f"propagate: dup_pos: {dup_pos}")
+		# 	
+		# 	# New position has mult Ys to sum
+		# 	if npos in dup_pos:
+		# 		
+		# 		# Sum each duplicate point
+		# 		y = 0
+		# 		for dup in dupls_dict[npos]:
+		# 			y += self.amplitudes[dup]
+		# 		try:
+		# 			new_ampl.append(float(y))
+		# 		except Exception as e:
+		# 			self.log.error(f"Tried to add incorrect type to amplitude array. y={y}, type(y)={type(y)}", detail=f"{e}")
+		# 	
+		# 	# New position does not have mult Ys to sum
+		# 	else:
+		# 		nav = self.amplitudes[np.where(self.positions == npos)[0][0]]
+		# 		new_ampl.append(float(nav))
+		# 
+		# # Update position and amplitude with new values
+		# self.positions = new_positions
+		# self.amplitudes = new_ampl
 		
 class SimArea:
 	
@@ -138,9 +180,12 @@ class SimArea:
 		self.I_star = I_star
 		
 	
-	def get_phase_velocities(self, wave):
+	def get_phase_velocities(self, waves:list):
 		''' Returns the phase velocity for a given position with a given amplitude. Position must
 		be in ascending order. '''
+		
+		for wav in waves:
+			all_positions = 
 		
 		position = wave.get_positions()
 		amplitude = wave.get_envelope()
@@ -199,7 +244,7 @@ class SimArea:
 
 class ChirpSimulation:
 	
-	def __init__(self, wave:Waveform, sim_area:SimArea, log:plf.LogPile, dt:float=1e-9, t_start:float=0, t_stop:float=1):
+	def __init__(self, sim_area:SimArea, log:plf.LogPile, dt:float=1e-9, t_start:float=0, t_stop:float=1):
 		
 		self.log = log
 		
@@ -207,7 +252,8 @@ class ChirpSimulation:
 		self.hash_id = hashlib.sha1(datestr.encode("utf-8")).hexdigest()
 		self.hash_id_short = self.hash_id[-6:]
 		
-		self.waveform = wave
+		self.waveforms = []
+		
 		self.sim_area = sim_area
 		
 		self.t_start = t_start
@@ -219,6 +265,9 @@ class ChirpSimulation:
 		self.limit_frame_rate = False
 		self.fps_limit = 60
 	
+	def add_waveform(self, wav:Waveform):
+		self.waveforms.append(wav)
+	
 	def reset(self):
 		self.frame_idx = 0
 		self.t_current = self.t_start
@@ -227,18 +276,27 @@ class ChirpSimulation:
 		self.limit_frame_rate = True
 		self.fps_limit = fps
 	
+	def num_points(self):
+		
+		n = 0
+		for wav in self.waveforms:
+			n += len(wav)
+		return n
+
+	
 	def next_frame(self, detail_msg:str=""):
 		
-		self.log.debug(f"Calculating frame {self.frame_idx}. t={self.t_current}, num_points={len(self.waveform.positions)}", detail=detail_msg)
+		self.log.debug(f"Calculating frame {self.frame_idx}. t={self.t_current}, num_points={self.num_points()}", detail=detail_msg)
 		
 		# Get phase velocity
-		vp = self.sim_area.get_phase_velocities(self.waveform)
+		vp = self.sim_area.get_phase_velocities(self.waveforms) #TODO: Update
 		
 		# Update time
 		self.t_current += self.dt
 		
 		# Update waveform
-		self.waveform.propagate(vp, self.dt, self.sim_area)
+		for wav in self.waveforms:
+			wav.propagate(vp, self.dt, self.sim_area) #TODO: Update w direction
 		
 		self.frame_idx += 1
 	

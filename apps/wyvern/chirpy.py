@@ -444,10 +444,10 @@ class FitExplorerWidget(QWidget):
 		self.listener_widgets = [] # Used to set the active state for all listeners in widget
 		
 		# Create plot widget
-		self.plot_widget = bhw.BHMultiPlotWidget(main_window, grid_dim=[2, 2], plot_locations=[[0, slice(0, 2)], [1, 0], [1, 1]], custom_render_func=self.render_manual_fit, include_settings_button=True)
+		self.plot_widget = bhw.BHMultiPlotWidget(main_window, grid_dim=[3, 2], plot_locations=[[slice(0,2), slice(0, 2)], [2, 0], [2, 1]], custom_render_func=self.render_manual_fit, include_settings_button=True)
 		
 		# Add parameters for adjustable bounds
-		self.plot_widget.configure_integrated_bounds(ax=0, xlim=None, ylim=[-300, 300])
+		self.plot_widget.configure_integrated_bounds(ax=0, xlim=None, ylim=[-75, 75])
 		
 		# Add to control subscriber and local listeners
 		self.main_window.add_control_subscriber(self.plot_widget)
@@ -455,7 +455,7 @@ class FitExplorerWidget(QWidget):
 		
 		
 		# Create slider
-		self.fit_idx_slider = bhw.BHSliderWidget(main_window, FIT_EXPLORE_IDX_CTRL, header_label="Fit Number", step=1, min=0, max=1, tick_step=1, dataset_changed_callback=self.dataset_changed) #TODO: Update slider when 
+		self.fit_idx_slider = bhw.BHSliderWidget(main_window, FIT_EXPLORE_IDX_CTRL, header_label="Fit Number", min=0, max=1, tick_step=1, dataset_changed_callback=self.dataset_changed) #TODO: Update slider when 
 		self.main_window.add_dataset_subscriber(self.fit_idx_slider)
 		
 		# Apply widgets
@@ -492,7 +492,7 @@ class FitExplorerWidget(QWidget):
 		# Calculate sine
 		ampl = pw.control_requested.get_param(AMPLITUDE_CTRL)
 		freq = pw.control_requested.get_param(FREQUENCY_CTRL)
-		phi = pw.control_requested.get_param(PHI_CTRL)
+		phi = pw.control_requested.get_param(PHI_CTRL)*np.pi/180
 		slope = pw.control_requested.get_param(SLOPE_CTRL)
 		offset = pw.control_requested.get_param(OFFSET_CTRL)
 		
@@ -504,7 +504,7 @@ class FitExplorerWidget(QWidget):
 			pw.axes[i].cla()
 		
 		# Replot
-		pw.axes[0].plot(ds.fit_results[fit_idx].times, y, linestyle=':', marker='.', color=(0, 0.65, 0), label='Manual Fit')
+		pw.axes[0].plot(ds.fit_results[fit_idx].times, y, linestyle=':', marker='x', color=(0, 0.65, 0), label='Manual Fit')
 		pw.axes[0].set_ylabel("Amplitude (mV)")
 		pw.axes[0].set_title("Fit Section")
 		
@@ -572,11 +572,11 @@ class ChirpAnalyzerMainWindow(bh.BHMainWindow):
 		self.tab_widget.addTab(self.fit_explorer, "Manual Fit Explorer")
 		
 		#TODO: Create a controller
-		self.ampl_slider = bhw.BHSliderWidget(self, param=AMPLITUDE_CTRL, header_label="Amplitude", min=0, max=200, step=1, unit_label="mV", tick_step=1)
-		self.freq_slider = bhw.BHSliderWidget(self, param=FREQUENCY_CTRL, header_label="Frequency", min=4800, max=4830, step=10, unit_label="MHz", tick_step=100)
-		self.phi_slider = bhw.BHSliderWidget(self, param=PHI_CTRL, header_label="Phi", min=-3, max=3, step=1, unit_label="rad", tick_step=1)
-		self.slope_slider = bhw.BHSliderWidget(self, param=SLOPE_CTRL, header_label="Slope", min=-50, max=50, step=1, unit_label="mV/ns", tick_step=10)
-		self.offset_slider = bhw.BHSliderWidget(self, param=OFFSET_CTRL, header_label="Offset", min=-20, max=20, step=1, unit_label="mV", tick_step=5)
+		self.ampl_slider = bhw.BHSliderWidget(self, param=AMPLITUDE_CTRL, header_label="Amplitude", min=0, max=75, unit_label="mV", step=0.5)
+		self.freq_slider = bhw.BHSliderWidget(self, param=FREQUENCY_CTRL, header_label="Frequency", min=4700, max=4830, unit_label="MHz", step=1)
+		self.phi_slider = bhw.BHSliderWidget(self, param=PHI_CTRL, header_label="Phi", min=-180, max=180, unit_label="deg", step=1)
+		self.slope_slider = bhw.BHSliderWidget(self, param=SLOPE_CTRL, header_label="Slope", min=-50, max=50, unit_label="mV/ns", step=10)
+		self.offset_slider = bhw.BHSliderWidget(self, param=OFFSET_CTRL, header_label="Offset", min=-20, max=20, unit_label="mV", step=5)
 		
 		self.add_basic_menu_bar()
 		
