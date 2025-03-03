@@ -509,7 +509,7 @@ class FitExplorerWidget(QWidget):
 		offset = pw.control_requested.get_param(OFFSET_CTRL)
 		
 		omega = freq/1e3*2*np.pi
-		y = linear_sine(ds.fit_results[fit_idx].times, ampl, freq, phi, slope, offset)
+		y = linear_sine(ds.fit_results[fit_idx].times, ampl, omega, phi, slope, offset)
 		
 		# Clear old data
 		for i in range(NUM_PLOTS):
