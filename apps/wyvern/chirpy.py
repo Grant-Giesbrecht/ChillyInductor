@@ -136,6 +136,7 @@ class ChirpDataset(bh.BHDataset):
 		self.fit_phis = []
 		self.fit_slopes = []
 		self.fit_offsets = []
+		self.window_rms = []
 		
 		self.ampl_bounds_low = []
 		self.ampl_bounds_hi = []
@@ -174,13 +175,13 @@ class ChirpDataset(bh.BHDataset):
 		reset_start_positions = True
 		
 		dframe = self.master_df
-		pulse_range_ns=[(-300, -225)]
+		pulse_range_ns=[(-410, -330), (-300, -225), (-190, -120)]
 		
 		def print_range(index, name, bounds, param):
 			lb=bounds[0][index]
 			ub=bounds[1][index]
 			val=param[index]
-			print(markdown(f"    {name}: >:q{lb}< \< >{val}< \< >:q{ub}<"))
+			print(plf.markdown(f"    {name}: >:q{lb}< \< >{val}< \< >:q{ub}<"))
 		
 		self.log.debug(f"Beginning windowed fit on data id:>{self.unique_id}<.")
 		t0 = time.time()
@@ -236,6 +237,7 @@ class ChirpDataset(bh.BHDataset):
 		fit_times = []
 		fit_omegas = []
 		fit_covs = []
+		window_rms = []
 		
 		fit_ampls = []
 		fit_phis = []
@@ -388,6 +390,7 @@ class ChirpDataset(bh.BHDataset):
 			fit_phis.append(param[2])
 			fit_ms.append(param[3])
 			fit_offs.append(param[4])
+			self.window_rms.append(np.sqrt(np.mean(ampl_mV_fit**2)))
 			
 			# Record bounds
 			ampl_bounds_low.append(bounds[0][0])
@@ -403,15 +406,15 @@ class ChirpDataset(bh.BHDataset):
 			if window[1] > time_ns[-1]:
 				break
 			
-			# # Else check for window in-between pulses
-			# next_region = is_interstitial(trim_regions, window[1])
-			# if next_region != -1: # Not in a region
+			# Else check for window in-between pulses
+			next_region = is_interstitial(pulse_range_ns, window[1])
+			if next_region != -1: # Not in a region
 				
-			# 	if next_region == -2: # THis should have been caught above
-			# 		print(f"{Fore.RED}Outside all bounds{Style.RESET_ALL}")
-			# 	else:
-			# 		print(f"{Fore.LIGHTBLUE_EX}Jumping to region idx {next_region}{Style.RESET_ALL}")
-			# 		window = [trim_regions[next_region][0], trim_regions[next_region][0]+window_size_ns]
+				if next_region == -2: # THis should have been caught above
+					print(f"{Fore.RED}Outside all bounds{Style.RESET_ALL}")
+				else:
+					print(f"{Fore.LIGHTBLUE_EX}Jumping to region idx {next_region}{Style.RESET_ALL}")
+					window = [pulse_range_ns[next_region][0], pulse_range_ns[next_region][0]+window_size_ns]
 		
 		# convert from angular frequency
 		fit_freqs = np.array(fit_omegas)/2/np.pi
@@ -432,7 +435,17 @@ class ChirpDataset(bh.BHDataset):
 		self.slope_bounds_hi = slope_bounds_hi
 		
 		# return {'fit_freqs': fit_freqs, 'fit_err':fit_err, 'fit_times':fit_times, 'raw_times':time_ns, 'raw_ampl':ampl_mV, 'fit_offs':fit_offs, 'fit_ampls':fit_ampls, 'fit_phis':fit_phis, 'fit_ms':fit_ms, 'bounds':bounds, 'ampl_bounds_low':ampl_bounds_low, 'ampl_bounds_hi':ampl_bounds_hi, 'slope_bounds_hi':slope_bounds_hi, 'slope_bounds_low':slope_bounds_low}
+
+
+
+class AutoFitViewerWidget(QWidget):
 	
+	def __init__(self, main_window):
+		super().__init__()
+		
+		self.main_window = main_window
+		self.transfer_state_button = QPushButton("Apply to sliders")
+
 class FitExplorerWidget(QWidget):
 	''' This inherits from QWidget not BHListenerWidget because it will contain
 	both listener and controller widgets. '''
@@ -452,7 +465,6 @@ class FitExplorerWidget(QWidget):
 		# Add to control subscriber and local listeners
 		self.main_window.add_control_subscriber(self.plot_widget)
 		self.listener_widgets.append(self.plot_widget)
-		
 		
 		# Create slider
 		self.fit_idx_slider = bhw.BHSliderWidget(main_window, FIT_EXPLORE_IDX_CTRL, header_label="Fit Number", min=0, max=1, step=1, dataset_changed_callback=self.dataset_changed) #TODO: Update slider when 
@@ -557,6 +569,10 @@ class ChirpAnalyzerMainWindow(bh.BHMainWindow):
 		self.auto_fit_plot =  bhw.BHMultiPlotWidget(self, grid_dim=[4, 2], plot_locations=[[slice(0,2), 0], [slice(2,4), 0], [0, 1], [1, 1], [2, 1], [3, 1]], custom_render_func=render_auto_fit)
 		self.add_control_subscriber(self.auto_fit_plot)
 		
+		# Create rms viewer
+		self.rms_plot =  bhw.BHMultiPlotWidget(self, grid_dim=[2, 1], plot_locations=[[0, 0], [1, 0]], custom_render_func=render_rms)
+		self.add_control_subscriber(self.rms_plot)
+		
 		# Manual sine window
 		# self.manual_plot = bhw.BHPlotWidget(self, custom_render_func=render_sine)
 		# self.add_control_subscriber(self.manual_plot)
@@ -570,6 +586,7 @@ class ChirpAnalyzerMainWindow(bh.BHMainWindow):
 		self.tab_widget = bh.BHTabWidget(self)
 		self.tab_widget.addTab(self.auto_fit_plot, "Fit Viewer")
 		self.tab_widget.addTab(self.fit_explorer, "Manual Fit Explorer")
+		self.tab_widget.addTab(self.rms_plot, "RMS Viewer")
 		self.tab_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 		
 		#TODO: Create a controller
@@ -579,15 +596,23 @@ class ChirpAnalyzerMainWindow(bh.BHMainWindow):
 		self.slope_slider = bhw.BHSliderWidget(self, param=SLOPE_CTRL, header_label="Slope", min=-50, max=50, unit_label="mV/ns", step=10)
 		self.offset_slider = bhw.BHSliderWidget(self, param=OFFSET_CTRL, header_label="Offset", min=-20, max=20, unit_label="mV", step=5)
 		
+		self.slider_group_widget = bhw.BHSliderPanel(self)
+		self.slider_group_widget.add_slider(self.ampl_slider)
+		self.slider_group_widget.add_slider(self.freq_slider)
+		self.slider_group_widget.add_slider(self.phi_slider)
+		self.slider_group_widget.add_slider(self.slope_slider)
+		self.slider_group_widget.add_slider(self.offset_slider)
+		
 		self.add_basic_menu_bar()
 		
 		# Position widgets
 		self.main_grid.addWidget(self.tab_widget, 0, 0)
-		self.main_grid.addWidget(self.ampl_slider, 0, 1)
-		self.main_grid.addWidget(self.freq_slider, 0, 2)
-		self.main_grid.addWidget(self.phi_slider, 0, 3)
-		self.main_grid.addWidget(self.slope_slider, 0, 4)
-		self.main_grid.addWidget(self.offset_slider, 0, 5)
+		self.main_grid.addWidget(self.slider_group_widget, 0, 1)
+		# self.main_grid.addWidget(self.ampl_slider, 0, 1)
+		# self.main_grid.addWidget(self.freq_slider, 0, 2)
+		# self.main_grid.addWidget(self.phi_slider, 0, 3)
+		# self.main_grid.addWidget(self.slope_slider, 0, 4)
+		# self.main_grid.addWidget(self.offset_slider, 0, 5)
 		self.main_grid.addWidget(self.select_widget, 1, 0)
 		
 		# Create central widget
@@ -601,6 +626,33 @@ class ChirpAnalyzerMainWindow(bh.BHMainWindow):
 
 def load_chirp_dataset(source, log):
 	return ChirpDataset(log, source)
+
+def render_rms(pw):
+	
+	NUM_PLOTS = 2
+	
+	# clear all axes
+	for i in range(NUM_PLOTS):
+		pw.axes[1].cla()
+	
+	# Get data from manager
+	dataset = pw.data_manager.get_active()
+	if dataset is None:
+		return
+	
+	pw.axes[0].plot(dataset.fit_times, dataset.window_rms, linestyle=':', marker='.', color=(0, 0.65, 0))
+	pw.axes[1].plot(dataset.time_ns_full, dataset.volt_mV_full, linestyle=':', marker='.', color=(0, 0, 0.7))
+	
+	pw.axes[0].set_ylabel("Amplitude (mV RMS)")
+	pw.axes[1].set_ylabel("Amplitude (mV)")
+	
+	pw.axes[0].set_title("Window Fit RMS Values")
+	pw.axes[1].set_title("Full Pulse")
+	
+	# Format all axes
+	for i in range(NUM_PLOTS):
+		pw.axes[i].set_xlabel("Time (ns)")
+		pw.axes[i].grid(True)
 
 def render_auto_fit(pw):
 	
