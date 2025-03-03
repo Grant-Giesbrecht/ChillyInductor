@@ -21,6 +21,7 @@ import argparse
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-d', '--detail', help="Show log details.", action='store_true')
+parser.add_argument('-m', '--macos', help="Use macOS filesystem..", action='store_true')
 parser.add_argument('--loglevel', help="Set the logging display level.", choices=['LOWDEBUG', 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], type=str.upper)
 args = parser.parse_args()
 
@@ -699,8 +700,12 @@ app.setStyle(f"Fusion")
 
 # Create Data Manager
 data_manager = bh.BHDatasetManager(log, load_function=load_chirp_dataset)
-if not data_manager.load_configuration("chirpy_conf.json"):
-	exit()
+if args.macos:
+	if not data_manager.load_configuration("chirpy_conf_macOS.json"):
+		exit()
+else:
+	if not data_manager.load_configuration("chirpy_conf.json"):
+		exit()
 
 window = ChirpAnalyzerMainWindow(log, app, data_manager)
 
