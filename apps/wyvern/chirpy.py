@@ -111,7 +111,7 @@ class FitResult():
 class ChirpDataset(bh.BHDataset):
 	
 	def __init__(self, log:plf.LogPile, source_info:bh.BHDataSource):
-		super().__init__(log, source_info.unique_id)
+		super().__init__(log, source_info)
 		
 		self.time_ns = []
 		self.volt_mV = []
