@@ -2,7 +2,7 @@
 	"dir_abbrev": [
 		{
 			"shortcut": "$DATA_ROOT$",
-			"expanded": ["G:", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A"]
+			"expanded": ["$DRIVE_LETTER$", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A"]
 		},
 		{
 			"shortcut": "$20FEB2025$",

@@ -22,6 +22,7 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('-d', '--detail', help="Show log details.", action='store_true')
 parser.add_argument('-m', '--macos', help="Use macOS filesystem..", action='store_true')
+parser.add_argument('--drive', help="Specify the drive letter from which to load data.", choices=['D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'], type=str.upper)
 parser.add_argument('--loglevel', help="Set the logging display level.", choices=['LOWDEBUG', 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], type=str.upper)
 args = parser.parse_args()
 
@@ -114,6 +115,8 @@ class ChirpDataset(bh.BHDataset):
 	def __init__(self, log:plf.LogPile, source_info:bh.BHDataSource):
 		super().__init__(log, source_info)
 		
+		self.log.info(f"Creating new BHDataset object from file: >{source_info.file_fullpath}<.")
+		
 		self.time_ns = []
 		self.volt_mV = []
 		
@@ -202,8 +205,8 @@ class ChirpDataset(bh.BHDataset):
 			for prange in pulse_range_ns:
 				idx_start = find_closest_index(time_ns_full, prange[0])
 				idx_end = find_closest_index(time_ns_full, prange[1])
-				time_ns = np.concat([time_ns, time_ns_full[idx_start:idx_end+1]])
-				ampl_mV = np.concat([ampl_mV, ampl_mV_full[idx_start:idx_end+1]])
+				time_ns = np.concatenate([time_ns, time_ns_full[idx_start:idx_end+1]])
+				ampl_mV = np.concatenate([ampl_mV, ampl_mV_full[idx_start:idx_end+1]])
 		else:
 			time_ns = time_ns_full
 			ampl_mV = ampl_mV_full
@@ -412,9 +415,9 @@ class ChirpDataset(bh.BHDataset):
 			if next_region != -1: # Not in a region
 				
 				if next_region == -2: # THis should have been caught above
-					print(f"{Fore.RED}Outside all bounds{Style.RESET_ALL}")
+					self.log.error(f"Outside all bounds!")
 				else:
-					print(f"{Fore.LIGHTBLUE_EX}Jumping to region idx {next_region}{Style.RESET_ALL}")
+					self.log.debug(f"Jumping to region idx >{next_region}<")
 					window = [pulse_range_ns[next_region][0], pulse_range_ns[next_region][0]+window_size_ns]
 		
 		# convert from angular frequency
@@ -704,7 +707,7 @@ if args.macos:
 	if not data_manager.load_configuration("chirpy_conf_macOS.json"):
 		exit()
 else:
-	if not data_manager.load_configuration("chirpy_conf.json"):
+	if not data_manager.load_configuration("chirpy_conf.json", user_abbrevs={"$DRIVE_LETTER$":f"{args.drive}:\\"}):
 		exit()
 
 window = ChirpAnalyzerMainWindow(log, app, data_manager)
