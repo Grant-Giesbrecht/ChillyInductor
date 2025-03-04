@@ -634,7 +634,7 @@ def render_rms(pw):
 	
 	# clear all axes
 	for i in range(NUM_PLOTS):
-		pw.axes[1].cla()
+		pw.axes[i].cla()
 	
 	# Get data from manager
 	dataset = pw.data_manager.get_active()
