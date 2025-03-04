@@ -442,13 +442,33 @@ class ChirpDataset(bh.BHDataset):
 
 
 
-class AutoFitViewerWidget(QWidget):
+# class AutoFitViewerWidget(QWidget):
 	
-	def __init__(self, main_window):
-		super().__init__()
+# 	def __init__(self, main_window, slider_panel):
+# 		super().__init__()
 		
-		self.main_window = main_window
-		self.transfer_state_button = QPushButton("Apply to sliders")
+# 		self.slider_panel = slider_panel
+		
+# 		self.control_parameters = ["frequency"]
+		
+# 		self.main_window = main_window
+# 		self.transfer_state_button = QPushButton("Apply to sliders")
+# 		self.transfer_state_button.setFixedSize(100, 25)
+# 		self.transfer_state_button.clicked.connect(self._apply_fit)
+	
+# 	def _apply_fit(self):
+		
+# 		# Get the active dataset
+# 		dm = self.main_window.data_manager
+# 		ds = dm.get_active()
+		
+# 		ds.fit_ampls[]
+		
+# 		# Apply to sliders
+# 		for cp in self.control_parameters:
+			
+# 			ds.get_para
+		
 
 class FitExplorerWidget(QWidget):
 	''' This inherits from QWidget not BHListenerWidget because it will contain
@@ -474,11 +494,84 @@ class FitExplorerWidget(QWidget):
 		self.fit_idx_slider = bhw.BHSliderWidget(main_window, FIT_EXPLORE_IDX_CTRL, header_label="Fit Number", min=0, max=1, step=1, dataset_changed_callback=self.dataset_changed) #TODO: Update slider when 
 		self.main_window.add_dataset_subscriber(self.fit_idx_slider)
 		
+		# Create transfer button
+		self.transfer_state_button = QPushButton("Apply to sliders", parent=self)
+		self.transfer_state_button.setFixedSize(100, 25)
+		self.transfer_state_button.clicked.connect(self._apply_fit)
+		
+		# Create print button
+		self.print_button = QPushButton("Print fit", parent=self)
+		self.print_button.setFixedSize(100, 25)
+		self.print_button.clicked.connect(self._print_fit)
+		
 		# Apply widgets
 		self.grid = QGridLayout()
-		self.grid.addWidget(self.plot_widget, 0, 0)
+		self.grid.addWidget(self.plot_widget, 0, 0, 3, 1)
 		self.grid.addWidget(self.fit_idx_slider, 0, 1)
+		self.grid.addWidget(self.transfer_state_button, 1, 1)
+		self.grid.addWidget(self.print_button, 2, 1)
 		self.setLayout(self.grid)
+	
+	def _apply_fit(self):
+		
+		# Get current dataset
+		ds = self.main_window.data_manager.get_active()
+		if ds is None:
+			return
+		
+		# Get selected index
+		idx = self.fit_idx_slider.get_slider_position()
+		
+		# Get values for each parameter
+		ampl_val = ds.fit_ampls[idx]
+		freq_val = ds.fit_freqs[idx]
+		phi_val = ds.fit_phis[idx]
+		slope_val = ds.fit_slopes[idx]
+		offset_val = ds.fit_offsets[idx]
+		
+		
+		# Apply to sliders
+		slider_dict = self.main_window.slider_group_widget.sliders
+		for sldr_key in slider_dict:
+			
+			if sldr_key == AMPLITUDE_CTRL:
+				slider_dict[sldr_key].set_slider_position(ampl_val)
+			elif sldr_key == FREQUENCY_CTRL:
+				slider_dict[sldr_key].set_slider_position(freq_val*1e3)
+			elif sldr_key == PHI_CTRL:
+				slider_dict[sldr_key].set_slider_position(phi_val*180/np.pi)
+			elif sldr_key == SLOPE_CTRL:
+				slider_dict[sldr_key].set_slider_position(slope_val)
+			elif sldr_key == OFFSET_CTRL:
+				slider_dict[sldr_key].set_slider_position(offset_val)
+	
+	def _print_fit(self):
+		
+		# Get current dataset
+		ds = self.main_window.data_manager.get_active()
+		if ds is None:
+			return
+		
+		# Get selected index
+		idx = self.fit_idx_slider.get_slider_position()
+		
+		# Get values for each parameter
+		ampl_val = ds.fit_ampls[idx]
+		freq_val = ds.fit_freqs[idx]
+		phi_val = ds.fit_phis[idx]
+		slope_val = ds.fit_slopes[idx]
+		offset_val = ds.fit_offsets[idx]
+		fit_time = ds.fit_times[idx]
+		
+		print(plf.markdown(f"Fit Parameters: dataset=>{ds.source_info.file_name}<, ID=>:q{ds.source_info.unique_id}<"))
+		print(plf.markdown(f"    Fit Index = {idx}"))
+		print(plf.markdown(f"    Fit Time = {fit_time} (ns)"))
+		print(plf.markdown(f"        Amplitude = {ampl_val} (mV)"))
+		print(plf.markdown(f"        Frequency = {freq_val} (GHz)"))
+		print(plf.markdown(f"        Phi       = {phi_val*180/np.pi} (rad)"))
+		print(plf.markdown(f"        Slope     = {slope_val} (mV/ns)"))
+		print(plf.markdown(f"        Offset    = {offset_val} (mV)"))
+		
 	
 	@staticmethod
 	def dataset_changed(wid):
@@ -582,6 +675,8 @@ class ChirpAnalyzerMainWindow(bh.BHMainWindow):
 		# self.add_control_subscriber(self.manual_plot)
 		
 		self.fit_explorer = FitExplorerWidget(self)
+		
+		
 		
 		# self.manual_plot = bhw.BHMultiPlotWidget(self, grid_dim=[2, 2], plot_locations=[[0, slice(0, 2)], [1, 0], [1, 1]], custom_render_func=render_manual_fit)
 		# self.add_control_subscriber(self.manual_plot)
