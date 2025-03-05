@@ -122,6 +122,8 @@ class ChirpDataset(bh.BHDataset):
 		
 		self.fit_results = []
 		
+		self.manual_fit_freqs = [] # This saves frequencies from manual fits
+		
 		# TODO: Some kind of error handling
 		self.master_df = pd.read_csv(source_info.file_fullpath, skiprows=4, encoding='utf-8')
 		
@@ -230,8 +232,8 @@ class ChirpDataset(bh.BHDataset):
 		param = [50, 2*3.14159*freq, 0, 0, 0]
 		
 		# Set bounds
-		lower = [10, 2*pi*4.8, -pi, -10, -5]
-		upper = [220, 2*pi*4.9, pi, 10, 5]
+		lower = [10, 2*pi*4.8, -pi*1.5, -10, -5]
+		upper = [220, 2*pi*4.9, pi*1.5, 10, 5]
 		bounds = [lower, upper]
 		
 		# Initialize window
@@ -277,8 +279,12 @@ class ChirpDataset(bh.BHDataset):
 				
 			
 			# Adjust bounds
-			bounds[0][0] = np.min(envl_mV_fit)-2 # Adjust lower bounds
-			bounds[1][0] = np.max(envl_mV_fit)+2 # Adjust upper bounds
+			blow = np.min(np.abs(envl_mV_fit))-2
+			if blow < 0:
+				blow = 0
+			bhi = np.max(np.abs(envl_mV_fit))+2
+			bounds[0][0] = blow # Adjust lower bounds
+			bounds[1][0] = bhi # Adjust upper bounds
 			
 			# Adjust slope
 			est_slope_abs = (np.max(envl_mV_fit)-np.min(envl_mV_fit))/(time_ns_fit[-1]-time_ns_fit[0])
@@ -566,11 +572,11 @@ class FitExplorerWidget(QWidget):
 		print(plf.markdown(f"Fit Parameters: dataset=>{ds.source_info.file_name}<, ID=>:q{ds.source_info.unique_id}<"))
 		print(plf.markdown(f"    Fit Index = {idx}"))
 		print(plf.markdown(f"    Fit Time = {fit_time} (ns)"))
-		print(plf.markdown(f"        Amplitude = {ampl_val} (mV)"))
-		print(plf.markdown(f"        Frequency = {freq_val} (GHz)"))
-		print(plf.markdown(f"        Phi       = {phi_val*180/np.pi} (rad)"))
-		print(plf.markdown(f"        Slope     = {slope_val} (mV/ns)"))
-		print(plf.markdown(f"        Offset    = {offset_val} (mV)"))
+		print(plf.markdown(f">:q        Amplitude = >{ampl_val}>:q (mV)<"))
+		print(plf.markdown(f">:q        Frequency = >{freq_val}>:q (GHz)<"))
+		print(plf.markdown(f">:q        Phi       = >{phi_val*180/np.pi}>:q (deg)<"))
+		print(plf.markdown(f">:q        Slope     = >{slope_val}>:q (mV/ns)<"))
+		print(plf.markdown(f">:q        Offset    = >{offset_val}>:q (mV)<"))
 		
 	
 	@staticmethod
@@ -613,11 +619,11 @@ class FitExplorerWidget(QWidget):
 			pw.axes[i].cla()
 		
 		# Replot
-		pw.axes[0].plot(ds.fit_results[fit_idx].times, y, linestyle=':', marker='x', color=(0, 0.65, 0), label='Manual Fit')
+		pw.axes[0].plot(ds.fit_results[fit_idx].times, y, linestyle=':', marker='x', color=(0, 0.65, 0), label='Fit')
 		pw.axes[0].set_ylabel("Amplitude (mV)")
 		pw.axes[0].set_title("Fit Section")
 		
-		pw.axes[0].plot(ds.fit_results[fit_idx].times, fit_y, linestyle=':', marker='.', color=(0.75, 0, 0), label='Auto-fit')
+		pw.axes[0].plot(ds.fit_results[fit_idx].times, fit_y, linestyle=':', marker='.', color=(0.75, 0, 0), label='Measured Data')
 		pw.axes[0].grid(True)
 		pw.axes[0].legend()
 		
@@ -656,7 +662,7 @@ class ChirpAnalyzerMainWindow(bh.BHMainWindow):
 		
 		# Initialize control state
 		self.control_requested.add_param(AMPLITUDE_CTRL, 50)
-		self.control_requested.add_param(FREQUENCY_CTRL, 4.85)
+		self.control_requested.add_param(FREQUENCY_CTRL, 4850)
 		self.control_requested.add_param(PHI_CTRL, 0)
 		self.control_requested.add_param(SLOPE_CTRL, 0)
 		self.control_requested.add_param(OFFSET_CTRL, 0)
@@ -689,11 +695,11 @@ class ChirpAnalyzerMainWindow(bh.BHMainWindow):
 		self.tab_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 		
 		#TODO: Create a controller
-		self.ampl_slider = bhw.BHSliderWidget(self, param=AMPLITUDE_CTRL, header_label="Amplitude", min=0, max=75, unit_label="mV", step=0.5)
-		self.freq_slider = bhw.BHSliderWidget(self, param=FREQUENCY_CTRL, header_label="Frequency", min=4700, max=4830, unit_label="MHz", step=1)
-		self.phi_slider = bhw.BHSliderWidget(self, param=PHI_CTRL, header_label="Phi", min=-180, max=180, unit_label="deg", step=1)
-		self.slope_slider = bhw.BHSliderWidget(self, param=SLOPE_CTRL, header_label="Slope", min=-50, max=50, unit_label="mV/ns", step=10)
-		self.offset_slider = bhw.BHSliderWidget(self, param=OFFSET_CTRL, header_label="Offset", min=-20, max=20, unit_label="mV", step=5)
+		self.ampl_slider = bhw.BHSliderWidget(self, param=AMPLITUDE_CTRL, header_label="Amplitude", min=0, max=200, unit_label="mV", step=0.5)
+		self.freq_slider = bhw.BHSliderWidget(self, param=FREQUENCY_CTRL, header_label="Frequency", min=4700, max=4900, unit_label="MHz", step=1)
+		self.phi_slider = bhw.BHSliderWidget(self, param=PHI_CTRL, header_label="Phi", min=-270, max=270, unit_label="deg", step=1)
+		self.slope_slider = bhw.BHSliderWidget(self, param=SLOPE_CTRL, header_label="Slope", min=-2.5, max=2.5, unit_label="mV/ns", step=0.025)
+		self.offset_slider = bhw.BHSliderWidget(self, param=OFFSET_CTRL, header_label="Offset", min=-5, max=5, unit_label="mV", step=0.05)
 		
 		self.slider_group_widget = bhw.BHSliderPanel(self)
 		self.slider_group_widget.add_slider(self.ampl_slider)
@@ -802,7 +808,10 @@ if args.macos:
 	if not data_manager.load_configuration("chirpy_conf_macOS.json"):
 		exit()
 else:
-	if not data_manager.load_configuration("chirpy_conf.json", user_abbrevs={"$DRIVE_LETTER$":f"{args.drive}:\\"}):
+	drive_letter = "D:\\"
+	if args.drive is not None:
+		drive_letter = f"{args.drive}:\\"
+	if not data_manager.load_configuration("chirpy_conf.json", user_abbrevs={"$DRIVE_LETTER$":drive_letter}):
 		exit()
 
 window = ChirpAnalyzerMainWindow(log, app, data_manager)

@@ -47,10 +47,10 @@ waveform = (1+x_init/10)*np.sin(x_init*2*np.pi*0.25)
 
 wav = Waveform(x_init, waveform, log)
 
-sa = SimArea(bin_size=0.01, log=log, sim_region=[0, 30], nl_region=[10, 20])
-sa.configure_media(L0=1, C=1, I_star=1)
+sa = SimArea(bin_size=0.01, log=log, sim_region=[0, 40], nl_region=[20, 30])
+sa.configure_media(L0=1, C=1, I_star=3)
 
-sim = ChirpSimulation(sa, log, t_stop=15, dt=0.1)
+sim = ChirpSimulation(sa, log, t_stop=25, dt=0.05)
 sim.add_waveform(wav)
 sim.set_frame_rate(args.fps)
 

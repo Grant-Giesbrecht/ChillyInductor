@@ -111,7 +111,7 @@ class Waveform:
 		# Update positions
 		self.positions += vp*dt
 		
-		self.positions, self.amplitudes = re_bin(self.positions, self.amplitudes, self.sim_area.bin_size, self.log)
+		self.positions, self.amplitudes = re_bin(self.positions, self.amplitudes, sim_area.bin_size, self.log)
 		
 		# # Re-bin waveform positions
 		# self.positions = np.floor(self.positions/sim_area.bin_size)*sim_area.bin_size
@@ -184,8 +184,9 @@ class SimArea:
 		''' Returns the phase velocity for a given position with a given amplitude. Position must
 		be in ascending order. '''
 		
-		for wav in waves:
-			all_positions = 
+		# for wav in waves:
+		# 	all_positions = 
+		wave = waves[0]
 		
 		position = wave.get_positions()
 		amplitude = wave.get_envelope()
@@ -253,6 +254,7 @@ class ChirpSimulation:
 		self.hash_id_short = self.hash_id[-6:]
 		
 		self.waveforms = []
+		self.waveform = None
 		
 		self.sim_area = sim_area
 		
@@ -267,7 +269,8 @@ class ChirpSimulation:
 	
 	def add_waveform(self, wav:Waveform):
 		self.waveforms.append(wav)
-	
+		self.waveform = self.waveforms[0]
+		
 	def reset(self):
 		self.frame_idx = 0
 		self.t_current = self.t_start
@@ -280,7 +283,7 @@ class ChirpSimulation:
 		
 		n = 0
 		for wav in self.waveforms:
-			n += len(wav)
+			n += len(wav.positions)
 		return n
 
 	
