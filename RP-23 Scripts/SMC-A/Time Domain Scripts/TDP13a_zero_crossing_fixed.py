@@ -1,3 +1,7 @@
+''' Uses 1-full period (3 zero crossings) instead to make the analysis robust to
+any y-offset.
+'''
+
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
@@ -42,7 +46,7 @@ window_step_points = 10
 
 # DATADIR = os.path.join("G:", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Time Domain Measurements", "13_Feb_2025")
 DATADIR = os.path.join("G:", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Time Domain Measurements", "20_Feb_2025")
-
+print(f"DATA DIRECTORY: {DATADIR}")
 # DATADIR = os.path.join("/Volumes/M6 T7S", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Time Domain Measurements", "13_Feb_2025")
 
 # df_100mV_3dBm_df = []
@@ -115,11 +119,16 @@ def zero_cross_freq_analysis(dframe, pulse_range_ns = (10, 48)):
 	
 	#===================== Perform zero crossing analysis ==========================
 	
+	N_avg = 3
+	
 	tzc = find_zero_crossings(time_ns, ampl_mV)
-	periods = np.diff(tzc)
-	freqs = (1/periods)/2
+	
+	# Select every other zero crossing to see full periods and become insensitive to y-offsets.
+	tzc_fullperiod = tzc[::2*N_avg]
+	periods = np.diff(tzc_fullperiod)
+	freqs = (1/periods)*N_avg
 
-	t_freqs = tzc[:-1] + periods/2
+	t_freqs = tzc_fullperiod[:-1] + periods/2
 	
 	
 	return {'fit_freqs': freqs, 'fit_times':t_freqs, 'time_orig':time_ns, 'ampl_orig':ampl_mV}
