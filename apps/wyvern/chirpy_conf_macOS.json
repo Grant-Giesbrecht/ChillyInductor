@@ -7,6 +7,10 @@
 		{
 			"shortcut": "$20FEB2025$",
 			"expanded": ["$DATA_ROOT$", "Time Domain Measurements", "20_feb_2025"]
+		},
+		{
+			"shortcut": "$TEMP$",
+			"expanded": ["/", "Volumes", "M5 PERSONAL", "datafile_transfer"]
 		}
 	],
 	"data_sources": [
@@ -19,6 +23,10 @@
 				"channel": 1,
 				"group": "Pi & Half Pi: 20-Feb-2025"
 			},
+			"options": {
+				"trim_regions": [[-410, -330], [-300, -225], [-190, -120]]
+			},
+			"notes": "",
 			"valid_active_set_indices": [0]
 		},
 		{
@@ -30,6 +38,10 @@
 				"channel": 1,
 				"group": "Pi & Half Pi: 20-Feb-2025"
 			},
+			"options": {
+				"trim_regions": [[-410, -330], [-300, -225], [-190, -120]]
+			},
+			"notes": "",
 			"valid_active_set_indices": [0]
 		},
 		{
@@ -41,6 +53,10 @@
 				"channel": 1,
 				"group": "Pi & Half Pi: 20-Feb-2025"
 			},
+			"options": {
+				"trim_regions": [[-410, -330], [-300, -225], [-190, -120]]
+			},
+			"notes": "",
 			"valid_active_set_indices": [0]
 		},
 		{
@@ -52,6 +68,10 @@
 				"channel": 1,
 				"group": "Pi & Half Pi: 20-Feb-2025"
 			},
+			"options": {
+				"trim_regions": [[-410, -330], [-300, -225], [-190, -120]]
+			},
+			"notes": "",
 			"valid_active_set_indices": [0]
 		},
 		{
@@ -63,8 +83,58 @@
 				"channel": 1,
 				"group": "Pi & Half Pi: 20-Feb-2025"
 			},
+			"options": {
+				"trim_regions": [[-410, -330], [-300, -225], [-190, -120]]
+			},
+			"notes": "",
+			"valid_active_set_indices": [0]
+		},
+		{
+			"file_path": ["$TEMP$", "C1setting100000.txt"],
+			"parameters": {
+				"fund_freq_GHz": 2.36,
+				"bias_V": 0.275,
+				"P_RF_dBm": -11.16,
+				"channel": 1,
+				"group": "Pi & Half Pi: 6-March-2025"
+			},
+			"options": {
+				"trim_regions": [[75323, 75406], [75478, 75563], [75617, 75715]]
+			},
+			"notes": "Half-pi mult = x1",
+			"valid_active_set_indices": [0]
+		},
+		{
+			"file_path": ["$TEMP$", "C1setting200000.txt"],
+			"parameters": {
+				"fund_freq_GHz": 2.36,
+				"bias_V": 0.275,
+				"P_RF_dBm": -11.16,
+				"channel": 1,
+				"group": "Pi & Half Pi: 6-March-2025"
+			},
+			"options": {
+				"trim_regions": [[75323, 75406], [75478, 75563], [75617, 75715]]
+			},
+			"notes": "Half-pi mult = x1.05",
+			"valid_active_set_indices": [0]
+		},
+		{
+			"file_path": ["$TEMP$", "C1setting200000.txt"],
+			"parameters": {
+				"fund_freq_GHz": 2.36,
+				"bias_V": 0.275,
+				"P_RF_dBm": -11.16,
+				"channel": 1,
+				"group": "Pi & Half Pi: 6-March-2025"
+			},
+			"options": {
+				"trim_regions": [[75323, 75406], [75478, 75563], [75617, 75715]]
+			},
+			"notes": "Half-pi mult = x1.05",
 			"valid_active_set_indices": [0]
 		}
+		
 	],
 	"organization_structure":[
 		{

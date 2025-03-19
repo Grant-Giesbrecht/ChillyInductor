@@ -22,6 +22,8 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('-d', '--detail', help="Show log details.", action='store_true')
 parser.add_argument('-m', '--macos', help="Use macOS filesystem..", action='store_true')
+parser.add_argument('-x', '--skipfit', help="Skips autofit of data.", action='store_true')
+parser.add_argument('--coarse', help="Coarse fit steps.", action='store_true')
 parser.add_argument('--drive', help="Specify the drive letter from which to load data.", choices=['D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'], type=str.upper)
 parser.add_argument('--loglevel', help="Set the logging display level.", choices=['LOWDEBUG', 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], type=str.upper)
 args = parser.parse_args()
@@ -112,7 +114,7 @@ class FitResult():
 
 class ChirpDataset(bh.BHDataset):
 	
-	def __init__(self, log:plf.LogPile, source_info:bh.BHDataSource):
+	def __init__(self, log:plf.LogPile, source_info:bh.BHDataSource, do_fit:bool=True, step_points=10):
 		super().__init__(log, source_info)
 		
 		self.log.info(f"Creating new BHDataset object from file: >{source_info.file_fullpath}<.")
@@ -154,10 +156,13 @@ class ChirpDataset(bh.BHDataset):
 		# Define options
 		self.time_reversal = False
 		self.trim_time = True
-		self.window_step_points = 10
+		self.window_step_points = step_points
 		
-		self.windowed_freq_analysis_linear_guided()
+		self.window_size = 3.5		
 		
+		if do_fit:
+			self.windowed_freq_analysis_linear_guided()
+	
 	def windowed_freq_analysis_linear_guided(self):
 		
 		GUIDED_SINE_FIT = 2
@@ -165,12 +170,11 @@ class ChirpDataset(bh.BHDataset):
 		merge = True
 		include_3rd = False
 
-		trim_time = True
 		fit_method = GUIDED_SINE_FIT
 
 		# Window fit options
-		window_size_ns = 3.5
-		window_step_points = 10
+		window_size_ns = self.window_size
+		window_step_points = self.window_step_points
 
 		# Show fits
 		show_example_fits = False
@@ -181,7 +185,12 @@ class ChirpDataset(bh.BHDataset):
 		reset_start_positions = True
 		
 		dframe = self.master_df
-		pulse_range_ns=[(-410, -330), (-300, -225), (-190, -120)]
+		pulse_range_ns = self.source_info.options['trim_regions']
+		if pulse_range_ns == []:
+			self.log.debug(f"No trim regions provided. Skipping trim action.")
+			self.trim_time = False
+			
+		# pulse_range_ns=[(-410, -330), (-300, -225), (-190, -120)]
 		
 		def print_range(index, name, bounds, param):
 			lb=bounds[0][index]
@@ -417,14 +426,15 @@ class ChirpDataset(bh.BHDataset):
 				break
 			
 			# Else check for window in-between pulses
-			next_region = is_interstitial(pulse_range_ns, window[1])
-			if next_region != -1: # Not in a region
-				
-				if next_region == -2: # THis should have been caught above
-					self.log.error(f"Outside all bounds!")
-				else:
-					self.log.debug(f"Jumping to region idx >{next_region}<")
-					window = [pulse_range_ns[next_region][0], pulse_range_ns[next_region][0]+window_size_ns]
+			if self.trim_time:
+				next_region = is_interstitial(pulse_range_ns, window[1])
+				if next_region != -1: # Not in a region
+					
+					if next_region == -2: # THis should have been caught above
+						self.log.error(f"Outside all bounds!")
+					else:
+						self.log.debug(f"Jumping to region idx >{next_region}<")
+						window = [pulse_range_ns[next_region][0], pulse_range_ns[next_region][0]+window_size_ns]
 		
 		# convert from angular frequency
 		fit_freqs = np.array(fit_omegas)/2/np.pi
@@ -599,6 +609,10 @@ class FitExplorerWidget(QWidget):
 		if ds is None:
 			return
 		
+		# Abort if fit has not been run
+		if len(ds.fit_ampls) < 1:
+			return
+		
 		# Get window size and fit result
 		fit_idx = pw.control_requested.get_param(FIT_EXPLORE_IDX_CTRL)
 		window = ds.fit_results[fit_idx].window
@@ -730,7 +744,10 @@ class ChirpAnalyzerMainWindow(bh.BHMainWindow):
 ##==================== Create custom functions for Black-Hole ======================
 
 def load_chirp_dataset(source, log):
-	return ChirpDataset(log, source)
+	pts = 10
+	if args.coarse:
+		pts = 100
+	return ChirpDataset(log, source, do_fit=(not args.skipfit), step_points=pts)
 
 def render_rms(pw):
 	
