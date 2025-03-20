@@ -9,6 +9,7 @@ from scipy.optimize import curve_fit
 from colorama import Fore, Style
 from scipy.signal import hilbert
 from scipy.signal import butter, lfilter, freqz
+from scipy.interpolate import interp1d
 import time
 import os
 import sys
@@ -31,16 +32,12 @@ def get_colormap_colors(colormap_name, n):
 #====================== Program options =================
 
 pi = 3.1415926535
-merge = True
-include_3rd = False
 
-trim_time = False
-use_hilbert_norm = False
+trim_time = True
 
-# Window fit options
-window_size_ns = 3.5
-window_step_points = 10
-
+rescale = True
+offset = 0.8
+scaling = 1.48
 
 
 #====================== Load data =================
@@ -64,12 +61,12 @@ print(f"DATA DIRECTORY: {DATADIR}")
 # # NOTE: From 19_March_2025, Should not have 40 MHz beat (if r9 used as straight)
 # df_double = pd.read_csv(f"{DATADIR}/C1Med_waveform_0,275V_-11,13dBm_2,3679GHz_15Pi_r6a_00000.txt", skiprows=4, encoding='utf-8')
 # df_straight = pd.read_csv(f"{DATADIR}/C1Med_waveform_0,0V_-23dBm_4,7758GHz_15Pi_r9_00000.txt", skiprows=4, encoding='utf-8')
+# trim_times = [-3500, -2900]
 
 # # NOTE: From 18_March_2025, contained 40 MHz beat
 df_double = pd.read_csv(f"{DATADIR}\\C1Long_waveform_0,275V_-11,13dBm_2,3679GHz_100Pi_r2_00000.txt", skiprows=4, encoding='utf-8')
 df_straight = pd.read_csv(f"{DATADIR}\\C1Long_waveform_0,0V_-23dBm_4,7358GHz_100Pi_r3_00000.txt", skiprows=4, encoding='utf-8')
-
-trim_times = [-300, -225]
+trim_times = [-22197, -22185]
 
 
 def find_closest_index(lst, X):
@@ -109,6 +106,38 @@ def fft_freq_analysis(dframe, pulse_range_ns = (10, 48)):
 	
 	return {'freq': freq, 'spec':spectrum, 't_trim':time_ns, 'y_trim':ampl_mV}
 
+def interpolate_common_times(t1, y1, t2, y2):
+	"""
+	Interpolates two time series onto a common time grid where they overlap.
+
+	Parameters:
+		t1, y1 : np.array - Time points and amplitudes for series 1
+		t2, y2 : np.array - Time points and amplitudes for series 2
+
+	Returns:
+		T : np.array - Common time grid over the overlap
+		Y1 : np.array - Interpolated amplitudes for series 1
+		Y2 : np.array - Interpolated amplitudes for series 2
+	"""
+	# Convert lists to arrays if needed
+	t1, y1, t2, y2 = map(np.array, (t1, y1, t2, y2))
+
+	# Determine the overlapping time range
+	t_min = max(t1[0], t2[0])
+	t_max = min(t1[-1], t2[-1])
+
+	# Create a common time grid in the overlapping region
+	T = np.linspace(t_min, t_max, num=1000)  # Adjust resolution as needed
+
+	# Interpolate y1 and y2 onto the common time grid
+	interp_y1 = interp1d(t1, y1, kind='linear', fill_value="extrapolate")
+	interp_y2 = interp1d(t2, y2, kind='linear', fill_value="extrapolate")
+
+	Y1 = interp_y1(T)
+	Y2 = interp_y2(T)
+
+	return T, Y1, Y2
+
 # #====================== Crunch numbers ========================
 
 
@@ -117,46 +146,27 @@ def fft_freq_analysis(dframe, pulse_range_ns = (10, 48)):
 # #====================== Perform plotting ========================
 
 # fig1 = plt.figure(1, figsize=(16, 9))
-fig1 = plt.figure(1)
+fig1 = plt.figure(1, figsize=(10, 7))
 gs = fig1.add_gridspec(5, 1)
 ax1a = fig1.add_subplot(gs[1:3, 0])
 ax1b = fig1.add_subplot(gs[3:5, 0])
 ax1c = fig1.add_subplot(gs[0, 0])
 
-t_doub = (df_double['Time']*1e9).tolist()
-t_stra = (df_straight['Time']*1e9).tolist()
+t_doub = np.array(df_double['Time']*1e9)
+t_stra = np.array(df_straight['Time']*1e9)
 
-v_doub = (df_double['Ampl']*1e3).tolist()
-v_stra = (df_straight['Ampl']*1e3).tolist()
+v_doub = np.array(df_double['Ampl']*1e3)
+v_stra = np.array(df_straight['Ampl']*1e3)
+
+if rescale:
+	v_stra = v_stra+offset
+	v_stra = v_stra*scaling
 
 finish = True
 
-# Calculate overlap of time - assumes no-doubler is shifted before doubler in time
-offset_start = None
-for idx, tt in enumerate(t_stra):
-	if tt == t_doub[0]:
-		offset_start = idx
-		break
-if offset_start is None:
-	print(f"FAILED TO FIND OVERLAP:START")
-	
-	finish = False
-
-offset_end = None
-for idx, tt in enumerate(reversed(t_doub)):
-	if tt == t_stra[-1]:
-		offset_end = idx
-		break
-if offset_end is None:
-	print(f"FAILED TO FIND OVERLAP:END")
-	
-	finish = False
+t_univ, v_univ_doub, v_univ_stra = interpolate_common_times(t_doub, v_doub, t_stra, v_stra)
 
 if finish:
-	# Get universal parameters
-	t_univ = t_doub[0:-offset_end]
-	v_univ_stra = v_stra[offset_start:]
-	v_univ_doub = v_doub[0:-offset_end]
 	
 	ax1a.plot(t_doub, v_doub, linestyle=':', marker='.', color=(0, 0, 0.65), label="Doubler")
 	ax1a.plot(t_stra, v_stra, linestyle=':', marker='.', color=(0, 0.65, 0), label="No doubler")
@@ -165,13 +175,16 @@ if finish:
 	ax1a.set_ylabel("Voltage (mV)")
 	ax1a.grid(True)
 	ax1a.legend()
-	ax1a.set_xlim([-22197, -22185])
+	if trim_time:
+		ax1a.set_xlim(trim_times)
 	
 	ax1b.plot(t_univ, np.array(v_univ_stra)-np.array(v_univ_doub), linestyle=':', marker='.', color=(0.65, 0, 0))
 	ax1b.set_title("Subtracted")
-	ax1a.set_xlabel("Time (ns))")
-	ax1a.set_ylabel("Voltage (mV)")
+	ax1b.set_xlabel("Time (ns))")
+	ax1b.set_ylabel("Voltage (mV)")
 	ax1b.grid(True)
+	if trim_time:
+		ax1b.set_xlim(trim_times)
 	
 	ax1c.plot(t_doub, v_doub, linestyle=':', marker='.', color=(0, 0, 0.65), label="Doubler")
 	ax1c.plot(t_stra, v_stra, linestyle=':', marker='.', color=(0, 0.65, 0), label="No doubler")
@@ -188,11 +201,5 @@ else:
 	ax1c.grid(True)
 
 fig1.tight_layout()
-
-def set_xlim(xl):
-	ax1a.set_xlim(xl)
-	ax1b.set_xlim(xl)
-
-set_xlim([-22000, -21500])
 
 plt.show()
