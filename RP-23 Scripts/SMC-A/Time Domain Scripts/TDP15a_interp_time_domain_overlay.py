@@ -45,7 +45,8 @@ scaling = 1.48
 # DATADIR = os.path.join("G:", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Time Domain Measurements", "13_Feb_2025")
 # DATADIR = os.path.join("G:", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Time Domain Measurements", "20_Feb_2025")
 # DATADIR = os.path.join("G:\\", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Time Domain Measurements", "2025-03-19")
-DATADIR = os.path.join("G:\\", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Time Domain Measurements", "2025-03-18")
+# DATADIR = os.path.join("G:\\", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Time Domain Measurements", "2025-03-18")
+DATADIR = os.path.join("/", "Volumes", "M6 T7S", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Time Domain Measurements", "2025-03-18")
 # DATADIR = os.path.join("/Volumes/M7 PhD Data", "18_March_2025 Data", "Time Domain")
 print(f"DATA DIRECTORY: {DATADIR}")
 
@@ -64,8 +65,8 @@ print(f"DATA DIRECTORY: {DATADIR}")
 # trim_times = [-3500, -2900]
 
 # # NOTE: From 18_March_2025, contained 40 MHz beat
-df_double = pd.read_csv(f"{DATADIR}\\C1Long_waveform_0,275V_-11,13dBm_2,3679GHz_100Pi_r2_00000.txt", skiprows=4, encoding='utf-8')
-df_straight = pd.read_csv(f"{DATADIR}\\C1Long_waveform_0,0V_-23dBm_4,7358GHz_100Pi_r3_00000.txt", skiprows=4, encoding='utf-8')
+df_double = pd.read_csv(os.path.join(DATADIR, "C1Long_waveform_0,275V_-11,13dBm_2,3679GHz_100Pi_r2_00000.txt"), skiprows=4, encoding='utf-8')
+df_straight = pd.read_csv(os.path.join(DATADIR,"C1Long_waveform_0,0V_-23dBm_4,7358GHz_100Pi_r3_00000.txt"), skiprows=4, encoding='utf-8')
 trim_times = [-22197, -22185]
 
 
@@ -121,18 +122,22 @@ def interpolate_common_times(t1, y1, t2, y2):
 	"""
 	# Convert lists to arrays if needed
 	t1, y1, t2, y2 = map(np.array, (t1, y1, t2, y2))
-
+	
 	# Determine the overlapping time range
 	t_min = max(t1[0], t2[0])
 	t_max = min(t1[-1], t2[-1])
-
+	
+	dt = t_max - t_min
+	srate = len(t1)/(t1[-1]-t1[0])
+	n_points = int(dt*srate)
+	
 	# Create a common time grid in the overlapping region
-	T = np.linspace(t_min, t_max, num=1000)  # Adjust resolution as needed
-
+	T = np.linspace(t_min, t_max, num=n_points)  # Adjust resolution as needed
+	
 	# Interpolate y1 and y2 onto the common time grid
 	interp_y1 = interp1d(t1, y1, kind='linear', fill_value="extrapolate")
 	interp_y2 = interp1d(t2, y2, kind='linear', fill_value="extrapolate")
-
+	
 	Y1 = interp_y1(T)
 	Y2 = interp_y2(T)
 
@@ -162,43 +167,32 @@ if rescale:
 	v_stra = v_stra+offset
 	v_stra = v_stra*scaling
 
-finish = True
-
 t_univ, v_univ_doub, v_univ_stra = interpolate_common_times(t_doub, v_doub, t_stra, v_stra)
+	
+ax1a.plot(t_doub, v_doub, linestyle=':', marker='.', color=(0, 0, 0.65), label="Doubler")
+ax1a.plot(t_stra, v_stra, linestyle=':', marker='.', color=(0, 0.65, 0), label="No doubler")
+ax1a.set_title("Zoomed-In")
+ax1a.set_xlabel("Time (ns))")
+ax1a.set_ylabel("Voltage (mV)")
+ax1a.grid(True)
+ax1a.legend()
+if trim_time:
+	ax1a.set_xlim(trim_times)
 
-if finish:
-	
-	ax1a.plot(t_doub, v_doub, linestyle=':', marker='.', color=(0, 0, 0.65), label="Doubler")
-	ax1a.plot(t_stra, v_stra, linestyle=':', marker='.', color=(0, 0.65, 0), label="No doubler")
-	ax1a.set_title("Zoomed-In")
-	ax1a.set_xlabel("Time (ns))")
-	ax1a.set_ylabel("Voltage (mV)")
-	ax1a.grid(True)
-	ax1a.legend()
-	if trim_time:
-		ax1a.set_xlim(trim_times)
-	
-	ax1b.plot(t_univ, np.array(v_univ_stra)-np.array(v_univ_doub), linestyle=':', marker='.', color=(0.65, 0, 0))
-	ax1b.set_title("Subtracted")
-	ax1b.set_xlabel("Time (ns))")
-	ax1b.set_ylabel("Voltage (mV)")
-	ax1b.grid(True)
-	if trim_time:
-		ax1b.set_xlim(trim_times)
-	
-	ax1c.plot(t_doub, v_doub, linestyle=':', marker='.', color=(0, 0, 0.65), label="Doubler")
-	ax1c.plot(t_stra, v_stra, linestyle=':', marker='.', color=(0, 0.65, 0), label="No doubler")
-	ax1c.set_title("Time Domain Comparison - Full")
-	ax1c.set_xlabel("Time (ns))")
-	ax1c.set_ylabel("Voltage (mV)")
-	ax1c.grid(True)
-else:
-	ax1c.plot(t_doub, v_doub, linestyle=':', marker='.', color=(0, 0, 0.65), label="Doubler")
-	ax1c.plot(t_stra, v_stra, linestyle=':', marker='.', color=(0, 0.65, 0), label="No doubler")
-	ax1c.set_title("Time Domain Comparison - Full")
-	ax1c.set_xlabel("Time (ns))")
-	ax1c.set_ylabel("Voltage (mV)")
-	ax1c.grid(True)
+ax1b.plot(t_univ, (v_univ_stra)-(v_univ_doub), linestyle=':', marker='.', color=(0.65, 0, 0))
+ax1b.set_title("Subtracted")
+ax1b.set_xlabel("Time (ns))")
+ax1b.set_ylabel("Voltage (mV)")
+ax1b.grid(True)
+if trim_time:
+	ax1b.set_xlim(trim_times)
+
+ax1c.plot(t_doub, v_doub, linestyle=':', marker='.', color=(0, 0, 0.65), label="Doubler")
+ax1c.plot(t_stra, v_stra, linestyle=':', marker='.', color=(0, 0.65, 0), label="No doubler")
+ax1c.set_title("Time Domain Comparison - Full")
+ax1c.set_xlabel("Time (ns))")
+ax1c.set_ylabel("Voltage (mV)")
+ax1c.grid(True)
 
 fig1.tight_layout()
 
