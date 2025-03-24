@@ -31,6 +31,19 @@ print(f"DATA DIRECTORY: {DATADIR}")
 # trim_times = [-300, -225]
 # df_double = pd.read_csv(f"{DATADIR}/C1 BIAS0,15V_2,368GHz_HalfPiOut_-4dBm00000.txt", skiprows=4, encoding='utf-8')
 
+f0 = 4.8e9
+
+sample_rate = 40e9
+t_series = np.linspace(-250e-9, 250e-9, 1/sample_rate)
+sigma = 25e-9
+
+K1 = 1 # L*n^2*I0
+Tau = np.sqrt(2)*sigma
+chirped_freq = f0 + (4*np.pi*K1)/()
+
+pulse_straight = np.sin(f0*np.pi*2*t_series) * np.exp( -(t_series)**2/2/sigma**2 )
+pulse_straight = np.sin(chirped_freq*np.pi*2*t_series) * np.exp( -(t_series)**2/2/sigma**2 )
+
 # NOTE: From 19_March_2025, should have strongest nonlinearity
 df_double_strong = pd.read_csv(f"{DATADIR}/C1Med_waveform_0,070V_-4dBm_2,3679GHz_15Pi_r8_00000.txt", skiprows=4, encoding='utf-8')
 df_straight = pd.read_csv(f"{DATADIR}/C1Med_waveform_0,0V_-23dBm_4,7758GHz_15Pi_r9_00000.txt", skiprows=4, encoding='utf-8')
