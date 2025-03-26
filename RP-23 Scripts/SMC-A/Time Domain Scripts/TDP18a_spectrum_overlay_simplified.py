@@ -110,41 +110,19 @@ def run_fft(t_si, v_si):
 
 #============ GEt time and voltage arrays ==================
 
-t_strong = np.array(df_double_strong['Time'])
-v_strong = np.array(df_double_strong['Ampl'])
-
 t_double = np.array(df_double['Time'])
 v_double = np.array(df_double['Ampl'])
 
 t_direct = np.array(df_straight['Time'])
 v_direct = np.array(df_straight['Ampl'])
 
-#================ Get spectral data from F1 files and trim ================
-
-f_direct_f1 = np.array(df_straight_f1['Time'])
-s_direct_f1 = np.array(df_straight_f1['Ampl'])
-
-f_strong_f1 = np.array(df_double_strong_f1['Time'])
-s_strong_f1 = np.array(df_double_strong_f1['Ampl'])
-
-f_double_f1 = np.array(df_double_f1['Time'])
-s_double_f1 = np.array(df_double_f1['Ampl'])
-
-
-f_dir_f1, s_dir_f1 = trim_time_series(f_direct_f1/1e9, s_direct_f1, trim_times[0], trim_times[1])
-f_doub_f1, s_doub_f1 = trim_time_series(f_double_f1/1e9, s_double_f1, trim_times[0], trim_times[1])
-f_str_f1, s_str_f1 = trim_time_series(f_strong_f1/1e9, s_strong_f1, trim_times[0], trim_times[1])
-
 #=============== Run FFT and Trim ======================================
 
 f_direct, s_direct = run_fft(t_direct, v_direct)
 f_double, s_double = run_fft(t_double, v_double)
-f_strong, s_strong = run_fft(t_strong, v_strong)
-
 
 f_dir, s_dir = trim_time_series(f_direct/1e9, s_direct, trim_times[0], trim_times[1])
 f_doub, s_doub = trim_time_series(f_double/1e9, s_double, trim_times[0], trim_times[1])
-f_str, s_str = trim_time_series(f_strong/1e9, s_strong, trim_times[0], trim_times[1])
 
 #================= Plot results
 
@@ -157,7 +135,6 @@ ax1a = fig1.add_subplot(gs1[0, 0])
 
 ax1a.plot(f_dir, s_dir, linestyle=':', marker='.', color=(0.3, 0.3, 0.85), label="Direct Drive")
 ax1a.plot(f_doub, s_doub, linestyle=':', marker='.', color=(0, 0.75, 0), label="Doubler, 0.0275 V")
-ax1a.plot(f_str, s_str, linestyle=':', marker='.', color=(0.65, 0, 0), label="Doubler, 0.07 V")
 
 ax1a.set_xlabel(f"Frequency (GHz)")
 ax1a.set_ylabel(f"Power spectral density (dBm/Hz)")
@@ -166,20 +143,6 @@ ax1a.legend()
 ax1a.grid(True)
 
 fig1.tight_layout()
-
-fig2 = plt.figure(2)
-gs2 = fig2.add_gridspec(1, 1)
-ax2a = fig2.add_subplot(gs2[0, 0])
-
-ax2a.plot(f_dir_f1, s_dir_f1, linestyle=':', marker='o', color=(0.3, 0.3, 0.85), label="Direct Drive")
-ax2a.plot(f_doub_f1, s_doub_f1, linestyle=':', marker='o', color=(0, 0.75, 0), label="Doubler, 0.0275 V")
-ax2a.plot(f_str_f1, s_str_f1, linestyle=':', marker='o', color=(0.65, 0, 0), label="Doubler, 0.07 V")
-
-ax2a.set_xlabel(f"Frequency (GHz)")
-ax2a.set_ylabel(f"Power spectral density (dBm/Hz)")
-ax2a.set_title("Oscilloscope FFT")
-ax2a.legend()
-ax2a.grid(True)
 
 mplcursors.cursor(multiple=True)
 
