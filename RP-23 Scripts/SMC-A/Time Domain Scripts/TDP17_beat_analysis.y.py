@@ -33,11 +33,12 @@ def get_colormap_colors(colormap_name, n):
 
 pi = 3.1415926535
 
-trim_time = False
+trim_time = True
 
 rescale = False
 offset = 0.8
 scaling = 1.48
+time_shift_ns = 0
 
 
 #====================== Load data =================
@@ -61,16 +62,28 @@ print(f"DATA DIRECTORY: {DATADIR}")
 # trim_times = [-300, -225]
 # df_double = pd.read_csv(f"{DATADIR}/C1 BIAS0,15V_2,368GHz_HalfPiOut_-4dBm00000.txt", skiprows=4, encoding='utf-8')
 
-# Trying to look at de-chirp pulse:
-df_double = pd.read_csv(f"{DATADIR}/C1Medwav_0,075V_-4dBm_2,3679GHz_15Pi_sig35ns_r13_00000.txt", skiprows=4, encoding='utf-8')
-df_straight = pd.read_csv(f"{DATADIR}/C1Medwav_dechirp0.01K_0,275V_-9dBm_2,3679GHz_15Pi_sig35ns_r22_00000.txt", skiprows=4, encoding='utf-8')
-trim_times = [-600, 400]
+#NOTE: Comparing two direct-drive pulses to see how good subtraction can look.
+df_double = pd.read_csv(f"{DATADIR}/C1Medwav_0,0V_-17dBm_4,7758GHz_15Pi_sig25ns_r24_00000.txt", skiprows=4, encoding='utf-8')
+df_straight = pd.read_csv(f"{DATADIR}/C1Medwav_0,0V_-19dBm_4,7758GHz_15Pi_sig25ns_r23_00000.txt", skiprows=4, encoding='utf-8')
+trim_times = [-300, 600]
 rescale = True
-offset = 3.63
-scaling = 1.38
+offset = 3.07
+scaling = 1.242
+time_shift_ns = -0.1
 rescale_doubler = True
-offset_doubler = 3
+offset_doubler = 3.015
 void_threshold = 0.75
+
+# #NOTE: Trying to look at de-chirp pulse:
+# df_double = pd.read_csv(f"{DATADIR}/C1Medwav_0,075V_-4dBm_2,3679GHz_15Pi_sig35ns_r13_00000.txt", skiprows=4, encoding='utf-8')
+# df_straight = pd.read_csv(f"{DATADIR}/C1Medwav_dechirp0.01K_0,275V_-9dBm_2,3679GHz_15Pi_sig35ns_r22_00000.txt", skiprows=4, encoding='utf-8')
+# trim_times = [-600, 400]
+# rescale = True
+# offset = 3.63
+# scaling = 1.38
+# rescale_doubler = True
+# offset_doubler = 3
+# void_threshold = 0.75
 
 # #NOTE: COrrected sigmas, trying other cases - see 3 MHz offset
 # df_double = pd.read_csv(f"{DATADIR}/C1Medwav_0,075V_-4dBm_2,3679GHz_15Pi_sig35ns_r13_00000.txt", skiprows=4, encoding='utf-8')
@@ -272,6 +285,11 @@ print(f"  --> Conversion complete.")
 
 print(f"Trimming time points....")
 if trim_time:
+	
+	#Perform time shift
+	t_stra = t_stra+time_shift_ns
+	
+	# Perform trim
 	t_doub, v_doub = trim_time_series(t_doub, v_doub, trim_times[0], trim_times[1])
 	t_stra, v_stra = trim_time_series(t_stra, v_stra, trim_times[0], trim_times[1])
 print(f"  --> Trim complete.")

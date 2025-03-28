@@ -32,16 +32,29 @@ print(f"DATA DIRECTORY: {DATADIR}")
 # trim_times = [-300, -225]
 # df_double = pd.read_csv(f"{DATADIR}/C1 BIAS0,15V_2,368GHz_HalfPiOut_-4dBm00000.txt", skiprows=4, encoding='utf-8')
 
-#NOTE: COrrected sigmas, trying other cases
-df_double = pd.read_csv(f"{DATADIR}/C1Medwav_0,075V_-4dBm_2,3679GHz_15Pi_sig35ns_r13_00000.txt", skiprows=4, encoding='utf-8')
-df_straight = pd.read_csv(f"{DATADIR}/C1Medwav_0,0V_-21dBm_4,7758GHz_15Pi_sig25ns_r17_00000.txt", skiprows=4, encoding='utf-8')
-trim_times = [-600, 400]
+
+#NOTE: Comparing two direct-drive pulses to see how good subtraction can look.
+df_double = pd.read_csv(f"{DATADIR}/C1Medwav_0,0V_-17dBm_4,7758GHz_15Pi_sig25ns_r24_00000.txt", skiprows=4, encoding='utf-8')
+df_straight = pd.read_csv(f"{DATADIR}/C1Medwav_0,0V_-19dBm_4,7758GHz_15Pi_sig25ns_r23_00000.txt", skiprows=4, encoding='utf-8')
+trim_times = [-300, 600]
 rescale = True
-offset = 3.63
-scaling = 1.38
+offset = 3.07
+scaling = 1.242
+time_shift_ns = -0.1
 rescale_doubler = True
-offset_doubler = 3
+offset_doubler = 3.015
 void_threshold = 0.75
+
+# #NOTE: COrrected sigmas, trying other cases - known 3 MHz delta at higher spectrum end.
+# df_double = pd.read_csv(f"{DATADIR}/C1Medwav_0,075V_-4dBm_2,3679GHz_15Pi_sig35ns_r13_00000.txt", skiprows=4, encoding='utf-8')
+# df_straight = pd.read_csv(f"{DATADIR}/C1Medwav_0,0V_-21dBm_4,7758GHz_15Pi_sig25ns_r17_00000.txt", skiprows=4, encoding='utf-8')
+# trim_times = [-600, 400]
+# rescale = True
+# offset = 3.63
+# scaling = 1.38
+# rescale_doubler = True
+# offset_doubler = 3
+# void_threshold = 0.75
 
 # # NOTE: From 19_March_2025, should have strongest nonlinearity
 # df_double_strong = pd.read_csv(f"{DATADIR}/C1Med_waveform_0,070V_-4dBm_2,3679GHz_15Pi_r8_00000.txt", skiprows=4, encoding='utf-8')
@@ -55,12 +68,12 @@ void_threshold = 0.75
 # rescale = True
 # offset = 0.8
 # scaling = 1.45
-# void_threshold = 0.75
+void_threshold = 0.75
 
 # # NOTE: From 19_March_2025, Should not have 40 MHz beat (if r9 used as straight)
 # df_double = pd.read_csv(f"{DATADIR}/C1Med_waveform_0,275V_-11,13dBm_2,3679GHz_15Pi_r6a_00000.txt", skiprows=4, encoding='utf-8')
 # df_straight = pd.read_csv(f"{DATADIR}/C1Med_waveform_0,0V_-23dBm_4,7758GHz_15Pi_r9_00000.txt", skiprows=4, encoding='utf-8')
-# trim_times = [-3500, -2900]
+# trim_times = [-3500, +2900]
 # rescale = True
 # offset = 0.8
 # scaling = 1.48
