@@ -33,7 +33,7 @@ def get_colormap_colors(colormap_name, n):
 
 pi = 3.1415926535
 
-trim_time = False
+trim_time = True
 
 rescale = False
 offset = 0.8
@@ -46,9 +46,11 @@ print(f"Loading files...")
 
 # DATADIR = os.path.join("G:", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Time Domain Measurements", "13_Feb_2025")
 # DATADIR = os.path.join("G:", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Time Domain Measurements", "20_Feb_2025")
-DATADIR = os.path.join("G:\\", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Time Domain Measurements", "2025-03-19")
+# DATADIR = os.path.join("G:\\", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Time Domain Measurements", "2025-03-19")
 # DATADIR = os.path.join("G:\\", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Time Domain Measurements", "2025-03-18")
 # DATADIR = os.path.join("/Volumes/M7 PhD Data", "18_March_2025 Data", "Time Domain")
+# DATADIR = os.path.join("/", "Volumes", "M6 T7S", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Time Domain Measurements", "2025-03-19")
+DATADIR = os.path.join("/", "Volumes", "M6 T7S", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Time Domain Measurements", "2025-03-18")
 print(f"DATA DIRECTORY: {DATADIR}")
 
 # df_double = []
@@ -60,14 +62,14 @@ print(f"DATA DIRECTORY: {DATADIR}")
 # trim_times = [-300, -225]
 # df_double = pd.read_csv(f"{DATADIR}/C1 BIAS0,15V_2,368GHz_HalfPiOut_-4dBm00000.txt", skiprows=4, encoding='utf-8')
 
-# NOTE: From 19_March_2025, should have strongest nonlinearity
-df_double = pd.read_csv(f"{DATADIR}/C1Med_waveform_0,070V_-4dBm_2,3679GHz_15Pi_r8_00000.txt", skiprows=4, encoding='utf-8')
-df_straight = pd.read_csv(f"{DATADIR}/C1Med_waveform_0,0V_-23dBm_4,7758GHz_15Pi_r9_00000.txt", skiprows=4, encoding='utf-8')
-trim_times = [-3500, -2900]
-rescale = True
-offset = 0.8
-scaling = 1.45
-void_threshold = 0.75
+# # NOTE: From 19_March_2025, should have strongest nonlinearity
+# df_double = pd.read_csv(f"{DATADIR}/C1Med_waveform_0,070V_-4dBm_2,3679GHz_15Pi_r8_00000.txt", skiprows=4, encoding='utf-8')
+# df_straight = pd.read_csv(f"{DATADIR}/C1Med_waveform_0,0V_-23dBm_4,7758GHz_15Pi_r9_00000.txt", skiprows=4, encoding='utf-8')
+# trim_times = [-3500, -2900]
+# rescale = True
+# offset = 0.8
+# scaling = 1.45
+# void_threshold = 0.75
 
 # # NOTE: From 19_March_2025, Should not have 40 MHz beat (if r9 used as straight)
 # df_double = pd.read_csv(f"{DATADIR}/C1Med_waveform_0,275V_-11,13dBm_2,3679GHz_15Pi_r6a_00000.txt", skiprows=4, encoding='utf-8')
@@ -79,15 +81,15 @@ void_threshold = 0.75
 # void_threshold = 0.75
 
 
-# # # NOTE: From 18_March_2025, contained 40 MHz beat
-# df_double = pd.read_csv(f"{DATADIR}\\C1Long_waveform_0,275V_-11,13dBm_2,3679GHz_100Pi_r2_00000.txt", skiprows=4, encoding='utf-8')
-# df_straight = pd.read_csv(f"{DATADIR}\\C1Long_waveform_0,0V_-23dBm_4,7358GHz_100Pi_r3_00000.txt", skiprows=4, encoding='utf-8')
-# # trim_times = [-22197, -22185]
-# trim_times = [-22000, -21500]
-# rescale = True
-# offset = -0.65
-# scaling = 1.234
-# void_threshold = 0.75
+# NOTE: From 18_March_2025, contained 40 MHz beat
+df_double = pd.read_csv(os.path.join(DATADIR, "C1Long_waveform_0,275V_-11,13dBm_2,3679GHz_100Pi_r2_00000.txt"), skiprows=4, encoding='utf-8')
+df_straight = pd.read_csv(os.path.join(DATADIR, "C1Long_waveform_0,0V_-23dBm_4,7358GHz_100Pi_r3_00000.txt"), skiprows=4, encoding='utf-8')
+# trim_times = [-22197, -22185]
+trim_times = [-22000, -21500]
+rescale = True
+offset = -0.65
+scaling = 1.234
+void_threshold = 0.75
 
 print(f"  --> Files loaded.")
 

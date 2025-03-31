@@ -29,12 +29,16 @@ f1 = 4.8e9
 f2 = 4.8e9
 sigma = 25e-9
 offset_rad = 0
+ampl = 0.01
 
 t_start = -250e-9
 t_end = 250e-9
 sample_rate = 40e9
 
 N_avg = 30
+
+add_noise = False
+noise_ampl = 0.05*ampl
 #------------- END USER CONFIG ---------------
 
 # Calculate time points
@@ -52,8 +56,16 @@ wavelength = 3e8/f2
 fchirp = f2 + (4*np.pi*K1)/(wavelength*tau**2) * t_series * envelope
 
 # Calculate waveforms
-v_direct = np.sin(2*np.pi*f1*t_series) * envelope
-v_double = np.sin(2*np.pi*fchirp*t_series + offset_rad) * envelope
+v_direct = ampl*np.sin(2*np.pi*f1*t_series) * envelope
+v_double = ampl*np.sin(2*np.pi*fchirp*t_series + offset_rad) * envelope
+
+# Add noise
+if add_noise:
+	
+	noise = np.random.normal(0,noise_ampl,len(v_direct))
+	
+	v_direct = v_direct + noise
+	v_double = v_double + noise
 
 #===================== Define functions ===============
 
@@ -284,5 +296,7 @@ fig3.tight_layout()
 # ax2a.set_title("Oscilloscope FFT")
 # ax2a.legend()
 # ax2a.grid(True)
+
+# ax2a.set_xlim([4.7, 4.9])
 
 plt.show()
