@@ -1,5 +1,9 @@
 ''' Goal is to compare multiple pulses across one time series. The question is, do 
 sequential pulses even look the same? If not, we have a bigger problem at hand!
+
+NOTE: In this example, the "data manager" class and tool is circumvented. We can
+get away with this because of how simple the program is. However, to add sliders
+or make it so it can hot swap data files, we'd need to introduce the data manager.
 '''
 
 import matplotlib.pyplot as plt
@@ -60,17 +64,34 @@ def trim_time_series(t, y, t_start, t_end):
 
 class TDP20MainWindow(bh.BHMainWindow):
 	
-	def __init__(self, log, app, data_manager, ts:list, vs:list, offsets:list):
-		super().__init__(log, app, data_manager, window_title="Time Series Analyzer")
+	def __init__(self, log, app, data_manager, ts:list, vs:list, envs:list, lpf_env:list, offsets:list):
+		super().__init__(log, app, data_manager, window_title="TDP20 Time Series Analyzer")
+		
+		self.ts = ts
+		self.vs = vs
+		self.offsets = offsets
+		self.envelopes = envs
+		self.lpf_env = lpf_env
+		
+		self.cmap = sample_colormap(cmap_name='viridis', N=len(ts))
 		
 		self.main_grid = QGridLayout()
 		
+		self.overlay_plot = bhw.BHMultiPlotWidget(self, grid_dim=[1, 1], plot_locations=[[0, 0]], custom_render_func=lambda pw:self.render_overlay(pw, False))
+		
+		self.overlay_plot_lpf = bhw.BHMultiPlotWidget(self, grid_dim=[1, 1], plot_locations=[[0, 0]], custom_render_func=lambda pw:self.render_overlay(pw, True))
+		
 		self.pulses_tab_widget = bh.BHTabWidget(self)
-		# self.tab_widget.addTab()
+		
+		# Create super tab
+		self.super_tab_widget = bh.BHTabWidget(self)
+		self.super_tab_widget.addTab(self.overlay_plot, "Envelope Overlay")
+		self.super_tab_widget.addTab(self.overlay_plot_lpf, "Low-Pass Overlay")
+		self.super_tab_widget.addTab(self.pulses_tab_widget, "Individual Pulses")
 		
 		self.add_basic_menu_bar()
 		
-		self.main_grid.addWidget(self.pulses_tab_widget, 0, 0)
+		self.main_grid.addWidget(self.super_tab_widget, 0, 0)
 		
 		self.central_widget = QWidget()
 		self.central_widget.setLayout(self.main_grid)
@@ -78,25 +99,37 @@ class TDP20MainWindow(bh.BHMainWindow):
 		
 		self.sub_widgets = []
 		
-		self.ts = ts
-		self.vs = vs
-		self.offsets = offsets
-		
-		self.cmap = sample_colormap(cmap_name='plasma', N=len(ts))
-		
 		self.make_pulse_tabs()
 		
 		self.show()
 	
+	def render_overlay(self, pw, use_lpf:bool):
+		
+		pw.axes[0].cla()
+		
+		for idx, t_ in enumerate(self.ts):
+			
+			if use_lpf:
+				pw.axes[0].plot(t_ + self.offsets[idx]-t_[0], self.lpf_env[idx], linestyle='-', alpha=0.6, color=self.cmap[idx], label=f"Pulse {idx}")
+				pw.axes[0].set_title("Low-Pass Envelope Overlay")
+			else:
+				pw.axes[0].plot(t_ + self.offsets[idx]-t_[0], self.envelopes[idx], linestyle='-', alpha=0.6, color=self.cmap[idx], label=f"Pulse {idx}")
+				pw.axes[0].set_title("Envelope Overlay")
+				
+		pw.axes[0].set_xlabel("Normalized Time (ns)")
+		pw.axes[0].set_ylabel("Amplitude (mV)")
+		
+		pw.axes[0].legend()
+		
+		pw.axes[0].grid(True)
+		
 	def render_pulse(self, pw, idx:int):
 		
 		# Clear data
 		pw.axes[0].cla()
 		
-		print(self.ts[idx])
-		print(self.offsets[idx])
-		
 		pw.axes[0].plot(self.ts[idx]+self.offsets[idx], self.vs[idx], linestyle=':', marker='.', color=self.cmap[idx])
+		pw.axes[0].plot(self.ts[idx]+self.offsets[idx], self.envelopes[idx], linestyle='-', color=(1, 0.55, 0), alpha=0.6)
 		
 		pw.axes[0].set_xlabel("Time (ns)")
 		pw.axes[0].set_xlabel("Amplitude (mV)")
@@ -121,6 +154,7 @@ DATADIR = os.path.join("G:\\", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "
 
 #NOTE: Comparing two direct-drive pulses to see how good subtraction can look.
 filename = f"{DATADIR}/C1Medwav_0,275V_-9dBm_2,3679GHz_15Pi_sig35ns_r22_00000.txt"
+voffset = 3.775
 trim_times = []
 trim_times.append([-6044.5, -5927.8])
 trim_times.append([-5789.9, -5683.3])
@@ -129,38 +163,50 @@ trim_times.append([-5537.2, -5424.2])
 
 hoffsets = []
 hoffsets.append(0)
-hoffsets.append(0)
-hoffsets.append(0)
+hoffsets.append(4.92)
+hoffsets.append(7.76)
 
 ##--------------------------------------------------------
 # Import data
 df = pd.read_csv(filename, skiprows=4, encoding='utf-8')
 
-# Create local variables
-t = np.array(df['Time']*1e9)
-v = np.array(df['Ampl']*1e3)
-
 t_si = np.array(df['Time'])
-v_si = np.array(df['Ampl'])
+v_si = np.array(df['Ampl'])+(voffset*1e-3)
+
+# Create local variables
+t = np.array(t_si*1e9)
+v = np.array(v_si*1e3)
+
+an_sig = hilbert(v)
+env = np.abs(an_sig)
+
+# Lowpass filter
+b, a = butter(3, 0.1, fs=1/(t[1]-t[0]), btype='low', analog=False)
+lpf_env = lfilter(b, a, env)
 
 #-------------------------------------------------------------------
 ## Perform trimming and envelope detection
 
 ts = []
 vs = []
+envs = []
+lpfenvs = []
 for tt in trim_times:
 	log.info(f"Trimming times: >{tt}<.")
+	
 	# Trim
 	t_, v_ = trim_time_series(t, v, tt[0], tt[1])
+	_, e_ = trim_time_series(t, env, tt[0], tt[1])
+	_, lpfe_ = trim_time_series(t, lpf_env, tt[0], tt[1])
 	
 	# Add to list
 	ts.append(np.array(t_))
 	vs.append(np.array(v_))
+	envs.append(np.array(e_))
+	lpfenvs.append(np.array(lpfe_))
 
 #-------------------------------------------------------------------
 ## Plot
-
-print("Did things")
 
 # Create app object
 app = QtWidgets.QApplication(sys.argv)
@@ -173,6 +219,6 @@ def void():
 # Create Data Manager
 data_manager = bh.BHDatasetManager(log, load_function=void)
 
-window = TDP20MainWindow(log, app, data_manager, ts, vs, hoffsets)
+window = TDP20MainWindow(log, app, data_manager, ts, vs, envs, lpfenvs, hoffsets)
 
 app.exec()
