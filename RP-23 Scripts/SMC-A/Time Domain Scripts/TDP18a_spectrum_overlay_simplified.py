@@ -17,8 +17,8 @@ print(f"Loading files...")
 
 # DATADIR = os.path.join("G:", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Time Domain Measurements", "13_Feb_2025")
 # DATADIR = os.path.join("G:", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Time Domain Measurements", "20_Feb_2025")
-DATADIR = os.path.join("G:\\", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Time Domain Measurements", "2025-03-19")
-# DATADIR = os.path.join("G:\\", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Time Domain Measurements", "2025-03-25")
+# DATADIR = os.path.join("G:\\", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Time Domain Measurements", "2025-03-19")
+DATADIR = os.path.join("G:\\", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Time Domain Measurements", "2025-03-25")
 # DATADIR = os.path.join("G:\\", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Time Domain Measurements", "2025-03-18")
 # DATADIR = os.path.join("/Volumes/M7 PhD Data", "18_March_2025 Data", "Time Domain")
 print(f"DATA DIRECTORY: {DATADIR}")
@@ -33,7 +33,19 @@ print(f"DATA DIRECTORY: {DATADIR}")
 # df_double = pd.read_csv(f"{DATADIR}/C1 BIAS0,15V_2,368GHz_HalfPiOut_-4dBm00000.txt", skiprows=4, encoding='utf-8')
 
 
-# #NOTE: COrrected sigmas, trying other cases
+#NOTE: Comparing two direct-drive pulses to see how good subtraction can look.
+df_double = pd.read_csv(f"{DATADIR}/C1Medwav_0,0V_-17dBm_4,7758GHz_15Pi_sig25ns_r24_00000.txt", skiprows=4, encoding='utf-8')
+df_straight = pd.read_csv(f"{DATADIR}/C1Medwav_0,0V_-19dBm_4,7758GHz_15Pi_sig25ns_r23_00000.txt", skiprows=4, encoding='utf-8')
+trim_times = [-300, 600]
+rescale = True
+offset = 3.07
+scaling = 1.242
+time_shift_ns = -0.1
+rescale_doubler = True
+offset_doubler = 3.015
+void_threshold = 0.75
+
+# #NOTE: COrrected sigmas, trying other cases - known 3 MHz delta at higher spectrum end.
 # df_double = pd.read_csv(f"{DATADIR}/C1Medwav_0,075V_-4dBm_2,3679GHz_15Pi_sig35ns_r13_00000.txt", skiprows=4, encoding='utf-8')
 # df_straight = pd.read_csv(f"{DATADIR}/C1Medwav_0,0V_-21dBm_4,7758GHz_15Pi_sig25ns_r17_00000.txt", skiprows=4, encoding='utf-8')
 # trim_times = [-600, 400]
@@ -44,24 +56,24 @@ print(f"DATA DIRECTORY: {DATADIR}")
 # offset_doubler = 3
 # void_threshold = 0.75
 
-# NOTE: From 19_March_2025, should have strongest nonlinearity
-df_double_strong = pd.read_csv(f"{DATADIR}/C1Med_waveform_0,070V_-4dBm_2,3679GHz_15Pi_r8_00000.txt", skiprows=4, encoding='utf-8')
-df_straight = pd.read_csv(f"{DATADIR}/C1Med_waveform_0,0V_-23dBm_4,7758GHz_15Pi_r9_00000.txt", skiprows=4, encoding='utf-8')
-df_double = pd.read_csv(f"{DATADIR}/C1Med_waveform_0,275V_-11,13dBm_2,3679GHz_15Pi_r6a_00000.txt", skiprows=4, encoding='utf-8')
-df_double_strong_f1 = pd.read_csv(f"{DATADIR}/F1Med_waveform_0,070V_-4dBm_2,3679GHz_15Pi_r8_00000.txt", skiprows=4, encoding='utf-8')
-df_straight_f1 = pd.read_csv(f"{DATADIR}/F1Med_waveform_0,0V_-23dBm_4,7758GHz_15Pi_r9_00000.txt", skiprows=4, encoding='utf-8')
-df_double_f1 = pd.read_csv(f"{DATADIR}/F1Med_waveform_0,275V_-11,13dBm_2,3679GHz_15Pi_r6a_00000.txt", skiprows=4, encoding='utf-8')
-# trim_times = [4.5, 5]
-trim_times = [0, 50]
-rescale = True
-offset = 0.8
-scaling = 1.45
+# # NOTE: From 19_March_2025, should have strongest nonlinearity
+# df_double_strong = pd.read_csv(f"{DATADIR}/C1Med_waveform_0,070V_-4dBm_2,3679GHz_15Pi_r8_00000.txt", skiprows=4, encoding='utf-8')
+# df_straight = pd.read_csv(f"{DATADIR}/C1Med_waveform_0,0V_-23dBm_4,7758GHz_15Pi_r9_00000.txt", skiprows=4, encoding='utf-8')
+# df_double = pd.read_csv(f"{DATADIR}/C1Med_waveform_0,275V_-11,13dBm_2,3679GHz_15Pi_r6a_00000.txt", skiprows=4, encoding='utf-8')
+# df_double_strong_f1 = pd.read_csv(f"{DATADIR}/F1Med_waveform_0,070V_-4dBm_2,3679GHz_15Pi_r8_00000.txt", skiprows=4, encoding='utf-8')
+# df_straight_f1 = pd.read_csv(f"{DATADIR}/F1Med_waveform_0,0V_-23dBm_4,7758GHz_15Pi_r9_00000.txt", skiprows=4, encoding='utf-8')
+# df_double_f1 = pd.read_csv(f"{DATADIR}/F1Med_waveform_0,275V_-11,13dBm_2,3679GHz_15Pi_r6a_00000.txt", skiprows=4, encoding='utf-8')
+# # trim_times = [4.5, 5]
+# trim_times = [0, 50]
+# rescale = True
+# offset = 0.8
+# scaling = 1.45
 void_threshold = 0.75
 
 # # NOTE: From 19_March_2025, Should not have 40 MHz beat (if r9 used as straight)
 # df_double = pd.read_csv(f"{DATADIR}/C1Med_waveform_0,275V_-11,13dBm_2,3679GHz_15Pi_r6a_00000.txt", skiprows=4, encoding='utf-8')
 # df_straight = pd.read_csv(f"{DATADIR}/C1Med_waveform_0,0V_-23dBm_4,7758GHz_15Pi_r9_00000.txt", skiprows=4, encoding='utf-8')
-# trim_times = [-3500, -2900]
+# trim_times = [-3500, +2900]
 # rescale = True
 # offset = 0.8
 # scaling = 1.48
@@ -111,41 +123,19 @@ def run_fft(t_si, v_si):
 
 #============ GEt time and voltage arrays ==================
 
-t_strong = np.array(df_double_strong['Time'])
-v_strong = np.array(df_double_strong['Ampl'])
-
 t_double = np.array(df_double['Time'])
 v_double = np.array(df_double['Ampl'])
 
 t_direct = np.array(df_straight['Time'])
 v_direct = np.array(df_straight['Ampl'])
 
-#================ Get spectral data from F1 files and trim ================
-
-f_direct_f1 = np.array(df_straight_f1['Time'])
-s_direct_f1 = np.array(df_straight_f1['Ampl'])
-
-f_strong_f1 = np.array(df_double_strong_f1['Time'])
-s_strong_f1 = np.array(df_double_strong_f1['Ampl'])
-
-f_double_f1 = np.array(df_double_f1['Time'])
-s_double_f1 = np.array(df_double_f1['Ampl'])
-
-
-f_dir_f1, s_dir_f1 = trim_time_series(f_direct_f1/1e9, s_direct_f1, trim_times[0], trim_times[1])
-f_doub_f1, s_doub_f1 = trim_time_series(f_double_f1/1e9, s_double_f1, trim_times[0], trim_times[1])
-f_str_f1, s_str_f1 = trim_time_series(f_strong_f1/1e9, s_strong_f1, trim_times[0], trim_times[1])
-
 #=============== Run FFT and Trim ======================================
 
 f_direct, s_direct = run_fft(t_direct, v_direct)
 f_double, s_double = run_fft(t_double, v_double)
-f_strong, s_strong = run_fft(t_strong, v_strong)
-
 
 f_dir, s_dir = trim_time_series(f_direct/1e9, s_direct, trim_times[0], trim_times[1])
 f_doub, s_doub = trim_time_series(f_double/1e9, s_double, trim_times[0], trim_times[1])
-f_str, s_str = trim_time_series(f_strong/1e9, s_strong, trim_times[0], trim_times[1])
 
 #================= Plot results
 
@@ -158,7 +148,6 @@ ax1a = fig1.add_subplot(gs1[0, 0])
 
 ax1a.plot(f_dir, s_dir, linestyle=':', marker='.', color=(0.3, 0.3, 0.85), label="Direct Drive")
 ax1a.plot(f_doub, s_doub, linestyle=':', marker='.', color=(0, 0.75, 0), label="Doubler, 0.0275 V")
-ax1a.plot(f_str, s_str, linestyle=':', marker='.', color=(0.65, 0, 0), label="Doubler, 0.07 V")
 
 ax1a.set_xlabel(f"Frequency (GHz)")
 ax1a.set_ylabel(f"Power spectral density (dBm/Hz)")
@@ -167,20 +156,6 @@ ax1a.legend()
 ax1a.grid(True)
 
 fig1.tight_layout()
-
-fig2 = plt.figure(2)
-gs2 = fig2.add_gridspec(1, 1)
-ax2a = fig2.add_subplot(gs2[0, 0])
-
-ax2a.plot(f_dir_f1, s_dir_f1, linestyle=':', marker='o', color=(0.3, 0.3, 0.85), label="Direct Drive")
-ax2a.plot(f_doub_f1, s_doub_f1, linestyle=':', marker='o', color=(0, 0.75, 0), label="Doubler, 0.0275 V")
-ax2a.plot(f_str_f1, s_str_f1, linestyle=':', marker='o', color=(0.65, 0, 0), label="Doubler, 0.07 V")
-
-ax2a.set_xlabel(f"Frequency (GHz)")
-ax2a.set_ylabel(f"Power spectral density (dBm/Hz)")
-ax2a.set_title("Oscilloscope FFT")
-ax2a.legend()
-ax2a.grid(True)
 
 mplcursors.cursor(multiple=True)
 

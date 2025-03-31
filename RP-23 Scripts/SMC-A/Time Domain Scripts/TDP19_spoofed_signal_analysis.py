@@ -18,7 +18,6 @@ print(f"Loading files...")
 # DATADIR = os.path.join("G:", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Time Domain Measurements", "13_Feb_2025")
 # DATADIR = os.path.join("G:", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Time Domain Measurements", "20_Feb_2025")
 DATADIR = os.path.join("G:\\", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Time Domain Measurements", "2025-03-19")
-# DATADIR = os.path.join("G:\\", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Time Domain Measurements", "2025-03-25")
 # DATADIR = os.path.join("G:\\", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Time Domain Measurements", "2025-03-18")
 # DATADIR = os.path.join("/Volumes/M7 PhD Data", "18_March_2025 Data", "Time Domain")
 print(f"DATA DIRECTORY: {DATADIR}")
@@ -32,17 +31,18 @@ print(f"DATA DIRECTORY: {DATADIR}")
 # trim_times = [-300, -225]
 # df_double = pd.read_csv(f"{DATADIR}/C1 BIAS0,15V_2,368GHz_HalfPiOut_-4dBm00000.txt", skiprows=4, encoding='utf-8')
 
+f0 = 4.8e9
 
-# #NOTE: COrrected sigmas, trying other cases
-# df_double = pd.read_csv(f"{DATADIR}/C1Medwav_0,075V_-4dBm_2,3679GHz_15Pi_sig35ns_r13_00000.txt", skiprows=4, encoding='utf-8')
-# df_straight = pd.read_csv(f"{DATADIR}/C1Medwav_0,0V_-21dBm_4,7758GHz_15Pi_sig25ns_r17_00000.txt", skiprows=4, encoding='utf-8')
-# trim_times = [-600, 400]
-# rescale = True
-# offset = 3.63
-# scaling = 1.38
-# rescale_doubler = True
-# offset_doubler = 3
-# void_threshold = 0.75
+sample_rate = 40e9
+t_series = np.linspace(-250e-9, 250e-9, 1/sample_rate)
+sigma = 25e-9
+
+K1 = 1 # L*n^2*I0
+Tau = np.sqrt(2)*sigma
+chirped_freq = f0 + (4*np.pi*K1)/()
+
+pulse_straight = np.sin(f0*np.pi*2*t_series) * np.exp( -(t_series)**2/2/sigma**2 )
+pulse_straight = np.sin(chirped_freq*np.pi*2*t_series) * np.exp( -(t_series)**2/2/sigma**2 )
 
 # NOTE: From 19_March_2025, should have strongest nonlinearity
 df_double_strong = pd.read_csv(f"{DATADIR}/C1Med_waveform_0,070V_-4dBm_2,3679GHz_15Pi_r8_00000.txt", skiprows=4, encoding='utf-8')
@@ -53,10 +53,10 @@ df_straight_f1 = pd.read_csv(f"{DATADIR}/F1Med_waveform_0,0V_-23dBm_4,7758GHz_15
 df_double_f1 = pd.read_csv(f"{DATADIR}/F1Med_waveform_0,275V_-11,13dBm_2,3679GHz_15Pi_r6a_00000.txt", skiprows=4, encoding='utf-8')
 # trim_times = [4.5, 5]
 trim_times = [0, 50]
-rescale = True
-offset = 0.8
-scaling = 1.45
-void_threshold = 0.75
+# rescale = True
+# offset = 0.8
+# scaling = 1.45
+# void_threshold = 0.75
 
 # # NOTE: From 19_March_2025, Should not have 40 MHz beat (if r9 used as straight)
 # df_double = pd.read_csv(f"{DATADIR}/C1Med_waveform_0,275V_-11,13dBm_2,3679GHz_15Pi_r6a_00000.txt", skiprows=4, encoding='utf-8')
