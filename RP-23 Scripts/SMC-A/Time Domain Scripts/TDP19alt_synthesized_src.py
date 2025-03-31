@@ -30,15 +30,21 @@ f2 = 4.8e9
 sigma = 25e-9
 offset_rad = 0
 ampl = 0.01
-
+K1 = 0.0005 # L*n2*I0
+  
 t_start = -250e-9
 t_end = 250e-9
 sample_rate = 40e9
-
+  
 N_avg = 30
-
+  
 add_noise = False
+add_noise_dir = False
 noise_ampl = 0.05*ampl
+  
+add_phase_noise = False
+add_phase_noise_dir = False
+pnoise_ampl = 0.10*np.pi
 #------------- END USER CONFIG ---------------
 
 # Calculate time points
@@ -48,24 +54,34 @@ t_series = np.linspace(t_start, t_end, n_pts)
 # Calculate gaussian envelope
 envelope = np.exp( -(t_series)**2/2/sigma**2 )
 
-K1 = 0.005 # L*n2*I0
 tau = np.sqrt(2)*sigma
 wavelength = 3e8/f2
 
 # Calculate chirped frequency
 fchirp = f2 + (4*np.pi*K1)/(wavelength*tau**2) * t_series * envelope
 
-# Calculate waveforms
-v_direct = ampl*np.sin(2*np.pi*f1*t_series) * envelope
-v_double = ampl*np.sin(2*np.pi*fchirp*t_series + offset_rad) * envelope
+# Calculate direct waveform - add phase noise
+if add_phase_noise_dir:
+	pn0 = np.random.normal(0, pnoise_ampl, len(t_series))
+	v_direct = ampl*np.sin(2*np.pi*f1*t_series+pn0) * envelope
+else:
+	v_direct = ampl*np.sin(2*np.pi*f1*t_series) * envelope
+
+# Calculate doubled waveform - add phase noise
+if add_phase_noise:
+	pn1 = np.random.normal(0, pnoise_ampl, len(t_series))
+	v_double = ampl*np.sin(2*np.pi*fchirp*t_series + offset_rad+pn1) * envelope
+else:
+	v_double = ampl*np.sin(2*np.pi*fchirp*t_series + offset_rad) * envelope
 
 # Add noise
+if add_noise_dir:
+	noise0 = np.random.normal(0,noise_ampl,len(v_direct))
+	v_direct = v_direct + noise0
+
 if add_noise:
-	
-	noise = np.random.normal(0,noise_ampl,len(v_direct))
-	
-	v_direct = v_direct + noise
-	v_double = v_double + noise
+	noise1 = np.random.normal(0,noise_ampl,len(v_direct))
+	v_double = v_double + noise1
 
 #===================== Define functions ===============
 

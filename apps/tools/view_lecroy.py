@@ -11,6 +11,7 @@ import time
 import os
 import sys
 import argparse
+import mplcursors
 
 parser = argparse.ArgumentParser()
 parser.add_argument('filename')
@@ -116,6 +117,8 @@ ax1a.plot(t, v, linestyle=':', marker='.', color=(0, 0, 0.65))
 ax1a.set_xlabel("Time (ns))")
 ax1a.set_ylabel("Voltage (mV)")
 ax1a.grid(True)
+
+mplcursors.cursor(multiple=True)
 
 fig1.tight_layout()
 
