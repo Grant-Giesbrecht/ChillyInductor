@@ -272,8 +272,10 @@ def main(data:dict, filename:str):
 	DATADIR = os.path.join("G:\\", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Time Domain Measurements", "2025-03-25")
 	# DATADIR = os.path.join("G:\\", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Time Domain Measurements", "2025-03-18")
 	# DATADIR = os.path.join("/Volumes/M7 PhD Data", "18_March_2025 Data", "Time Domain")
+	if sys.platform == "darwin":
+		DATADIR = os.path.join("/Volumes/M6 T7S", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Time Domain Measurements", "2025-03-25")
 	print(f"DATA DIRECTORY: {DATADIR}")
-
+	
 	# df_double = []
 	# df_double.append(pd.read_csv(f"{DATADIR}/C1BIAS0,1V-F2,
 
@@ -352,75 +354,62 @@ def main(data:dict, filename:str):
 	# t_doub[weak_mask] = np.nan
 	print(f"  --> Frequency analysis complete.")
 
-	# fig1 = plt.figure(1, figsize=(16, 9))
-	fig1 = plt.figure(1, figsize=(10, 11))
-	gs = fig1.add_gridspec(5, 1)
-	ax1c = fig1.add_subplot(gs[0, 0])
-	ax1a = fig1.add_subplot(gs[1, 0])
-	ax1b = fig1.add_subplot(gs[2, 0])
-	ax1d = fig1.add_subplot(gs[3, 0])
-	ax1e = fig1.add_subplot(gs[4, 0])
+	fig1 = plt.figure(1)
+	gs1 = fig1.add_gridspec(1, 1)
+	
+	fig2 = plt.figure(2)
+	gs2 = fig2.add_gridspec(1, 1)
+	
+	fig3 = plt.figure(3)
+	gs3 = fig3.add_gridspec(1, 1)
+	
+	fig4 = plt.figure(4)
+	gs4 = fig4.add_gridspec(1, 1)
+	
+	ax1a = fig1.add_subplot(gs1[0, 0])
+	ax2a = fig2.add_subplot(gs2[0, 0])
+	ax3a = fig3.add_subplot(gs3[0, 0])
+	ax4a = fig4.add_subplot(gs4[0, 0])
+	# ax5a = fig1.add_subplot(gs[4, 0])
 
-	ax1a.plot(t_doub, v_doub, linestyle=':', marker='.', color=(0, 0, 0.65), label="Doubler")
-	ax1a.plot(t_stra, v_stra, linestyle=':', marker='.', color=(0, 0.65, 0), label="No doubler")
-	ax1a.set_title("Zoomed-In")
+	ax1a.plot(t_univ, delta, linestyle=':', marker='.', color=(0.65, 0, 0))
+	# ax1b.plot(t_univ, delta_env, linestyle='-', color=(1, 0.7, 0))
+	ax1a.plot(t_univ, vud_env, linestyle='--', color=(0.6, 0.8, 0), label='doubler env')
+	ax1a.plot(t_univ, vus_env, linestyle='--', color=(0.8, 0.6, 0), label='straight env')
+	ax1a.plot(t_univ, vu_avg_env, linestyle='-', color=(1, 0.7, 0), label='Averaged env')
+	ax1a.set_title("Subtracted")
 	ax1a.set_xlabel("Time (ns))")
 	ax1a.set_ylabel("Voltage (mV)")
 	ax1a.grid(True)
 	ax1a.legend()
-	# if trim_time:
-	# 	ax1a.set_xlim(trim_times)
-
-	ax1b.plot(t_univ, delta, linestyle=':', marker='.', color=(0.65, 0, 0))
-	# ax1b.plot(t_univ, delta_env, linestyle='-', color=(1, 0.7, 0))
-	ax1b.plot(t_univ, vud_env, linestyle='--', color=(0.6, 0.8, 0), label='doubler env')
-	ax1b.plot(t_univ, vus_env, linestyle='--', color=(0.8, 0.6, 0), label='straight env')
-	ax1b.plot(t_univ, vu_avg_env, linestyle='-', color=(1, 0.7, 0), label='Averaged env')
-	ax1b.set_title("Subtracted")
-	ax1b.set_xlabel("Time (ns))")
-	ax1b.set_ylabel("Voltage (mV)")
-	ax1b.grid(True)
-	ax1b.legend()
-	# if trim_time:
-	# 	ax1b.set_xlim(trim_times)
-		
-	ax1d.plot(t_univ, norm_delta, linestyle=':', marker='.', color=(0.56, 0, 0.56))
-	ax1d.set_title("Subtracted, Normalized")
-	ax1d.set_xlabel("Time (ns))")
-	ax1d.set_ylabel("Voltage (mV)")
-	ax1d.grid(True)
-	# if trim_time:
-	# 	ax1d.set_xlim(trim_times)
-		
-	ax1c.plot(t_doub, v_doub, linestyle=':', marker='.', color=(0, 0, 0.65), label="Doubler")
-	ax1c.plot(t_stra, v_stra, linestyle=':', marker='.', color=(0, 0.65, 0), label="No doubler")
-	ax1c.set_title("Time Domain Comparison - Full")
-	ax1c.set_xlabel("Time (ns))")
-	ax1c.set_ylabel("Voltage (mV)")
-	ax1c.grid(True)
-
-	ax1e.plot(tzc_doub, freq_doub, linestyle=':', marker='.', color=(0, 0, 0.65), label="Doubler")
-	ax1e.plot(tzc_stra, freq_stra, linestyle=':', marker='.', color=(0, 0.65, 0), label="No doubler")
-	ax1e.set_title("Frequency Analysis")
-	ax1e.set_xlabel("Time (ns)")
-	ax1e.set_ylabel("Frequency (GHz)")
-	ax1e.grid(True)
-	ax1e.set_ylim([4.75, 4.85])
-
-	fig1.tight_layout()
-
-	fig2 = plt.figure(2, figsize=(10, 11))
-	gs = fig2.add_gridspec(1, 1)
-	ax2a = fig2.add_subplot(gs[0, 0])
+	
 	ax2a.plot(tzc_doub, freq_doub, linestyle=':', marker='.', color=(0, 0, 0.65), label="Doubler")
 	ax2a.plot(tzc_stra, freq_stra, linestyle=':', marker='.', color=(0, 0.65, 0), label="No doubler")
 	ax2a.set_title("Frequency Analysis")
-	# plt.set_xlabel("Time (ns)")
-	# plt.set_ylabel("Frequency (GHz)")
+	ax2a.set_xlabel("Time (ns)")
+	ax2a.set_ylabel("Frequency (GHz)")
 	ax2a.grid(True)
-	# plt.ylim([4.75, 4.85])
+	ax2a.set_ylim([4.75, 4.85])
+		
+	ax3a.plot(t_univ, norm_delta, linestyle=':', marker='.', color=(0.56, 0, 0.56))
+	ax3a.set_title("Subtracted, Normalized")
+	ax3a.set_xlabel("Time (ns))")
+	ax3a.set_ylabel("Voltage (mV)")
+	ax3a.grid(True)
+		
+	ax4a.plot(t_doub, v_doub, linestyle=':', marker='.', color=(0, 0, 0.65), label="Doubler")
+	ax4a.plot(t_stra, v_stra, linestyle=':', marker='.', color=(0, 0.65, 0), label="No doubler")
+	ax4a.set_title("Time Domain Comparison - Full")
+	ax4a.set_xlabel("Time (ns))")
+	ax4a.set_ylabel("Voltage (mV)")
+	ax4a.grid(True)
 
-	return [fig1, fig2]
+	# fig1.tight_layout()
+	# fig2.tight_layout()
+	# fig3.tight_layout()
+	# fig4.tight_layout()
+	
+	return [fig1, fig2, fig3, fig4]
 
 if __name__ == "__main__":
 	
