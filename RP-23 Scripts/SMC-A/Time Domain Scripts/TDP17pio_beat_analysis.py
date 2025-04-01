@@ -366,11 +366,14 @@ def main(data:dict, filename:str):
 	fig4 = plt.figure(4)
 	gs4 = fig4.add_gridspec(1, 1)
 	
+	fig5 = plt.figure(5)
+	gs5 = fig5.add_gridspec(1, 1)
+	
 	ax1a = fig1.add_subplot(gs1[0, 0])
 	ax2a = fig2.add_subplot(gs2[0, 0])
 	ax3a = fig3.add_subplot(gs3[0, 0])
 	ax4a = fig4.add_subplot(gs4[0, 0])
-	# ax5a = fig1.add_subplot(gs[4, 0])
+	ax5a = fig5.add_subplot(gs5[0, 0])
 
 	ax1a.plot(t_univ, delta, linestyle=':', marker='.', color=(0.65, 0, 0))
 	# ax1b.plot(t_univ, delta_env, linestyle='-', color=(1, 0.7, 0))
@@ -403,13 +406,19 @@ def main(data:dict, filename:str):
 	ax4a.set_xlabel("Time (ns))")
 	ax4a.set_ylabel("Voltage (mV)")
 	ax4a.grid(True)
+	
+	ax5a.plot(t_doub, v_doub, linestyle=':', marker='.', color=(0, 0, 0.65), label="Doubler")
+	ax5a.set_title(f"Time Domain: {os.path.basename(filename)}")
+	ax5a.set_xlabel("Time (ns))")
+	ax5a.set_ylabel("Voltage (mV)")
+	ax5a.grid(True)
 
 	# fig1.tight_layout()
 	# fig2.tight_layout()
 	# fig3.tight_layout()
 	# fig4.tight_layout()
 	
-	return [fig1, fig2, fig3, fig4]
+	return [fig1, fig2, fig3, fig4, fig5]
 
 if __name__ == "__main__":
 	
