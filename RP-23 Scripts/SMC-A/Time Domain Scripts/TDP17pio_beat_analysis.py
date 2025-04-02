@@ -262,38 +262,31 @@ def zero_cross_freq_analysis(t_ns, V_mv, N_avg):
 
 # #====================== Perform plotting ========================
 
-def main(data:dict, filename:str):
+def main(data:dict, filenames:list):
 	
 	print(f"Loading files...")
-
-	# DATADIR = os.path.join("G:", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Time Domain Measurements", "13_Feb_2025")
-	# DATADIR = os.path.join("G:", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Time Domain Measurements", "20_Feb_2025")
-	# DATADIR = os.path.join("G:\\", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Time Domain Measurements", "2025-03-19")
+	
 	DATADIR = os.path.join("G:\\", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Time Domain Measurements", "2025-03-25")
-	# DATADIR = os.path.join("G:\\", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Time Domain Measurements", "2025-03-18")
-	# DATADIR = os.path.join("/Volumes/M7 PhD Data", "18_March_2025 Data", "Time Domain")
 	if sys.platform == "darwin":
 		DATADIR = os.path.join("/Volumes/M6 T7S", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Time Domain Measurements", "2025-03-25")
-	print(f"DATA DIRECTORY: {DATADIR}")
+	default_straight = f"{DATADIR}/C1Medwav_dechirp0.01K_0,275V_-9dBm_2,3679GHz_15Pi_sig35ns_r22_00000.txt"
 	
-	# df_double = []
-	# df_double.append(pd.read_csv(f"{DATADIR}/C1BIAS0,1V-F2,
-
-	# DATADIR = os.path.join("/Volumes/M6 T7S", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Time Domain Measurements", "20_feb_2025")
-
-	# df_double.append(pd.read_csv(f"{DATADIR}/C1 BIAS0,30V_2,368GHz_HalfPiOut_-4dBm00000.txt", skiprows=4, encoding='utf-8'))
-	# trim_times = [-300, -225]
-	# df_double = pd.read_csv(f"{DATADIR}/C1 BIAS0,15V_2,368GHz_HalfPiOut_-4dBm00000.txt", skiprows=4, encoding='utf-8')
-
+	if len(filenames) == 1:
+		filename_doub = filenames[0]
+		filename_stra = default_straight
+	else:
+		filename_doub = filenames[0]
+		filename_stra = filenames[1]
+	
 	# Trying to look at de-chirp pulse:
-	df_double = pd.read_csv(filename, skiprows=4, encoding='utf-8')
-	df_straight = pd.read_csv(f"{DATADIR}/C1Medwav_dechirp0.01K_0,275V_-9dBm_2,3679GHz_15Pi_sig35ns_r22_00000.txt", skiprows=4, encoding='utf-8')
-	trim_times = [-600, 400]
-	rescale = True
-	offset = 3.63
-	scaling = 1.38
-	rescale_doubler = True
-	offset_doubler = 3
+	df_double = pd.read_csv(filename_doub, skiprows=4, encoding='utf-8')
+	df_straight = pd.read_csv(filename_stra, skiprows=4, encoding='utf-8')
+	# trim_times = [-600, 400]
+	# rescale = True
+	# offset = 3.63
+	# scaling = 1.38
+	# rescale_doubler = True
+	# offset_doubler = 3
 	void_threshold = 0.75
 	
 	print(f"Converting data to arrays...")
@@ -302,21 +295,27 @@ def main(data:dict, filename:str):
 
 	v_doub = np.array(df_double['Ampl']*1e3)
 	v_stra = np.array(df_straight['Ampl']*1e3)
+	
+	# Find and correct offsets
+	print(np.mean(v_doub))
+	v_doub = v_doub - np.mean(v_doub)
+	v_stra = v_stra - np.mean(v_stra)
+	
 	print(f"  --> Conversion complete.")
 
-	print(f"Trimming time points....")
-	if trim_time:
-		t_doub, v_doub = trim_time_series(t_doub, v_doub, trim_times[0], trim_times[1])
-		t_stra, v_stra = trim_time_series(t_stra, v_stra, trim_times[0], trim_times[1])
-	print(f"  --> Trim complete.")
+	# print(f"Trimming time points....")
+	# if trim_time:
+	# 	t_doub, v_doub = trim_time_series(t_doub, v_doub, trim_times[0], trim_times[1])
+	# 	t_stra, v_stra = trim_time_series(t_stra, v_stra, trim_times[0], trim_times[1])
+	# print(f"  --> Trim complete.")
 
-	print(f"Scaling data...")
-	if rescale:
-		v_stra = v_stra+offset
-		v_stra = v_stra*scaling
-	if rescale_doubler:
-		v_doub = v_doub+offset_doubler
-	print(f"  --> Scaling complete.")
+	# print(f"Scaling data...")
+	# if rescale:
+	# 	v_stra = v_stra+offset
+	# 	v_stra = v_stra*scaling
+	# if rescale_doubler:
+	# 	v_doub = v_doub+offset_doubler
+	# print(f"  --> Scaling complete.")
 
 	print(f"Interpolating times to universal axis...")
 	t_univ, v_univ_doub, v_univ_stra = interpolate_common_times(t_doub, v_doub, t_stra, v_stra)
@@ -354,31 +353,35 @@ def main(data:dict, filename:str):
 	# t_doub[weak_mask] = np.nan
 	print(f"  --> Frequency analysis complete.")
 
-	fig1 = plt.figure(1)
+	fig1 = plt.figure()
 	gs1 = fig1.add_gridspec(1, 1)
 	
-	fig2 = plt.figure(2)
+	fig2 = plt.figure()
 	gs2 = fig2.add_gridspec(1, 1)
 	
-	fig3 = plt.figure(3)
+	fig3 = plt.figure()
 	gs3 = fig3.add_gridspec(1, 1)
 	
-	fig4 = plt.figure(4)
+	fig4 = plt.figure()
 	gs4 = fig4.add_gridspec(1, 1)
 	
-	fig5 = plt.figure(5)
+	fig5 = plt.figure()
 	gs5 = fig5.add_gridspec(1, 1)
+	
+	fig6 = plt.figure()
+	gs6 = fig6.add_gridspec(1, 1)
 	
 	ax1a = fig1.add_subplot(gs1[0, 0])
 	ax2a = fig2.add_subplot(gs2[0, 0])
 	ax3a = fig3.add_subplot(gs3[0, 0])
 	ax4a = fig4.add_subplot(gs4[0, 0])
 	ax5a = fig5.add_subplot(gs5[0, 0])
+	ax6a = fig6.add_subplot(gs6[0, 0])
 
-	ax1a.plot(t_univ, delta, linestyle=':', marker='.', color=(0.65, 0, 0))
+	ax1a.plot(t_univ, delta, linestyle=':', marker='.', color=(0.65, 0, 0), label="Delta")
 	# ax1b.plot(t_univ, delta_env, linestyle='-', color=(1, 0.7, 0))
-	ax1a.plot(t_univ, vud_env, linestyle='--', color=(0.6, 0.8, 0), label='doubler env')
-	ax1a.plot(t_univ, vus_env, linestyle='--', color=(0.8, 0.6, 0), label='straight env')
+	ax1a.plot(t_univ, vud_env, linestyle='--', color=(0.6, 0.8, 0), label=f'{os.path.basename(filename_doub)} env')
+	ax1a.plot(t_univ, vus_env, linestyle='--', color=(0.8, 0.6, 0), label=f'{os.path.basename(filename_stra)} env')
 	ax1a.plot(t_univ, vu_avg_env, linestyle='-', color=(1, 0.7, 0), label='Averaged env')
 	ax1a.set_title("Subtracted")
 	ax1a.set_xlabel("Time (ns))")
@@ -386,13 +389,14 @@ def main(data:dict, filename:str):
 	ax1a.grid(True)
 	ax1a.legend()
 	
-	ax2a.plot(tzc_doub, freq_doub, linestyle=':', marker='.', color=(0, 0, 0.65), label="Doubler")
-	ax2a.plot(tzc_stra, freq_stra, linestyle=':', marker='.', color=(0, 0.65, 0), label="No doubler")
+	ax2a.plot(tzc_doub, freq_doub, linestyle=':', marker='.', color=(0, 0, 0.65), label=os.path.basename(filename_doub))
+	ax2a.plot(tzc_stra, freq_stra, linestyle=':', marker='.', color=(0, 0.65, 0), label=os.path.basename(filename_stra))
 	ax2a.set_title("Frequency Analysis")
 	ax2a.set_xlabel("Time (ns)")
 	ax2a.set_ylabel("Frequency (GHz)")
 	ax2a.grid(True)
-	ax2a.set_ylim([4.75, 4.85])
+	# ax2a.set_ylim([4.75, 4.85])
+	ax2a.legend()
 		
 	ax3a.plot(t_univ, norm_delta, linestyle=':', marker='.', color=(0.56, 0, 0.56))
 	ax3a.set_title("Subtracted, Normalized")
@@ -400,25 +404,32 @@ def main(data:dict, filename:str):
 	ax3a.set_ylabel("Voltage (mV)")
 	ax3a.grid(True)
 		
-	ax4a.plot(t_doub, v_doub, linestyle=':', marker='.', color=(0, 0, 0.65), label="Doubler")
-	ax4a.plot(t_stra, v_stra, linestyle=':', marker='.', color=(0, 0.65, 0), label="No doubler")
+	ax4a.plot(t_doub, v_doub, linestyle=':', marker='.', color=(0, 0, 0.65), label=os.path.basename(filename_doub))
+	ax4a.plot(t_stra, v_stra, linestyle=':', marker='.', color=(0, 0.65, 0), label=os.path.basename(filename_stra))
 	ax4a.set_title("Time Domain Comparison - Full")
 	ax4a.set_xlabel("Time (ns))")
 	ax4a.set_ylabel("Voltage (mV)")
 	ax4a.grid(True)
+	ax4a.legend()
 	
-	ax5a.plot(t_doub, v_doub, linestyle=':', marker='.', color=(0, 0, 0.65), label="Doubler")
-	ax5a.set_title(f"Time Domain: {os.path.basename(filename)}")
+	ax5a.plot(t_doub, v_doub, linestyle=':', marker='.', color=(0, 0, 0.65), label=os.path.basename(filename_doub))
+	ax5a.set_title(f"Time Domain: {os.path.basename(filename_doub)}")
 	ax5a.set_xlabel("Time (ns))")
 	ax5a.set_ylabel("Voltage (mV)")
 	ax5a.grid(True)
+	
+	ax6a.plot(t_stra, v_stra, linestyle=':', marker='.', color=(0, 0, 0.65), label=os.path.basename(filename_stra))
+	ax6a.set_title(f"Time Domain: {os.path.basename(filename_stra)}")
+	ax6a.set_xlabel("Time (ns))")
+	ax6a.set_ylabel("Voltage (mV)")
+	ax6a.grid(True)
 
 	# fig1.tight_layout()
 	# fig2.tight_layout()
 	# fig3.tight_layout()
 	# fig4.tight_layout()
 	
-	return [fig1, fig2, fig3, fig4, fig5]
+	return [fig1, fig2, fig3, fig4, fig5, fig6]
 
 if __name__ == "__main__":
 	

@@ -16,6 +16,7 @@ import mplcursors
 parser = argparse.ArgumentParser()
 parser.add_argument('filename')
 parser.add_argument('-f', '--fft', help='show fft of data', action='store_true')
+parser.add_argument('--trimdc', help='Removes DC from FFT data', action='store_true')
 parser.add_argument('--f1', help='Plot F1 file over FFT', action='store_true')
 args = parser.parse_args()
 
@@ -91,20 +92,44 @@ elif args.fft:
 	ax1b = fig1.add_subplot(gs[2, 0])
 	ax1c = fig1.add_subplot(gs[3, 0])
 	
-	sample_period = (t[-1]-t[0])/(len(t)-1)
+	sample_period = (t_si[-1]-t_si[0])/(len(t_si)-1)
 	sample_rate = 1/sample_period
-	spectrum_double = np.fft.fft(v)
+	spectrum_double = np.fft.fft(v_si)
 	freq_double = np.fft.fftfreq(len(spectrum_double), d=1/sample_rate)
 	
-	# Get single-ended results
-	freq = freq_double[:len(freq_double)//2]
-	spectrum = np.abs(spectrum_double[:len(freq_double)//2])
+	print(f"Sample rate: {sample_rate}")
 	
-	ax1b.plot(freq, spectrum/np.max(spectrum), linestyle=':', marker='.', color=(0, 0.6, 0), label='FFT')
+	# Get single-ended results
+	R = 50
+	freq = freq_double[:len(freq_double)//2]
+	spectrum_W = (np.abs(spectrum_double[:len(freq_double)//2])**2) / (R * sample_rate) #len(v_si))
+	spectrum = 10 * np.log10(spectrum_W*1e3)
+	
+	print(spectrum)
+	
+	# Trim DC if requested
+	if args.trimdc:
+		try:
+			# Trim the first 10 points
+			spectrum = spectrum[10:]
+			freq = freq[10:]
+		except Exception as e:
+			print(f"Failed to trim spectrum. ({e})")
+			
+	
+	ax1b.plot(freq/1e9, spectrum, linestyle=':', marker='.', color=(0, 0.6, 0), label='FFT')
 	ax1b.set_xlabel(f"Frequency (GHz)")
-	ax1b.set_xlabel(f"Power")
+	ax1b.set_ylabel(f"Power (dBm/Hz)")
 	ax1b.set_title(f"Fourier Transform")
 	ax1b.set_xlim([4.7, 4.9])
+	ax1b.grid(True)
+	
+	ax1c.plot(freq/1e9, spectrum, linestyle=':', marker='.', color=(0, 0.6, 0), label='FFT')
+	ax1c.set_xlabel(f"Frequency (GHz)")
+	ax1c.set_ylabel(f"Power (dBm/Hz)")
+	ax1c.set_title(f"Fourier Transform")
+	ax1c.set_xlim([4.8, 4.82])
+	ax1c.grid(True)
 	
 	fig1.suptitle(args.filename)
 	ax1a.set_title(f"Time Domain Signal")

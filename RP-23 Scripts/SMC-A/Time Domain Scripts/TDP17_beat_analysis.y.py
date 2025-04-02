@@ -64,17 +64,29 @@ print(f"DATA DIRECTORY: {DATADIR}")
 # trim_times = [-300, -225]
 # df_double = pd.read_csv(f"{DATADIR}/C1 BIAS0,15V_2,368GHz_HalfPiOut_-4dBm00000.txt", skiprows=4, encoding='utf-8')
 
-#NOTE: Comparing two direct-drive pulses to see how good subtraction can look.
-df_double = pd.read_csv(f"{DATADIR}/C1Medwav_0,0V_-17dBm_4,7758GHz_15Pi_sig25ns_r24_00000.txt", skiprows=4, encoding='utf-8')
-df_straight = pd.read_csv(f"{DATADIR}/C1Medwav_0,0V_-19dBm_4,7758GHz_15Pi_sig25ns_r23_00000.txt", skiprows=4, encoding='utf-8')
-trim_times = [-300, 600]
-rescale = True
-offset = 3.07
-scaling = 1.242
-time_shift_ns = -0.1
-rescale_doubler = True
-offset_doubler = 3.015
+#NOTE: Revisiting case with magical 3 MHz offset (r13 and r17). 
+DATADIR = os.path.join("/", "Volumes", "M6 T7S", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Time Domain Measurements", "2025-04-01")
+df_double = pd.read_csv(f"{DATADIR}/C1r13_3MHzDeltaTest_Nodechirp_0,075V_-4dBm_2,3679GHz_15Pi_sig35ns_-45us_r47_00000.txt", skiprows=4, encoding='utf-8')
+df_straight = pd.read_csv(f"{DATADIR}/C1r17_3MHzDeltaTest_Nodechirp_0,0V_-21dBm_4,7758GHz_15Pi_sig25ns_5us_r46_00000.txt", skiprows=4, encoding='utf-8')
+trim_times = [-600, 400]
+rescale = False
+offset = 3.63
+scaling = 1.38
+rescale_doubler = False
+offset_doubler = 3
 void_threshold = 0.75
+
+# #NOTE: Comparing two direct-drive pulses to see how good subtraction can look.
+# df_double = pd.read_csv(f"{DATADIR}/C1Medwav_0,0V_-17dBm_4,7758GHz_15Pi_sig25ns_r24_00000.txt", skiprows=4, encoding='utf-8')
+# df_straight = pd.read_csv(f"{DATADIR}/C1Medwav_0,0V_-19dBm_4,7758GHz_15Pi_sig25ns_r23_00000.txt", skiprows=4, encoding='utf-8')
+# trim_times = [-300, 600]
+# rescale = True
+# offset = 3.07
+# scaling = 1.242
+# time_shift_ns = -0.1
+# rescale_doubler = True
+# offset_doubler = 3.015
+# void_threshold = 0.75
 
 # #NOTE: Trying to look at de-chirp pulse:
 # df_double = pd.read_csv(f"{DATADIR}/C1Medwav_0,075V_-4dBm_2,3679GHz_15Pi_sig35ns_r13_00000.txt", skiprows=4, encoding='utf-8')
@@ -127,15 +139,15 @@ void_threshold = 0.75
 # void_threshold = 0.75
 
 
-# NOTE: From 18_March_2025, contained 40 MHz beat
-df_double = pd.read_csv(os.path.join(DATADIR, "C1Long_waveform_0,275V_-11,13dBm_2,3679GHz_100Pi_r2_00000.txt"), skiprows=4, encoding='utf-8')
-df_straight = pd.read_csv(os.path.join(DATADIR, "C1Long_waveform_0,0V_-23dBm_4,7358GHz_100Pi_r3_00000.txt"), skiprows=4, encoding='utf-8')
-# trim_times = [-22197, -22185]
-trim_times = [-22000, -21500]
-rescale = True
-offset = -0.65
-scaling = 1.234
-void_threshold = 0.75
+# # NOTE: From 18_March_2025, contained 40 MHz beat
+# df_double = pd.read_csv(os.path.join(DATADIR, "C1Long_waveform_0,275V_-11,13dBm_2,3679GHz_100Pi_r2_00000.txt"), skiprows=4, encoding='utf-8')
+# df_straight = pd.read_csv(os.path.join(DATADIR, "C1Long_waveform_0,0V_-23dBm_4,7358GHz_100Pi_r3_00000.txt"), skiprows=4, encoding='utf-8')
+# # trim_times = [-22197, -22185]
+# trim_times = [-22000, -21500]
+# rescale = True
+# offset = -0.65
+# scaling = 1.234
+# void_threshold = 0.75
 
 print(f"  --> Files loaded.")
 
@@ -340,8 +352,9 @@ tzc_stra, freq_stra = zero_cross_freq_analysis(t_univ, v_univ_stra, 60)
 # t_doub[weak_mask] = np.nan
 print(f"  --> Frequency analysis complete.")
 
-# fig1 = plt.figure(1, figsize=(16, 9))
-fig1 = plt.figure(1, figsize=(10, 11))
+fig1 = plt.figure(1, figsize=(16, 9))
+# fig1 = plt.figure(1, figsize=(10, 11))
+# fig1 = plt.figure(1, figsize=(8, 6))
 gs = fig1.add_gridspec(5, 1)
 ax1c = fig1.add_subplot(gs[0, 0])
 ax1a = fig1.add_subplot(gs[1, 0])

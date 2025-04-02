@@ -32,18 +32,29 @@ print(f"DATA DIRECTORY: {DATADIR}")
 # trim_times = [-300, -225]
 # df_double = pd.read_csv(f"{DATADIR}/C1 BIAS0,15V_2,368GHz_HalfPiOut_-4dBm00000.txt", skiprows=4, encoding='utf-8')
 
-
-#NOTE: Comparing two direct-drive pulses to see how good subtraction can look.
-df_double = pd.read_csv(f"{DATADIR}/C1Medwav_0,0V_-17dBm_4,7758GHz_15Pi_sig25ns_r24_00000.txt", skiprows=4, encoding='utf-8')
-df_straight = pd.read_csv(f"{DATADIR}/C1Medwav_0,0V_-19dBm_4,7758GHz_15Pi_sig25ns_r23_00000.txt", skiprows=4, encoding='utf-8')
-trim_times = [-300, 600]
-rescale = True
-offset = 3.07
-scaling = 1.242
-time_shift_ns = -0.1
-rescale_doubler = True
-offset_doubler = 3.015
+#NOTE: Revisiting case with magical 3 MHz offset (r13 and r17)
+DATADIR = os.path.join("/", "Volumes", "M6 T7S", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Time Domain Measurements", "2025-04-01")
+df_double = pd.read_csv(f"{DATADIR}/C1r13_3MHzDeltaTest_Nodechirp_0,075V_-4dBm_2,3679GHz_15Pi_sig35ns_-45us_r47_00000.txt", skiprows=4, encoding='utf-8')
+df_straight = pd.read_csv(f"{DATADIR}/C1r17_3MHzDeltaTest_Nodechirp_0,0V_-21dBm_4,7758GHz_15Pi_sig25ns_5us_r46_00000.txt", skiprows=4, encoding='utf-8')
+trim_times = [-600, 400]
+rescale = False
+offset = 3.63
+scaling = 1.38
+rescale_doubler = False
+offset_doubler = 3
 void_threshold = 0.75
+
+# #NOTE: Comparing two direct-drive pulses to see how good subtraction can look.
+# df_double = pd.read_csv(f"{DATADIR}/C1Medwav_0,0V_-17dBm_4,7758GHz_15Pi_sig25ns_r24_00000.txt", skiprows=4, encoding='utf-8')
+# df_straight = pd.read_csv(f"{DATADIR}/C1Medwav_0,0V_-19dBm_4,7758GHz_15Pi_sig25ns_r23_00000.txt", skiprows=4, encoding='utf-8')
+# trim_times = [-300, 600]
+# rescale = True
+# offset = 3.07
+# scaling = 1.242
+# time_shift_ns = -0.1
+# rescale_doubler = True
+# offset_doubler = 3.015
+# void_threshold = 0.75
 
 # #NOTE: COrrected sigmas, trying other cases - known 3 MHz delta at higher spectrum end.
 # df_double = pd.read_csv(f"{DATADIR}/C1Medwav_0,075V_-4dBm_2,3679GHz_15Pi_sig35ns_r13_00000.txt", skiprows=4, encoding='utf-8')

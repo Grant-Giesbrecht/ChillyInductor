@@ -183,6 +183,8 @@ class TDP20MainWindow(bh.BHMainWindow):
 # Select data source
 
 DATADIR = os.path.join("G:\\", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Time Domain Measurements", "2025-03-25")
+if sys.platform == "darwin":
+	DATADIR = os.path.join("/Volumes/M6 T7S", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Time Domain Measurements", "2025-03-25")
 
 #NOTE: Comparing two direct-drive pulses to see how good subtraction can look.
 filename = f"{DATADIR}/C1Medwav_0,275V_-9dBm_2,3679GHz_15Pi_sig35ns_r22_00000.txt"
