@@ -32,10 +32,10 @@ print(f"DATA DIRECTORY: {DATADIR}")
 # trim_times = [-300, -225]
 # df_double = pd.read_csv(f"{DATADIR}/C1 BIAS0,15V_2,368GHz_HalfPiOut_-4dBm00000.txt", skiprows=4, encoding='utf-8')
 
-#NOTE: Revisiting case with magical 3 MHz offset (r13 and r17)
-DATADIR = os.path.join("/", "Volumes", "M6 T7S", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Time Domain Measurements", "2025-04-01")
-df_double = pd.read_csv(f"{DATADIR}/C1r13_3MHzDeltaTest_Nodechirp_0,075V_-4dBm_2,3679GHz_15Pi_sig35ns_-45us_r47_00000.txt", skiprows=4, encoding='utf-8')
-df_straight = pd.read_csv(f"{DATADIR}/C1r17_3MHzDeltaTest_Nodechirp_0,0V_-21dBm_4,7758GHz_15Pi_sig25ns_5us_r46_00000.txt", skiprows=4, encoding='utf-8')
+#NOTE: Revisiting case with magical 3 MHz offset (r13 and r17) - reverting back to Manny's pulseMaker script to exonerate my modified function.
+DATADIR = os.path.join("/", "Volumes", "M6 T7S", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Time Domain Measurements", "2025-04-02")
+df_double = pd.read_csv(f"{DATADIR}/C1r13oldPulseMaker_Nodechirp_0,075V_-4dBm_2,3679GHz_15Pi_sig35ns_-55us_r52_00000.txt", skiprows=4, encoding='utf-8')
+df_straight = pd.read_csv(f"{DATADIR}/C1r17oldPulseMaker_Nodechirp_0,0V_-21dBm_4,7758GHz_15Pi_sig25ns_-55us_r53_00000.txt", skiprows=4, encoding='utf-8')
 trim_times = [-600, 400]
 rescale = False
 offset = 3.63
@@ -43,6 +43,44 @@ scaling = 1.38
 rescale_doubler = False
 offset_doubler = 3
 void_threshold = 0.75
+
+# #NOTE: Revisiting case with magical 3 MHz offset (r13 and r17) - back to not using CW but changing pulse spacing to 220 ns so the 35ns pulse doesnt' get trimmed.
+# #      dunno why that would manifest as a frequency offset but may as well fix it and see.
+# DATADIR = os.path.join("/", "Volumes", "M6 T7S", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Time Domain Measurements", "2025-04-02")
+# df_double = pd.read_csv(f"{DATADIR}/C1r13_3MHzDeltaTest_Nodechirp_0,075V_-4dBm_2,3679GHz_15Pi_sig35ns_-55us_r51_00000.txt", skiprows=4, encoding='utf-8')
+# df_straight = pd.read_csv(f"{DATADIR}/C1r17_3MHzDeltaTest_Nodechirp_0,0V_-21dBm_4,7758GHz_15Pi_sig25ns_-55us_r50_00000.txt", skiprows=4, encoding='utf-8')
+# trim_times = [-600, 400]
+# rescale = False
+# offset = 3.63
+# scaling = 1.38
+# rescale_doubler = False
+# offset_doubler = 3
+# void_threshold = 0.75
+
+# #NOTE: Revisiting case with magical 3 MHz offset (r13 and r17) but using CW - turns out it's super clean.
+# DATADIR = os.path.join("/", "Volumes", "M6 T7S", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Time Domain Measurements", "2025-04-02")
+# df_double = pd.read_csv(f"{DATADIR}/C1CW_1kAvg_0.075V_-4dBm_2,3679GHz_r48_00000.txt", skiprows=4, encoding='utf-8')
+# df_straight = pd.read_csv(f"{DATADIR}/C1CW_1kAvg_0.0V_-21dBm_4,7758GHz_r49_00000.txt", skiprows=4, encoding='utf-8')
+# trim_times = [-600, 400]
+# rescale = False
+# offset = 3.63
+# scaling = 1.38
+# rescale_doubler = False
+# offset_doubler = 3
+# void_threshold = 0.75
+
+
+# #NOTE: Revisiting case with magical 3 MHz offset (r13 and r17) - showed -1 MHz offset
+# DATADIR = os.path.join("/", "Volumes", "M6 T7S", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Time Domain Measurements", "2025-04-01")
+# df_double = pd.read_csv(f"{DATADIR}/C1r13_3MHzDeltaTest_Nodechirp_0,075V_-4dBm_2,3679GHz_15Pi_sig35ns_-45us_r47_00000.txt", skiprows=4, encoding='utf-8')
+# df_straight = pd.read_csv(f"{DATADIR}/C1r17_3MHzDeltaTest_Nodechirp_0,0V_-21dBm_4,7758GHz_15Pi_sig25ns_5us_r46_00000.txt", skiprows=4, encoding='utf-8')
+# trim_times = [-600, 400]
+# rescale = False
+# offset = 3.63
+# scaling = 1.38
+# rescale_doubler = False
+# offset_doubler = 3
+# void_threshold = 0.75
 
 # #NOTE: Comparing two direct-drive pulses to see how good subtraction can look.
 # df_double = pd.read_csv(f"{DATADIR}/C1Medwav_0,0V_-17dBm_4,7758GHz_15Pi_sig25ns_r24_00000.txt", skiprows=4, encoding='utf-8')

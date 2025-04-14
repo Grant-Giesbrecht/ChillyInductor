@@ -121,7 +121,6 @@ elif args.fft:
 	ax1b.set_xlabel(f"Frequency (GHz)")
 	ax1b.set_ylabel(f"Power (dBm/Hz)")
 	ax1b.set_title(f"Fourier Transform")
-	ax1b.set_xlim([4.7, 4.9])
 	ax1b.grid(True)
 	
 	ax1c.plot(freq/1e9, spectrum, linestyle=':', marker='.', color=(0, 0.6, 0), label='FFT')
@@ -131,7 +130,7 @@ elif args.fft:
 	ax1c.set_xlim([4.8, 4.82])
 	ax1c.grid(True)
 	
-	fig1.suptitle(args.filename)
+	fig1.suptitle(os.path.basename(args.filename))
 	ax1a.set_title(f"Time Domain Signal")
 else:
 	gs = fig1.add_gridspec(1, 1)
