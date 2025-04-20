@@ -11,12 +11,35 @@ import sys
 import argparse
 import mplcursors
 
+window_size_ns = 3.5
+window_step_points = 10
+
 # parser = argparse.ArgumentParser()
 # parser.add_argument('filename')
 # parser.add_argument('-f', '--fft', help='show fft of data', action='store_true')
 # parser.add_argument('--trimdc', help='Removes DC from FFT data', action='store_true')
 # parser.add_argument('--f1', help='Plot F1 file over FFT', action='store_true')
 # args = parser.parse_args()
+
+def find_zero_crossings(x, y):
+	''' Finds zero crossings of x, then uses y-data to interpolate between the points.'''
+	
+	signs = np.sign(y)
+	sign_changes = np.diff(signs)
+	zc_indices = np.where(sign_changes != 0)[0]
+	
+	# Trim end points - weird things can occur if the waveform starts or ends at zero
+	zc_indices = zc_indices[1:-1]
+	
+	# Interpolate each zero-crossing
+	cross_times = []
+	for zci in zc_indices:
+		dx = x[zci+1] - x[zci]
+		dy = y[zci+1] - y[zci]
+		frac = np.abs(y[zci]/dy)
+		cross_times.append(x[zci]+dx*frac)
+	
+	return cross_times
 
 def find_closest_index(lst, X):
 	closest_index = min(range(len(lst)), key=lambda i: abs(lst[i] - X))
@@ -44,6 +67,7 @@ def zero_cross_freq_analysis(dframe, pulse_range_ns = (10, 48)):
 		time_ns = time_ns_full
 		ampl_mV = ampl_mV_full
 	
+	# Get the size of window update
 	window_step_ns = (time_ns[1]-time_ns[0]) * window_step_points
 	
 	#===================== Perform zero crossing analysis ==========================
@@ -54,8 +78,8 @@ def zero_cross_freq_analysis(dframe, pulse_range_ns = (10, 48)):
 
 	t_freqs = tzc[:-1] + periods/2
 	
-	
-	return {'fit_freqs': freqs, 'fit_times':t_freqs, 'time_orig':time_ns, 'ampl_orig':ampl_mV}
+	# Return 
+	return {'fit_freqs': freqs, 'fit_times':t_freqs}
 
 def windowed_freq_analysis_linear(dframe, pulse_range_ns = (10, 48)):
 	
@@ -175,7 +199,7 @@ def windowed_freq_analysis_linear(dframe, pulse_range_ns = (10, 48)):
 	
 	return {'fit_freqs': fit_freqs, 'fit_err':fit_err, 'fit_times':fit_times, 'raw_times':time_ns, 'raw_ampl':ampl_mV, 'fit_offs':fit_offs, 'fit_ampls':fit_ampls, 'fit_phis':fit_phis, 'fit_ms':fit_ms, 'bounds':bounds}
 
-def process_file(filename:str):
+def process_file(filename:str, pulse_range_ns = (10, 48)):
 	''' 
 	'''
 	
@@ -187,8 +211,24 @@ def process_file(filename:str):
 		return None
 	
 	# Create local variables
-	t_si = np.array(df['Time'])
-	v_si = np.array(df['Ampl'])
+	time_ns_full = np.array(df['Time'])
+	ampl_mV_full = np.array(df['Ampl'])
+	
+	# Trim timeseries
+	if pulse_range_ns is not None:
+		idx_start = find_closest_index(time_ns_full, pulse_range_ns[0])
+		idx_end = find_closest_index(time_ns_full, pulse_range_ns[1])
+		t_si = time_ns_full[idx_start:idx_end+1]
+		v_si = ampl_mV_full[idx_start:idx_end+1]
+	else:
+		t_si = time_ns_full
+		v_si = ampl_mV_full
+	
+	# Get converted unit version
+	time_ns = t_si*1e9
+	ampl_mV = v_si*1e3
+	
+	#===================== Fourier Transform ==========================
 	
 	# Fourier Transform
 	R = 50
@@ -201,6 +241,16 @@ def process_file(filename:str):
 	freq = freq_double[:len(freq_double)//2]
 	spectrum_W = (np.abs(spectrum_double[:len(freq_double)//2])**2) / (R * sample_rate) #len(v_si))
 	spectrum = 10 * np.log10(spectrum_W*1e3)
+	
+	#===================== Perform zero crossing analysis ==========================
+	
+	# Run zero-crossing 
+	tzc = find_zero_crossings(time_ns, ampl_mV)
+	periods = np.diff(tzc)
+	freqs = (1/periods)/2
+	t_freqs = tzc[:-1] + periods/2
+	
+	#===================== Fourier Transform ==========================
 	
 	# Return parameters
 	return (freq, spectrum, t_si, v_si)
