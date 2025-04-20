@@ -18,7 +18,36 @@ parser.add_argument('filename')
 parser.add_argument('-f', '--fft', help='show fft of data', action='store_true')
 parser.add_argument('--trimdc', help='Removes DC from FFT data', action='store_true')
 parser.add_argument('--f1', help='Plot F1 file over FFT', action='store_true')
+parser.add_argument('-z', '--zerocross', help='Zero-crossing analysis', action='store_true')
+parser.add_argument('--zcmin', help='Zero-crossing analysis plot, minimum Y value', type=float)
+parser.add_argument('--zcmax', help='Zero-crossing analysis plot, maximum Y value', type=float)
 args = parser.parse_args()
+
+
+
+# def find_closest_index(lst, X):
+# 	closest_index = min(range(len(lst)), key=lambda i: abs(lst[i] - X))
+# 	return closest_index
+
+def find_zero_crossings(x, y):
+	''' Finds zero crossings of x, then uses y-data to interpolate between the points.'''
+	
+	signs = np.sign(y)
+	sign_changes = np.diff(signs)
+	zc_indices = np.where(sign_changes != 0)[0]
+	
+	# Trim end points - weird things can occur if the waveform starts or ends at zero
+	zc_indices = zc_indices[1:-1]
+	
+	# Interpolate each zero-crossing
+	cross_times = []
+	for zci in zc_indices:
+		dx = x[zci+1] - x[zci]
+		dy = y[zci+1] - y[zci]
+		frac = np.abs(y[zci]/dy)
+		cross_times.append(x[zci]+dx*frac)
+	
+	return cross_times
 
 # Read file
 try:
@@ -136,11 +165,53 @@ else:
 	gs = fig1.add_gridspec(1, 1)
 	ax1a = fig1.add_subplot(gs[0, 0])
 	ax1a.set_title(f"{args.filename}")
-	
+
 ax1a.plot(t, v, linestyle=':', marker='.', color=(0, 0, 0.65))
 ax1a.set_xlabel("Time (ns))")
 ax1a.set_ylabel("Voltage (mV)")
 ax1a.grid(True)
+
+
+
+if args.zerocross:
+	tzc = find_zero_crossings(t_si, v_si)
+	N_avg = 1	
+	# Select every other zero crossing to see full periods and become insensitive to y-offsets.
+	tzc_fullperiod = tzc[::2*N_avg]
+	periods = np.diff(tzc_fullperiod)
+	freqs = (1/periods)*N_avg
+
+	t_freqs = tzc_fullperiod[:-1] + periods/2
+	
+	fig2 = plt.figure(2)
+	gs2 = fig2.add_gridspec(2, 1)
+	ax2a = fig2.add_subplot(gs2[0, 0])
+	ax2b = fig2.add_subplot(gs2[1, 0])
+	
+	ax2a.plot(t, v, linestyle=':', marker='.', color=(0, 0, 0.65))
+	ax2a.grid(True)
+	ax2a.set_xlabel("Time (ns)")
+	ax2a.set_ylabel("Frequency (GHz)")
+	ax2a.set_title("Zero Crossing Analysis")
+	ax2a.set_xlim([np.min(t), np.max(t)])
+	
+	ax2b.plot(t_freqs*1e9, freqs/1e9, linestyle=':', marker='.', color=(0, 0.65, 0))
+	ax2b.grid(True)
+	ax2b.set_xlabel("Time (ns)")
+	ax2b.set_ylabel("Frequency (GHz)")
+	ax2b.set_title("Zero Crossing Analysis")
+	ax2b.set_xlim([np.min(t), np.max(t)])
+	
+	if args.zcmin is not None:
+		lim = ax2b.get_ylim()
+		ax2b.set_ylim([args.zcmin, lim[1]])
+	if args.zcmax is not None:
+		lim = ax2b.get_ylim()
+		ax2b.set_ylim([lim[0], args.zcmax])
+	
+	fig2.tight_layout()
+	fig2.suptitle(f"File: {os.path.basename(args.filename)}")
+
 
 mplcursors.cursor(multiple=True)
 
