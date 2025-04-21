@@ -1,5 +1,5 @@
 import os
-from decimal import Decimal
+from decimal import Decimal, getcontext
 import sys
 import pandas as pd
 import numpy as np
@@ -8,11 +8,46 @@ from scipy.interpolate import interp1d
 from sys import platform
 from graf.base import sample_colormap
 
+def linspace_st(start:float, stop:float, step:float):
+	num_points = int(np.floor((stop - start) / step)) + 1
+	return np.linspace(start, start + step * (num_points - 1), num_points)
+
+# def generate_decimal_list(start, stop, step):
+# 	getcontext().prec = 10  # Set precision high enough
+# 	start = Decimal(str(start))
+# 	stop = Decimal(str(stop))
+# 	step = Decimal(str(step))
+# 	
+# 	result = []
+# 	value = start
+# 	while value <= stop:
+# 		result.append(f"{value:.3f}")
+# 		value += step
+# 	
+# 	return result
+
+def generate_decimal_list(start, stop, step):
+	getcontext().prec = 10  # Set precision high enough
+	start = Decimal(str(start))
+	stop = Decimal(str(stop))
+	step = Decimal(str(step))
+	
+	result = []
+	value = start
+	while value <= stop:
+		# Normalize to remove trailing zeros, then convert to string
+		result.append(str(value.normalize()))
+		value += step
+	
+	return result
+
 #=============================== USER CONFIG =====================
 
 # Example list of target floats
-target_floats = [-17, -15, -13, -11, -9, -7, -5, -3, -1, 1, 3, 5, 7, 9, 11, 13, 15, 17]
-target_floats = [-17, -15, -13, -11, -9, -7, -5, -3, -1, 1, 3, 5, 7, 9, 11, 13]
+target_floats = linspace_st(0.025, 1.025, 0.025)
+target_floats = target_floats[:-2]
+target_str = generate_decimal_list(0.025, 1.025, 0.025)
+target_str = target_str[:-2]
 
 # base_dir = '/Volumes/M6 T7S/ARC0 PhD Data/RP-23 Qubit Readout/Data/SMC-A/Time Domain Measurements/17April2025_DownMix/dechirp_strength_-8dBm'
 # trim_time_ns = [-40, -10]
@@ -20,7 +55,7 @@ target_floats = [-17, -15, -13, -11, -9, -7, -5, -3, -1, 1, 3, 5, 7, 9, 11, 13]
 if platform == "darwin":
 	base_dir = '/Volumes/M6 T7S/ARC0 PhD Data/RP-23 Qubit Readout/Data/SMC-A/Time Domain Measurements/17April2025_DownMix/power_sweep'
 elif platform == "win32":
-	base_dir = os.path.join('G:\\', 'ARC0 PhD Data', 'RP-23 Qubit Readout', 'Data', 'SMC-A', 'Time Domain Measurements', '17April2025_DownMix', 'power_sweep')
+	base_dir = os.path.join('G:\\', 'ARC0 PhD Data', 'RP-23 Qubit Readout', 'Data', 'SMC-A', 'Time Domain Measurements', '17April2025_DownMix', 'bias_sweep')
 
 trim_time_ns = [-50, -10]
 
@@ -106,7 +141,8 @@ def analyze_file(base_dir, filename, trim_time_ns:list=None, N_avg:int=1):
 #========================= LOCATE FILES AUTOMATICALLY =====================
 
 # Convert floats to strings exactly as they would appear in the filename
-target_strings = [f"Bott{f}dBm" for f in target_floats]
+target_strings = [f"_{f}VBias".replace(".", ",") for f in target_str]
+target_strings2 = [f"_{f}VBias" for f in target_str]
 
 print("Target strings:")
 for ts in target_strings:
@@ -115,19 +151,19 @@ for ts in target_strings:
 # Get all filenames (e.g., from a folder)
 filenames = os.listdir(base_dir)
 
-# Filter filenames
-filtered_files = [
-	fname for fname in filenames
-	if fname.startswith("C1") and any(ts in fname for ts in target_strings)
-]
+# # Filter filenames
+# filtered_files = [
+# 	fname for fname in filenames
+# 	if fname.startswith("C1") and any(ts in fname for ts in target_strings)
+# ]
 
 filtered_files = []
-for targ_string in target_strings:
+for idx, targ_string in enumerate(target_strings):
 	
 	found = False
 	
 	for fname in filenames:
-		if fname.startswith("C1") and (targ_string in fname):
+		if fname.startswith("C1") and ((targ_string in fname) or (target_strings2[idx] in fname)):
 			filtered_files.append(fname)
 			found = True
 	
@@ -201,7 +237,7 @@ cmap = sample_colormap(cmap_name='viridis', N=len(volts))
 fig1 = plt.figure()
 plt.pcolormesh(X_grid, Y_grid, Z, shading='auto')
 plt.xlabel("Time (ns)")
-plt.ylabel("Power (dBm)")
+plt.ylabel("dc Bias (V)")
 plt.title("2D grid from analyze_file")
 plt.colorbar(label="Frequency (MHz)")
 
@@ -211,7 +247,7 @@ fig = plt.figure()
 ax = fig.add_subplot(111, projection='3d')
 ax.plot_surface(X_grid, Y_grid, Z )
 plt.xlabel("Time (ns)")
-plt.ylabel("Power (dBm)")
+plt.ylabel("dc Bias (V)")
 plt.gca().set_zlabel("Frequency (MHz)")
 plt.title("2D grid from analyze_file")
 # plt.colorbar(label="Frequency (GHz)")
