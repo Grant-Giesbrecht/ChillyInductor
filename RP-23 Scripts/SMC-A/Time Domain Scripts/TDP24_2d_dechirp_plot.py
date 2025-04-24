@@ -20,7 +20,7 @@ target_floats = [5e-5, 7.5e-5, 1e-4, 2.5e-4, 5e-4, 7.5e-4]
 if platform == "darwin":
 	base_dir = '/Volumes/M6 T7S/ARC0 PhD Data/RP-23 Qubit Readout/Data/SMC-A/Time Domain Measurements/17April2025_DownMix/dechirp_strength_-11dBm'
 elif platform == "win32":
-	base_dir = os.path.join('G:\\', 'ARC0 PhD Data', 'RP-23 Qubit Readout', 'Data', 'SMC-A', 'Time Domain Measurements', '17April2025_DownMix', 'dechirp_strength_-11dBm')
+	base_dir = os.path.join('F:\\', 'ARC0 PhD Data', 'RP-23 Qubit Readout', 'Data', 'SMC-A', 'Time Domain Measurements', '17April2025_DownMix', 'dechirp_strength_-11dBm')
 
 trim_time_ns = [-55, 0]
 trim_time_ns = [-40, -10]

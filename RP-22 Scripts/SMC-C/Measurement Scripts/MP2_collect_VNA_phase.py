@@ -12,6 +12,7 @@ from ganymede import *
 import datetime
 from pathlib import Path
 import argparse
+from jarnsaxa import dict_to_hdf
 
 class SystemRP22:
 	
@@ -41,7 +42,7 @@ class SystemRP22:
 	def measure_point(self, f_rf, p_rf, idc):
 		
 		log.info(f"Setting bias current to >{idc}< mA.")
-			
+		
 		# Set offset voltage
 		Voffset = current_set_res * idc/1e3
 		log.debug(f"Selected offset voltage {Voffset} V from current_set_res={current_set_res} Ohms and idc={idc} mA")

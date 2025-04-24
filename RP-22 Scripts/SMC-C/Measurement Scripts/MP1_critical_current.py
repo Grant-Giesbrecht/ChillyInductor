@@ -12,6 +12,7 @@ from ganymede import *
 import datetime
 from pathlib import Path
 import argparse
+from jarnsaxa import hdf_to_dict, dict_to_hdf
 
 # Set directories for data and sweep configuration
 CONF_DIRECTORY = "sweep_configs"
