@@ -43,24 +43,34 @@ def generate_decimal_list(start, stop, step):
 
 #=============================== USER CONFIG =====================
 
-# Example list of target floats
-target_floats = linspace_st(0.025, 1.025, 0.025)
+# # Example list of target floats - 100 MHz, -8 dBm
+# target_floats = linspace_st(0.025, 1.025, 0.025)
+# target_floats = target_floats[:-2]
+# target_str = generate_decimal_list(0.025, 1.025, 0.025)
+# target_str = target_str[:-2]
+
+# Example list of target floats - 500 MHz, 0 dBm
+target_floats = linspace_st(0.1, 0.8, 0.025)
 target_floats = target_floats[:-2]
-target_str = generate_decimal_list(0.025, 1.025, 0.025)
+target_str = generate_decimal_list(0.1, 0.8, 0.025)
 target_str = target_str[:-2]
 
 # base_dir = '/Volumes/M6 T7S/ARC0 PhD Data/RP-23 Qubit Readout/Data/SMC-A/Time Domain Measurements/17April2025_DownMix/dechirp_strength_-8dBm'
 # trim_time_ns = [-40, -10]
 
 if platform == "darwin":
-	base_dir = '/Volumes/M6 T7S/ARC0 PhD Data/RP-23 Qubit Readout/Data/SMC-A/Time Domain Measurements/17April2025_DownMix/power_sweep'
+	# base_dir = '/Volumes/M6 T7S/ARC0 PhD Data/RP-23 Qubit Readout/Data/SMC-A/Time Domain Measurements/17April2025_DownMix/power_sweep'
+	# trim_time_ns = [-50, -10]
+	base_dir = '/Volumes/M6 T7S/ARC0 PhD Data/RP-23 Qubit Readout/Data/SMC-A/Time Domain Measurements/17April2025_DownMix/bias_sweep_500MHz'
+	trim_time_ns = [-50, 30]
 elif platform == "win32":
 	base_dir = os.path.join('G:\\', 'ARC0 PhD Data', 'RP-23 Qubit Readout', 'Data', 'SMC-A', 'Time Domain Measurements', '17April2025_DownMix', 'bias_sweep')
+	trim_time_ns = [-50, -10]
 
-trim_time_ns = [-50, -10]
+
 
 time_pt_mult = 3
-N_avg = 1
+N_avg = 4
 
 #+========================= DEFINE FUNCTIONS =====================
 
@@ -170,6 +180,14 @@ for idx, targ_string in enumerate(target_strings):
 	if not found:
 		print(f"Failed to find file for target string:")
 		print(f"  {targ_string}")
+		print("Filenames:")
+		count = 0
+		for f in filenames:
+			if count == 2:
+				count = 0
+				print(f"")
+			print(f"    {f}", end="")
+			count += 1
 		sys.exit()
 
 print(f"Filtered files:")

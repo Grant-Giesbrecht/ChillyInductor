@@ -12,20 +12,25 @@ from graf.base import sample_colormap
 
 # Example list of target floats
 target_floats = [-17, -15, -13, -11, -9, -7, -5, -3, -1, 1, 3, 5, 7, 9, 11, 13, 15, 17]
-target_floats = [-17, -15, -13, -11, -9, -7, -5, -3, -1, 1, 3, 5, 7, 9, 11, 13]
+target_floats = [-15, -13, -11, -9, -7, -5, -3, -1, 3, 5, 7, 9, 11, 13]
 
 # base_dir = '/Volumes/M6 T7S/ARC0 PhD Data/RP-23 Qubit Readout/Data/SMC-A/Time Domain Measurements/17April2025_DownMix/dechirp_strength_-8dBm'
 # trim_time_ns = [-40, -10]
 
 if platform == "darwin":
-	base_dir = '/Volumes/M6 T7S/ARC0 PhD Data/RP-23 Qubit Readout/Data/SMC-A/Time Domain Measurements/17April2025_DownMix/power_sweep'
+	# base_dir = '/Volumes/M6 T7S/ARC0 PhD Data/RP-23 Qubit Readout/Data/SMC-A/Time Domain Measurements/17April2025_DownMix/power_sweep'
+	# trim_time_ns = [-50, -10]
+	# N_avg = 1
+	base_dir = '/Volumes/M6 T7S/ARC0 PhD Data/RP-23 Qubit Readout/Data/SMC-A/Time Domain Measurements/17April2025_DownMix/power_sweep_500MHz'
+	trim_time_ns = [-230, -150]
+	N_avg = 4
 elif platform == "win32":
 	base_dir = os.path.join('G:\\', 'ARC0 PhD Data', 'RP-23 Qubit Readout', 'Data', 'SMC-A', 'Time Domain Measurements', '17April2025_DownMix', 'power_sweep')
 
-trim_time_ns = [-50, -10]
+
 
 time_pt_mult = 3
-N_avg = 1
+
 
 #+========================= DEFINE FUNCTIONS =====================
 
