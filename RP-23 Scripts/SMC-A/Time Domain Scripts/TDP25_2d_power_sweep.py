@@ -25,7 +25,9 @@ if platform == "darwin":
 	trim_time_ns = [-230, -150]
 	N_avg = 4
 elif platform == "win32":
-	base_dir = os.path.join('G:\\', 'ARC0 PhD Data', 'RP-23 Qubit Readout', 'Data', 'SMC-A', 'Time Domain Measurements', '17April2025_DownMix', 'power_sweep')
+	base_dir = os.path.join('F:\\', 'ARC0 PhD Data', 'RP-23 Qubit Readout', 'Data', 'SMC-A', 'Time Domain Measurements', '17April2025_DownMix', 'power_sweep_500MHz')
+	trim_time_ns = [-230, -150]
+	N_avg = 4
 
 
 
