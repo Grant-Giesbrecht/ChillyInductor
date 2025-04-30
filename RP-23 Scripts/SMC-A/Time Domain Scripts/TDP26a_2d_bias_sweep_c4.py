@@ -255,11 +255,9 @@ for dechirp, ff, ftrig in zip(target_floats, filtered_files, filtered_files_trig
 print(f"t_min: {t_min*1e9}")
 print(f"t_max: {t_max*1e9}")
 
-# # Get grid of common times
-# all_freq_times = np.concatenate(ftimes)
+#====================== Create 2D grid data for frequency 3D graphs ====================
 
 # Get new universal times
-# uni_ftime = np.linspace(np.min(all_freq_times), np.max(all_freq_times), int(len(all_freq_times)*time_pt_mult))
 uni_ftime = np.linspace(t_min, t_max, int(len(tf_)*time_pt_mult))
 
 # Scan over times and interpolate to uni time
@@ -278,6 +276,39 @@ Y = np.array(target_floats)
 
 #Create 2D meshgrid for plotting or analysis
 X_grid, Y_grid = np.meshgrid(X*1e9, Y)
+
+#====================== Create 2D time data ====================
+
+
+times_valid = True
+for t in times:
+	if np.min(t) != np.min(times[0]):
+		times_valid = False
+		break
+	if np.max(t) != np.max(times[0]):
+			times_valid = False
+			break
+	if len(t) != len(times[0]):
+			times_valid = False
+			break
+
+if not times_valid:
+	print(f"Time points were not valid.")
+	sys.exit()
+
+uni_td = []
+uni_td_norm = []
+for v in volts:
+	uni_td.append(np.array(v)*1e3)
+	uni_td_norm.append(np.array(v)*1e3/np.max(v))
+
+Z_td = np.array(uni_td)          # Shape: (n_files, len(t))
+Z_td_norm = np.array(uni_td_norm)
+x_td = np.array(times[0])               # Same t for all, so just take one
+y_td = np.array(target_floats)
+
+#Create 2D meshgrid for plotting or analysis
+X_grid_td, Y_grid_td = np.meshgrid(x_td*1e9, y_td)
 
 #================ Plot Data ========================
 cmap = sample_colormap(cmap_name='viridis', N=len(volts))
@@ -299,6 +330,21 @@ plt.ylabel("dc Bias (V)")
 plt.gca().set_zlabel("Frequency (MHz)")
 plt.title("2D grid from analyze_file")
 # plt.colorbar(label="Frequency (GHz)")
+
+fig2 = plt.figure()
+plt.pcolormesh(X_grid_td, Y_grid_td, Z_td_norm, shading='auto')
+plt.xlabel("Time (ns)")
+plt.ylabel("dc Bias (V)")
+plt.title("Time Domain Data")
+plt.colorbar(label="Voltage (mV)")
+
+fig6 = plt.figure(6)
+ax = fig6.add_subplot(111, projection='3d')
+ax.plot_surface(X_grid_td, Y_grid_td, Z_td_norm )
+plt.xlabel("Time (ns)")
+plt.ylabel("dc Bias (V)")
+plt.gca().set_zlabel("Voltage (mV)")
+plt.title("Time Domain Data")
 
 idx = 0
 fig4 = plt.figure(4)
