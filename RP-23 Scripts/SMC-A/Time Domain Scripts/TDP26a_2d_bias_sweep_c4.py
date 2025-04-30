@@ -67,6 +67,7 @@ elif platform == "win32":
 	base_dir = os.path.join('G:\\', 'ARC0 PhD Data', 'RP-23 Qubit Readout', 'Data', 'SMC-A', 'Time Domain Measurements', '17April2025_DownMix', 'bias_sweep_500MHz')
 	# trim_time_ns = [-50, -10] # 100 MHz
 	trim_time_ns = [-50, 30]
+	trim_time_ns = [-100, 75]
 
 
 
@@ -332,7 +333,7 @@ plt.title("2D grid from analyze_file")
 # plt.colorbar(label="Frequency (GHz)")
 
 fig2 = plt.figure()
-plt.pcolormesh(X_grid_td, Y_grid_td, Z_td_norm, shading='auto')
+plt.pcolormesh(X_grid_td, Y_grid_td, Z_td, shading='auto')
 plt.xlabel("Time (ns)")
 plt.ylabel("dc Bias (V)")
 plt.title("Time Domain Data")
@@ -340,7 +341,7 @@ plt.colorbar(label="Voltage (mV)")
 
 fig6 = plt.figure(6)
 ax = fig6.add_subplot(111, projection='3d')
-ax.plot_surface(X_grid_td, Y_grid_td, Z_td_norm )
+ax.plot_surface(X_grid_td, Y_grid_td, Z_td )
 plt.xlabel("Time (ns)")
 plt.ylabel("dc Bias (V)")
 plt.gca().set_zlabel("Voltage (mV)")
