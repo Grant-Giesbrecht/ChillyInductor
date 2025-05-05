@@ -30,6 +30,11 @@ fig2 = plt.figure(2)
 gs2 = fig2.add_gridspec(1, 1)
 ax2a = fig2.add_subplot(gs2[0, 0])
 
+# Prepare figure 1
+fig3 = plt.figure(3)
+gs3 = fig3.add_gridspec(1, 1)
+ax3a = fig3.add_subplot(gs3[0, 0])
+
 # Plot figure 1
 ax1a.plot(sigmas_doub_ns, error_I_doub, linestyle=':', marker='.', color=(0, 0.3, 0.7), label="I, Doubler")
 ax1a.plot(sigmas_doub_ns, error_Q_doub, linestyle=':', marker='.', color=(0.7, 0, 0.3), label="Q, Doubler")
@@ -48,13 +53,29 @@ ax1a.set_title("Error Rate Comparison")
 ax1a.legend()
 
 # Plot figure 2
-ax2a.plot(sigmas_doub_ns, pi_cf_doub, linestyle=':', marker='.', color=(0, 0.6, 0.4), label="$\pi$ Correction")
-ax2a.plot(sigmas_doub_ns, hp_cf_doub, linestyle=':', marker='.', color=(0.6, 0.4, 0.6), label="$\pi$/2 Correction")
+ax2a.plot(sigmas_doub_ns, pi_cf_doub, linestyle=':', marker='.', color=(0, 0.6, 0.4), label="$\\pi$ Correction")
+ax2a.plot(sigmas_doub_ns, hp_cf_doub, linestyle=':', marker='.', color=(0.6, 0.4, 0.6), label="$\\pi$/2 Correction")
 
 ax2a.grid(True)
 ax2a.set_xlabel("Pre-Doubled $\\sigma$ (ns)")
 ax2a.set_ylabel(f"Correction Factor")
 ax2a.set_title("Doubler Drive Conditions")
 ax2a.legend()
+
+# Plot figure 3
+# ax3a.plot(sigmas_doub_ns, error_Q_doub, linestyle=':', marker='o', color=(33/255, 91/255, 114/255), label="Doubler")
+# ax3a.plot(sigmas_trad_ns, error_Q_trad, linestyle=':', marker='s', color=(202/255, 158/255, 200/255), label="Traditional")
+
+# ax3a.plot(sigmas_doub_ns, error_Q_doub, linestyle=':', marker='o', color=(33/255, 170/255, 190/255), label="Doubler")
+# ax3a.plot(sigmas_trad_ns, error_Q_trad, linestyle=':', marker='s', color=(110/255, 30/255, 110/255), label="Traditional")
+
+ax3a.plot(sigmas_doub_ns, error_Q_doub, linestyle=':', marker='o', color=(35/255, 142/255, 169/255), label="Doubler")
+ax3a.plot(sigmas_trad_ns, error_Q_trad, linestyle=':', marker='s', color=(102/255, 35/255, 170/255), label="Traditional")
+
+ax3a.grid(True)
+ax3a.set_xlabel("Pre-Doubled $\\sigma$ (ns)")
+ax3a.set_ylabel(f"Error per Gate")
+ax3a.set_title("Error Rate Comparison")
+ax3a.legend()
 
 plt.show()
