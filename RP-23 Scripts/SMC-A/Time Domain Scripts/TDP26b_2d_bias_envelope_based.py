@@ -7,6 +7,8 @@ import matplotlib.pyplot as plt
 from scipy.interpolate import interp1d
 from sys import platform
 from graf.base import sample_colormap
+from scipy.signal import hilbert
+from colorama import Style, Fore
 
 def linspace_st(start:float, stop:float, step:float):
 	num_points = int(np.floor((stop - start) / step)) + 1
@@ -67,7 +69,7 @@ elif platform == "win32":
 	base_dir = os.path.join('G:\\', 'ARC0 PhD Data', 'RP-23 Qubit Readout', 'Data', 'SMC-A', 'Time Domain Measurements', '17April2025_DownMix', 'bias_sweep_500MHz')
 	# trim_time_ns = [-50, -10] # 100 MHz
 	trim_time_ns = [-50, 30]
-	# trim_time_ns = [-100, 75]
+	trim_time_ns = [-100, 75]
 
 
 
@@ -115,7 +117,9 @@ def find_zero_crossings(x, y):
 	
 	return cross_times
 
-def analyze_file(base_dir, filename, trig_filename, trim_time_ns:list=None, N_avg:int=1):
+def analyze_file(base_dir, filename, trig_filename, trim_time_ns:list=None, N_avg:int=1, pulse_thresh:float=0.35):
+	
+	##----------------- READ DATA IN --------------------
 	
 	# Read file
 	try:
@@ -139,7 +143,9 @@ def analyze_file(base_dir, filename, trig_filename, trim_time_ns:list=None, N_av
 	t_si_trig = np.array(df_trig['Time'])
 	v_si_trig = np.array(df_trig['Ampl'])
 	
+	##----------------- TRIM TIME --------------------
 	
+	# Trim time if asked
 	if trim_time_ns is not None:
 		print("  trim")
 		idx_start = find_closest_index(t_si, trim_time_ns[0]*1e-9)
@@ -151,6 +157,18 @@ def analyze_file(base_dir, filename, trig_filename, trim_time_ns:list=None, N_av
 		tf = t_si[-1]
 		print(f"    --> t:{t0*1e9}:{tf*1e9} ns")
 	
+	##----------------- Detect envelope --------------------
+	
+	# Get normalized waveform
+	v_si_norm = v_si/np.max(v_si)
+	
+	# Hilbert transform
+	analytic_sig = hilbert(v_si_norm)
+	envelope_norm = np.abs(analytic_sig)
+	envelope = envelope_norm*np.max(v_si)
+	
+	##----------------- ZERO-CROSS FREQ ANALYSIS --------------------
+	
 	tzc = find_zero_crossings(t_si, v_si)
 	
 	# Select every other zero crossing to see full periods and become insensitive to y-offsets.
@@ -160,7 +178,33 @@ def analyze_file(base_dir, filename, trig_filename, trim_time_ns:list=None, N_av
 
 	t_freqs = tzc_fullperiod[:-1] + periods/2
 	
-	return (t_si, v_si, t_si_trig, v_si_trig, t_freqs, freqs)
+	##----------------- Detect strong pulse region --------------------
+	
+	# Find first index greater than value
+	idx_0 = None
+	for i, value in enumerate(envelope_norm):
+		if value > pulse_thresh:
+			idx_0 = i
+			print(f"idx_0 = {idx_0}")
+			break
+	
+	# Find last index greater than value
+	idx_f = None
+	for i, value in enumerate(reversed(envelope_norm)):
+		if value > pulse_thresh:
+			idx_f = len(envelope_norm) - 1 - i
+			print(f"idx_f = {idx_f}, (len={len(envelope_norm)})")
+			break
+	
+	# Check that both points were found
+	if idx_f is None or idx_0 is None:
+		print(f"{Fore.RED}FAILED TO FIND INDEX{Style.RESET_ALL}")
+		if idx_0 is None:
+			idx_0 = 0
+		if idx_f is None:
+			idx_f = len(envelope_norm)-1
+	
+	return (t_si, v_si, t_si_trig, v_si_trig, t_freqs, freqs, envelope, envelope_norm, idx_0, idx_f, t_si[idx_0], t_si[idx_f])
 
 #========================= LOCATE FILES AUTOMATICALLY =====================
 
@@ -227,8 +271,12 @@ times = []
 volts = []
 ftimes = []
 freqs = []
+valid_times = []
 times_trig = []
 volts_trig = []
+envelopes = []
+norm_envelopes = []
+idxs = []
 
 t_min = -1e9
 t_max = 1e9
@@ -239,7 +287,7 @@ for dechirp, ff, ftrig in zip(target_floats, filtered_files, filtered_files_trig
 	print(f"Analyzing for target: {dechirp}")
 	
 	# Analyze file
-	(t_, v_, t_trig_, v_trig_, tf_, fr_) = analyze_file(base_dir, ff, ftrig, trim_time_ns=trim_time_ns, N_avg=N_avg)
+	(t_, v_, t_trig_, v_trig_, tf_, fr_, env_, normenv_, idx_0, idx_f, t0, tf) = analyze_file(base_dir, ff, ftrig, trim_time_ns=trim_time_ns, N_avg=N_avg)
 	
 	# Get time limits
 	t_min = np.max([np.min(tf_), t_min])
@@ -252,9 +300,17 @@ for dechirp, ff, ftrig in zip(target_floats, filtered_files, filtered_files_trig
 	freqs.append(fr_)
 	times_trig.append(t_trig_)
 	volts_trig.append(v_trig_)
-
-print(f"t_min: {t_min*1e9}")
-print(f"t_max: {t_max*1e9}")
+	envelopes.append(env_)
+	norm_envelopes.append(normenv_)
+	idxs.append((idx_0, idx_f))
+	valid_times.append((t0, tf))
+	
+	# # Validate frequncies
+	# print(f"idx_t0 = {idx_t0}")
+	# print(f"idx_tf = {idx_tf}")
+	# val_fr_ = np.concatenate((np.ones(idx_t0)*np.nan, fr_[idx_t0:idx_tf+1], np.ones(len(fr_)-idx_tf-1)*np.nan))
+	# if len(val_fr_) != len()
+	# freqs_validated.append(val_fr_*1e6)
 
 #====================== Create 2D grid data for frequency 3D graphs ====================
 
@@ -263,13 +319,23 @@ uni_ftime = np.linspace(t_min, t_max, int(len(tf_)*time_pt_mult))
 
 # Scan over times and interpolate to uni time
 uni_freqs = []
+uni_freqs_valid = []
 for idx, ft_ in enumerate(ftimes):
 	
 	# Interpolate
 	fi = interp1d(ft_, freqs[idx], kind='linear')
 	new_freq = fi(uni_ftime)
 	
+	# Get valid time points
+	idx_t0 = find_closest_index(uni_ftime, valid_times[idx][0])
+	idx_tf = find_closest_index(uni_ftime, valid_times[idx][1])
+	val_fr_ = np.concatenate((np.ones(idx_t0)*np.nan, new_freq[idx_t0:idx_tf+1], np.ones(len(new_freq)-idx_tf-1)*np.nan))
+	
+	# Save data
 	uni_freqs.append(np.array(new_freq)/1e6)
+	uni_freqs_valid.append(np.array(val_fr_)/1e6)
+
+uni_freqs_valid = np.array(uni_freqs_valid)
 
 Z = np.array(uni_freqs)          # Shape: (n_files, len(t))
 X = np.array(uni_ftime)               # Same t for all, so just take one
@@ -303,6 +369,7 @@ for v in volts:
 	uni_td.append(np.array(v)*1e3)
 	uni_td_norm.append(np.array(v)*1e3/np.max(v))
 
+
 Z_td = np.array(uni_td)          # Shape: (n_files, len(t))
 Z_td_norm = np.array(uni_td_norm)
 x_td = np.array(times[0])               # Same t for all, so just take one
@@ -314,7 +381,7 @@ X_grid_td, Y_grid_td = np.meshgrid(x_td*1e9, y_td)
 #================ Plot Data ========================
 cmap = sample_colormap(cmap_name='viridis', N=len(volts))
 
-fig1 = plt.figure()
+fig1 = plt.figure(1)
 plt.pcolormesh(X_grid, Y_grid, Z, shading='auto')
 plt.xlabel("Time (ns)")
 plt.ylabel("dc Bias (V)")
@@ -323,8 +390,8 @@ plt.colorbar(label="Frequency (MHz)")
 
 # Optional: visualize the result
 # plt.pcolormesh(X_grid, Y_grid, Z, shading='auto')
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
+fig2 = plt.figure(2)
+ax = fig2.add_subplot(111, projection='3d')
 ax.plot_surface(X_grid, Y_grid, Z )
 plt.xlabel("Time (ns)")
 plt.ylabel("dc Bias (V)")
@@ -332,15 +399,22 @@ plt.gca().set_zlabel("Frequency (MHz)")
 plt.title("2D grid from analyze_file")
 # plt.colorbar(label="Frequency (GHz)")
 
-fig2 = plt.figure()
+fig3 = plt.figure(3)
 plt.pcolormesh(X_grid_td, Y_grid_td, Z_td, shading='auto')
 plt.xlabel("Time (ns)")
 plt.ylabel("dc Bias (V)")
 plt.title("Time Domain Data")
 plt.colorbar(label="Voltage (mV)")
 
-fig6 = plt.figure(6)
-ax = fig6.add_subplot(111, projection='3d')
+fig4 = plt.figure(4)
+plt.pcolormesh(X_grid_td, Y_grid_td, envelopes, shading='auto')
+plt.xlabel("Time (ns)")
+plt.ylabel("dc Bias (V)")
+plt.title("Time Domain Envelope Data")
+plt.colorbar(label="Voltage (mV)")
+
+fig5 = plt.figure(5)
+ax = fig5.add_subplot(111, projection='3d')
 ax.plot_surface(X_grid_td, Y_grid_td, Z_td )
 plt.xlabel("Time (ns)")
 plt.ylabel("dc Bias (V)")
@@ -348,7 +422,7 @@ plt.gca().set_zlabel("Voltage (mV)")
 plt.title("Time Domain Data")
 
 idx = 0
-fig4 = plt.figure(4)
+fig6 = plt.figure(6)
 for t, v in zip(times, volts):
 	pwr = target_floats[idx]
 	plt.subplot(2, 1, 1)
@@ -369,7 +443,7 @@ plt.ylabel("Normalized Voltage (1)")
 plt.grid(True)
 
 idx = 0
-fig5 = plt.figure(5)
+fig7 = plt.figure(7)
 for t, v in zip(times_trig, volts_trig):
 	pwr = target_floats[idx]
 	plt.subplot(2, 1, 1)
@@ -391,11 +465,19 @@ plt.grid(True)
 
 plt.suptitle(f"Trigger Channel")
 
-fig3 = plt.figure(figsize=(6, 3))
-plt.plot(times[0]*1e9, volts[0]*1e3, linewidth=2.5, color=(0, 0.282, 0.333))
-plt.grid(True)
+fig8 = plt.figure(8)
+plt.pcolormesh(X_grid_td, Y_grid_td, norm_envelopes, shading='auto')
 plt.xlabel("Time (ns)")
-plt.ylabel("Pulse Amplitude (mV)")
-plt.tight_layout()
+plt.ylabel("dc Bias (V)")
+plt.title("Time Domain Normalized Envelope Data")
+plt.colorbar(label="Voltage (mV)")
+
+fig9 = plt.figure(9)
+ax = fig9.add_subplot(111, projection='3d')
+ax.plot_surface(X_grid, Y_grid, uni_freqs_valid )
+plt.xlabel("Time (ns)")
+plt.ylabel("dc Bias (V)")
+plt.gca().set_zlabel("Frequency (MHz)")
+plt.title("2D grid from analyze_file")
 
 plt.show()

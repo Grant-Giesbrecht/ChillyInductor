@@ -20,13 +20,14 @@ target_floats = [5e-5, 7.5e-5, 1e-4, 2.5e-4, 5e-4, 7.5e-4]
 if platform == "darwin":
 	base_dir = '/Volumes/M6 T7S/ARC0 PhD Data/RP-23 Qubit Readout/Data/SMC-A/Time Domain Measurements/17April2025_DownMix/dechirp_strength_-11dBm'
 elif platform == "win32":
-	# base_dir = os.path.join('G:\\', 'ARC0 PhD Data', 'RP-23 Qubit Readout', 'Data', 'SMC-A', 'Time Domain Measurements', '17April2025_DownMix', 'dechirp_strength_-11dBm')
-	# trim_time_ns = [-40, -10]
-	base_dir = os.path.join('G:\\', 'ARC0 PhD Data', 'RP-23 Qubit Readout', 'Data', 'SMC-A', 'Time Domain Measurements', '17April2025_DownMix', 'dechirp_strength_-8dBm')
+	base_dir = os.path.join('G:\\', 'ARC0 PhD Data', 'RP-23 Qubit Readout', 'Data', 'SMC-A', 'Time Domain Measurements', '17April2025_DownMix', 'dechirp_strength_-11dBm')
 	trim_time_ns = [-40, -10]
+	# base_dir = os.path.join('G:\\', 'ARC0 PhD Data', 'RP-23 Qubit Readout', 'Data', 'SMC-A', 'Time Domain Measurements', '17April2025_DownMix', 'dechirp_strength_-8dBm')
+	# trim_time_ns = [-40, -10]
 
 trim_time_ns = [-55, 0]
 trim_time_ns = [-40, -10]
+trim_time_ns = [-50, 0]
 
 time_pt_mult = 3
 N_avg = 4
@@ -220,6 +221,15 @@ ax.plot_surface(X_grid, Y_grid, Z, )
 plt.xlabel("Time (ns)")
 plt.ylabel("log10(Dechirp Parameter)")
 plt.title("2D grid from analyze_file")
+
+
+fig3 = plt.figure(figsize=(6, 3))
+plt.plot(times[0]*1e9, volts[0]*1e3, linewidth=2.5, color=(0, 0.282, 0.333))
+plt.grid(True)
+plt.xlabel("Time (ns)")
+plt.ylabel("Pulse Amplitude (mV)")
+plt.tight_layout()
+
 plt.show()
 # plt.colorbar(label="Frequency (GHz)")
 
