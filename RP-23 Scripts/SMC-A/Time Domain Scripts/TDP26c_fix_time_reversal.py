@@ -381,103 +381,62 @@ X_grid_td, Y_grid_td = np.meshgrid(x_td*1e9, y_td)
 #================ Plot Data ========================
 cmap = sample_colormap(cmap_name='viridis', N=len(volts))
 
-fig1 = plt.figure(1)
-plt.pcolormesh(X_grid, Y_grid, Z, shading='auto')
-plt.xlabel("Time (ns)")
-plt.ylabel("dc Bias (V)")
-plt.title("2D grid from analyze_file")
-plt.colorbar(label="Frequency (MHz)")
-
-# Optional: visualize the result
-# plt.pcolormesh(X_grid, Y_grid, Z, shading='auto')
-fig2 = plt.figure(2)
-ax = fig2.add_subplot(111, projection='3d')
-ax.plot_surface(X_grid, Y_grid, Z )
-plt.xlabel("Time (ns)")
-plt.ylabel("dc Bias (V)")
-plt.gca().set_zlabel("Frequency (MHz)")
-plt.title("2D grid from analyze_file")
-# plt.colorbar(label="Frequency (GHz)")
-
 fig3 = plt.figure(3)
-plt.pcolormesh(X_grid_td[::-1], Y_grid_td, Z_td[::-1], shading='auto', origin='lower')
-plt.xlabel("Time (ns)")
-plt.ylabel("dc Bias (V)")
-plt.title("Time Domain Data")
-plt.colorbar(label="Voltage (mV)")
-
-fig4 = plt.figure(4)
-plt.pcolormesh(X_grid_td, Y_grid_td, envelopes, shading='auto')
-plt.xlabel("Time (ns)")
-plt.ylabel("dc Bias (V)")
-plt.title("Time Domain Envelope Data")
-plt.colorbar(label="Voltage (mV)")
+plt.pcolormesh(X_grid_td, Y_grid_td, np.abs(Z_td), shading='auto')
+# plt.xlabel("Time (ns)")
+# plt.ylabel("dc Bias (V)")
+# plt.title("Time Domain Data")
+# plt.colorbar(label="Voltage (mV)")
 
 fig5 = plt.figure(5)
 ax = fig5.add_subplot(111, projection='3d')
-ax.plot_surface(X_grid_td, Y_grid_td, Z_td )
+ax.plot_surface(X_grid_td, Y_grid_td, np.abs(Z_td) )
 plt.xlabel("Time (ns)")
 plt.ylabel("dc Bias (V)")
 plt.gca().set_zlabel("Voltage (mV)")
+ax.view_init(elev=90, azim=-90)
 plt.title("Time Domain Data")
-
-idx = 0
-fig6 = plt.figure(6)
-for t, v in zip(times, volts):
-	pwr = target_floats[idx]
-	plt.subplot(2, 1, 1)
-	plt.plot(t*1e9, v*1e3, linestyle='-', color=cmap[idx], alpha=0.35, label=f"{pwr} V")
-	plt.subplot(2, 1, 2)
-	plt.plot(t*1e9, v*1e3/np.max(v), linestyle='-', color=cmap[idx], alpha=0.35, label=f"{pwr} V")
-	idx += 1
-
-plt.subplot(2, 1, 1)
-plt.xlabel("Time (ns)")
-plt.ylabel("Voltage (mV)")
-plt.grid(True)
-plt.legend(ncol=3)
-
-plt.subplot(2, 1, 2)
-plt.xlabel("Time (ns)")
-plt.ylabel("Normalized Voltage (1)")
-plt.grid(True)
-
-idx = 0
-fig7 = plt.figure(7)
-for t, v in zip(times_trig, volts_trig):
-	pwr = target_floats[idx]
-	plt.subplot(2, 1, 1)
-	plt.plot(t*1e9, v*1e3, linestyle='-', color=cmap[idx], alpha=0.35, label=f"{pwr} V")
-	plt.subplot(2, 1, 2)
-	plt.plot(t*1e9, v*1e3/np.max(v), linestyle='-', color=cmap[idx], alpha=0.35, label=f"{pwr} V")
-	idx += 1
-
-plt.subplot(2, 1, 1)
-plt.xlabel("Time (ns)")
-plt.ylabel("Voltage (mV)")
-plt.grid(True)
-plt.legend(ncol=3)
-
-plt.subplot(2, 1, 2)
-plt.xlabel("Time (ns)")
-plt.ylabel("Normalized Voltage (1)")
-plt.grid(True)
-
-plt.suptitle(f"Trigger Channel")
-
-fig8 = plt.figure(8)
-plt.pcolormesh(X_grid_td[::-1], Y_grid_td, norm_envelopes[::-1], shading='auto')
-plt.xlabel("Time (ns)")
-plt.ylabel("dc Bias (V)")
-plt.title("Time Domain Normalized Envelope Data")
-plt.colorbar(label="Voltage (mV)")
-
-fig9 = plt.figure(9)
-ax = fig9.add_subplot(111, projection='3d')
-ax.plot_surface(X_grid, Y_grid, uni_freqs_valid )
-plt.xlabel("Time (ns)")
-plt.ylabel("dc Bias (V)")
-plt.gca().set_zlabel("Frequency (MHz)")
-plt.title("2D grid from analyze_file")
+# 
+# 
+# #========================================================================
+# #==================== Alternative Example ===============================
+# 
+# import numpy as np
+# import matplotlib.pyplot as plt
+# from mpl_toolkits.mplot3d import Axes3D  # Registers 3D projection
+# 
+# # Create coordinate grid
+# x = np.linspace(-5, 5, 100)
+# y = np.linspace(-5, 5, 100)
+# X, Y = np.meshgrid(x, y)
+# 
+# # Define a function to plot: Z = sin(sqrt(X² + Y²))
+# Z = np.sin(np.sqrt(X**2 + Y**2)*(X/4))+X/4+Y/4
+# 
+# # Create a figure and 3D axes
+# fig = plt.figure()
+# ax = fig.add_subplot(111, projection='3d')
+# 
+# # Plot the surface
+# surf = ax.plot_surface(X, Y, Z, cmap='viridis', edgecolor='none')
+# 
+# # Add labels
+# ax.set_xlabel('X axis')
+# ax.set_ylabel('Y axis')
+# ax.set_zlabel('Z axis')
+# ax.set_title('3D Surface Plot Example')
+# 
+# # Add color bar
+# fig.colorbar(surf, ax=ax, shrink=0.5, aspect=5)
+# 
+# # Optional: adjust viewing angle
+# ax.view_init(elev=30, azim=135)
+# 
+# 
+# fig2 = plt.figure()
+# plt.pcolormesh(X, Y, Z, shading='auto')
+# plt.xlabel("X")
+# plt.ylabel("Y")
+# plt.colorbar(label="Z")
 
 plt.show()

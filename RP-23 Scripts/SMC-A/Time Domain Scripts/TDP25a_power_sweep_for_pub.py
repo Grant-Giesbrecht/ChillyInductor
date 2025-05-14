@@ -27,7 +27,8 @@ if platform == "darwin":
 elif platform == "win32":
 	base_dir = os.path.join('G:\\', 'ARC0 PhD Data', 'RP-23 Qubit Readout', 'Data', 'SMC-A', 'Time Domain Measurements', '17April2025_DownMix', 'power_sweep_500MHz')
 	trim_time_ns = [-230, -150]
-	N_avg = 4
+	trim_time_ns = [-260, -120]
+	N_avg = 5
 
 
 
@@ -205,7 +206,7 @@ X_grid, Y_grid = np.meshgrid(X*1e9, Y)
 #================ Plot Data ========================
 cmap = sample_colormap(cmap_name='viridis', N=len(volts))
 
-fig1 = plt.figure()
+fig1 = plt.figure(1)
 plt.pcolormesh(X_grid, Y_grid, Z, shading='auto')
 plt.xlabel("Time (ns)")
 plt.ylabel("Power (dBm)")
@@ -214,8 +215,8 @@ plt.colorbar(label="Frequency (MHz)")
 
 # Optional: visualize the result
 # plt.pcolormesh(X_grid, Y_grid, Z, shading='auto')
-fig = plt.figure()
-ax = fig.add_subplot(111, projection='3d')
+fig2 = plt.figure(2)
+ax = fig2.add_subplot(111, projection='3d')
 ax.plot_surface(X_grid, Y_grid, Z )
 plt.xlabel("Time (ns)")
 plt.ylabel("Power (dBm)")
@@ -224,7 +225,7 @@ plt.title("2D grid from analyze_file")
 # plt.colorbar(label="Frequency (GHz)")
 
 idx = 0
-fig4 = plt.figure(4)
+fig3 = plt.figure(3)
 for t, v in zip(times, volts):
 	pwr = target_floats[idx]
 	plt.subplot(2, 1, 1)
@@ -243,5 +244,61 @@ plt.subplot(2, 1, 2)
 plt.xlabel("Time (ns)")
 plt.ylabel("Normalized Voltage (1)")
 plt.grid(True)
+
+t_norm = times[0][0]*1e9
+
+fig4 = plt.figure(4)
+gs4 = fig4.add_gridspec(2, 1)
+ax4a = fig4.add_subplot(gs4[0, 0])
+ax4b = fig4.add_subplot(gs4[1, 0])
+
+idx = len(X_grid)-1
+yval = Y_grid[idx][0]
+ax4a.plot(X_grid[idx]-t_norm, Z[idx], label=f"Power = {yval} dBm", linestyle='--', marker='o', color=cmap[idx])
+idx = len(X_grid)-4
+yval = Y_grid[idx][0]
+ax4a.plot(X_grid[idx]-t_norm, Z[idx], label=f"Power = {yval} dBm", linestyle='--', marker='o', color=cmap[idx])
+idx = len(X_grid)-7
+yval = Y_grid[idx][0]
+ax4a.plot(X_grid[idx]-t_norm, Z[idx], label=f"Power = {yval} dBm", linestyle='--', marker='o', color=cmap[idx])
+idx = len(X_grid)-10
+yval = Y_grid[idx][0]
+ax4a.plot(X_grid[idx]-t_norm, Z[idx], label=f"Power = {yval} dBm", linestyle='--', marker='o', color=cmap[idx])
+idx = 0
+yval = Y_grid[idx][0]
+ax4a.plot(X_grid[idx]-t_norm, Z[idx], label=f"Power = {yval} dBm", linestyle='--', marker='o', color=cmap[idx])
+
+ax4a.set_ylim([480, 520])
+ax4a.set_xlim([trim_time_ns[0]-t_norm, trim_time_ns[1]-t_norm])
+ax4a.set_xlabel(f"Time (ns)")
+ax4a.set_ylabel(f"Frequency (MHz)")
+ax4a.legend()
+ax4a.grid(True)
+
+idx = len(X_grid)-1
+yval = Y_grid[idx][0]
+ax4b.plot(times[idx]*1e9-t_norm, volts[idx], label=f"Power = {yval} dBm", linestyle='-', color=cmap[idx])
+idx = len(X_grid)-4
+yval = Y_grid[idx][0]
+ax4b.plot(times[idx]*1e9-t_norm, volts[idx], label=f"Power = {yval} dBm", linestyle='-', color=cmap[idx])
+idx = len(X_grid)-7
+yval = Y_grid[idx][0]
+ax4b.plot(times[idx]*1e9-t_norm, volts[idx], label=f"Power = {yval} dBm", linestyle='-', color=cmap[idx])
+idx = len(X_grid)-10
+yval = Y_grid[idx][0]
+ax4b.plot(times[idx]*1e9-t_norm, volts[idx], label=f"Power = {yval} dBm", linestyle='-', color=cmap[idx])
+idx = 0
+yval = Y_grid[idx][0]
+ax4b.plot(times[idx]*1e9-t_norm, volts[idx], label=f"Power = {yval} dBm", linestyle='-', color=cmap[idx])
+
+ax4b.set_xlabel(f"Time (ns)")
+ax4b.set_xlim([trim_time_ns[0]-t_norm, trim_time_ns[1]-t_norm])
+ax4b.set_ylabel(f"Voltage (mV)")
+ax4b.legend()
+ax4b.grid(True)
+
+plt.tight_layout()
+
+fig4.savefig(os.path.join("figures", "TDP25a_fig4.pdf"))
 
 plt.show()

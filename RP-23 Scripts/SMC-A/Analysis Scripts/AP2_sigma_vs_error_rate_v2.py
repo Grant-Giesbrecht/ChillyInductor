@@ -7,6 +7,7 @@ import matplotlib.pyplot as plt
 sigmas_doub_ns = [10, 20, 30, 37.5, 100]
 error_I_doub = [4.1e-2, 1.3e-2, 1.14e-2, 1.23e-2, None]
 error_Q_doub = [3.52e-2, 1.15e-2, 1.24e-2, 1.46e-2, 1.5e-2]
+error_sel_doub = [4.1e-2, 0.011487, 0.0113764400423059, 0.0122812967174981, 0.015028]
 pi_cf_doub = [1.0385, 1.0425, 1.037, 1.025, 1.048]
 hp_cf_doub = [0.965, 1, 0.9975, 0.9935, 0.9975]
 
@@ -19,6 +20,7 @@ hp_cf_dchirp = [0.9975, 0.9975]
 sigmas_trad_ns = [10, 20, 30, 37.5, 100]
 error_I_trad = [5.43e-3, 7.06e-3, 6.23e-3, 7.58e-3, 6.55e-3]
 error_Q_trad = [5.69e-3, 7.39e-3, 6.29e-3, 7.41e-3, 6.16e-3]
+error_sel_trad = [5.69e-3, 0.00739361041115444, 0.00622962072981692, 0.0075821, 0.00655041944015322]
 
 # Prepare figure 1
 fig1 = plt.figure(1)
@@ -69,13 +71,18 @@ ax2a.legend()
 # ax3a.plot(sigmas_doub_ns, error_Q_doub, linestyle=':', marker='o', color=(33/255, 170/255, 190/255), label="Doubler")
 # ax3a.plot(sigmas_trad_ns, error_Q_trad, linestyle=':', marker='s', color=(110/255, 30/255, 110/255), label="Traditional")
 
-ax3a.plot(sigmas_doub_ns, error_Q_doub, linestyle=':', marker='o', color=(35/255, 142/255, 169/255), label="Doubler")
-ax3a.plot(sigmas_trad_ns, error_Q_trad, linestyle=':', marker='s', color=(102/255, 35/255, 170/255), label="Traditional")
+ax3a.plot(sigmas_doub_ns, error_sel_doub, linestyle=':', marker='o', color=(35/255, 142/255, 169/255), label="Doubler")
+ax3a.plot(sigmas_trad_ns, error_sel_trad, linestyle=':', marker='s', color=(102/255, 35/255, 170/255), label="Traditional")
 
 ax3a.grid(True)
 ax3a.set_xlabel("Pre-Doubled $\\sigma$ (ns)")
 ax3a.set_ylabel(f"Error per Gate")
 ax3a.set_title("Error Rate Comparison")
 ax3a.legend()
+
+plt.savefig("AP2_Error_Rate_Summary.svg")
+plt.savefig("AP2_Error_Rate_Summary.pdf")
+plt.savefig("AP2_Error_Rate_Summary.ps")
+plt.savefig("AP2_Error_Rate_Summary.eps")
 
 plt.show()
