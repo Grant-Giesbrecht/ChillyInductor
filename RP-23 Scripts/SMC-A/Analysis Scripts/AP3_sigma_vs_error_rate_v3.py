@@ -34,13 +34,13 @@ class AP3Datapoint:
 #---- Manually enter data
 
 data_points = []
-data_points.append(AP3Datapoint( trad_sigma=25e-9, doubler_err = 1.16e-2, trad_err=None,
+data_points.append(AP3Datapoint( trad_sigma=25e-9, doubler_err = 1.16e-2, trad_err=9e-3,
 								doubler_pi_cf=1.03, doubler_halfpi_cf=0.995,
-								 trad_pi_cf=None, trad_halfpi_cf=None ))
+								 trad_pi_cf=1.0125, trad_halfpi_cf=1 ))
 
-data_points.append(AP3Datapoint( trad_sigma=15e-9, doubler_err = 1.11e-2, trad_err=None,
+data_points.append(AP3Datapoint( trad_sigma=15e-9, doubler_err = 1.11e-2, trad_err=7.4e-3,
 								doubler_pi_cf=1.015, doubler_halfpi_cf=1.003,
-								 trad_pi_cf=None, trad_halfpi_cf=None ))
+								 trad_pi_cf=1.00675, trad_halfpi_cf=1.0063 ))
 
 data_points.append(AP3Datapoint( trad_sigma=20e-9, doubler_err = 9.94e-3, trad_err=8.2e-3,
 								doubler_pi_cf=1.02, doubler_halfpi_cf=1,
@@ -54,9 +54,21 @@ data_points.append(AP3Datapoint( trad_sigma=30e-9, doubler_err = 9.35e-3, trad_e
 								doubler_pi_cf=1.03, doubler_halfpi_cf=0.995,
 								 trad_pi_cf=1.10125, trad_halfpi_cf=1.00674 ))
 
-# data_points.append(AP3Datapoint( trad_sigma=None, doubler_err = None, trad_err=None,
-# 								doubler_pi_cf=None, doubler_halfpi_cf=None,
-# 								 trad_pi_cf=None, trad_halfpi_cf=None ))
+data_points.append(AP3Datapoint( trad_sigma=50e-9, doubler_err = 1.27e-2, trad_err=1.32e-2,
+								doubler_pi_cf=1.0425, doubler_halfpi_cf=0.995,
+								 trad_pi_cf=1.011, trad_halfpi_cf=1.005 ))
+
+data_points.append(AP3Datapoint( trad_sigma=200e-9, doubler_err = 5.59e-2, trad_err=4.92e-2,
+								doubler_pi_cf=1.045, doubler_halfpi_cf=1,
+								 trad_pi_cf=0.9763, trad_halfpi_cf=1 ))
+
+data_points.append(AP3Datapoint( trad_sigma=40e-9, doubler_err = 1.16e-2, trad_err=1.2e-2,
+								doubler_pi_cf=1.04, doubler_halfpi_cf=0.9925,
+								 trad_pi_cf=1.0125, trad_halfpi_cf=1.0063 ))
+
+data_points.append(AP3Datapoint( trad_sigma=100e-9, doubler_err = 2.45e-2, trad_err=2.7e-2,
+								doubler_pi_cf=None, doubler_halfpi_cf=None,
+								 trad_pi_cf=1.003, trad_halfpi_cf=1.0046 ))
 
 # data_points.append(AP3Datapoint( trad_sigma=None, doubler_err = None, trad_err=None,
 # 								doubler_pi_cf=None, doubler_halfpi_cf=None,
@@ -92,8 +104,11 @@ ax1a = fig1.add_subplot(gs1[0, 0])
 # ax3a = fig3.add_subplot(gs3[0, 0])
 
 # Plot figure 1
-ax1a.semilogy(trad_sigma, doubler_err, linestyle=':', marker='+', color=(0, 0.3, 0.7), label="I, Doubler")
-ax1a.semilogy(trad_sigma, trad_err, linestyle=':', marker='x', color=(0.7, 0, 0.3), label="Q, Doubler")
+# ax1a.semilogy(trad_sigma, doubler_err, linestyle=':', marker='+', color=(0, 0.3, 0.7), label="Doubler")
+# ax1a.semilogy(trad_sigma, trad_err, linestyle=':', marker='x', color=(0.7, 0, 0.3), label="Traditional")
+
+ax1a.plot(trad_sigma, doubler_err, linestyle=':', marker='+', color=(0, 0.3, 0.7), label="Doubler")
+ax1a.plot(trad_sigma, trad_err, linestyle=':', marker='x', color=(0.7, 0, 0.3), label="Traditional")
 
 # ax1a.plot(sigmas_trad_ns, error_I_trad, linestyle=':', marker='s', color=(0, 0.1, 0.5), label="I, Traditional")
 # ax1a.plot(sigmas_trad_ns, error_Q_trad, linestyle=':', marker='s', color=(0.5, 0, 0.1), label="Q, Traditional")
