@@ -2,8 +2,16 @@
 Uses updated timing system w/ 4 sigma on trad, and 2sqrt(2) on doubler.
 '''
 
+import matplotlib as mpl
+import argparse
 import matplotlib.pyplot as plt
 import numpy as np
+import os
+
+parser = argparse.ArgumentParser()
+parser.add_argument('-p', '--pub', help="Publication version.", action='store_true')
+parser.add_argument('-s', '--save', help="Save figure to PDF.", action='store_true')
+args = parser.parse_args()
 
 #------------------------------------------------------------------
 #--- Create Class for organizing data points
@@ -88,34 +96,23 @@ for dp in data_points:
 ##------------------------------------------------------------------
 #---- Plot results
 
+# color_trad = (0.7, 0, 0.3)
+# color_doub = (0, 0.3, 0.7)
+
+color_trad = (0.3, 0.3, 0.3)
+# color_trad = (0.45, 0.45, 0.45)
+# color_trad = (0, 179/255, 146/255)
+color_doub = (0, 119/255, 179/255) # From TQE template section header color
+
+
+
 # Prepare figure 1
 fig1 = plt.figure(1)
 gs1 = fig1.add_gridspec(1, 1)
 ax1a = fig1.add_subplot(gs1[0, 0])
 
-# # Prepare figure 2
-# fig2 = plt.figure(2)
-# gs2 = fig2.add_gridspec(1, 1)
-# ax2a = fig2.add_subplot(gs2[0, 0])
-
-# # Prepare figure 1
-# fig3 = plt.figure(3)
-# gs3 = fig3.add_gridspec(1, 1)
-# ax3a = fig3.add_subplot(gs3[0, 0])
-
-# Plot figure 1
-# ax1a.semilogy(trad_sigma, doubler_err, linestyle=':', marker='+', color=(0, 0.3, 0.7), label="Doubler")
-# ax1a.semilogy(trad_sigma, trad_err, linestyle=':', marker='x', color=(0.7, 0, 0.3), label="Traditional")
-
-ax1a.plot(trad_sigma, doubler_err, linestyle=':', marker='+', color=(0, 0.3, 0.7), label="Doubler")
-ax1a.plot(trad_sigma, trad_err, linestyle=':', marker='x', color=(0.7, 0, 0.3), label="Traditional")
-
-# ax1a.plot(sigmas_trad_ns, error_I_trad, linestyle=':', marker='s', color=(0, 0.1, 0.5), label="I, Traditional")
-# ax1a.plot(sigmas_trad_ns, error_Q_trad, linestyle=':', marker='s', color=(0.5, 0, 0.1), label="Q, Traditional")
-
-# ax1a.scatter(sigmas_dchirp_ns, error_I_dchirp, marker='o', color=(0, 0, 0.7), label="I, DPD")
-# ax1a.scatter(sigmas_dchirp_ns, error_Q_dchirp, marker='o', color=(0.7, 0, 0), label="Q, DPD")
-
+ax1a.plot(trad_sigma, doubler_err, linestyle=':', marker='o', color=color_doub, label="Frequency-Doubler Drive", markersize=7)
+ax1a.plot(trad_sigma, trad_err, linestyle='--', marker='+', color=color_trad, label="Traditional Drive", markersize=10, markeredgewidth=2)
 
 ax1a.grid(True)
 ax1a.set_xlabel("$\\sigma$ (ns)")
@@ -123,35 +120,12 @@ ax1a.set_ylabel(f"Error per Gate")
 ax1a.set_title("Error Rate Comparison")
 ax1a.legend()
 
-# # Plot figure 2
-# ax2a.plot(sigmas_doub_ns, pi_cf_doub, linestyle=':', marker='.', color=(0, 0.6, 0.4), label="$\\pi$ Correction")
-# ax2a.plot(sigmas_doub_ns, hp_cf_doub, linestyle=':', marker='.', color=(0.6, 0.4, 0.6), label="$\\pi$/2 Correction")
+if args.pub:
+	mpl.rcParams['font.family'] = 'sans-serif'
+	mpl.rcParams['font.sans-serif'] = ['Arial']
 
-# ax2a.grid(True)
-# ax2a.set_xlabel("Pre-Doubled $\\sigma$ (ns)")
-# ax2a.set_ylabel(f"Correction Factor")
-# ax2a.set_title("Doubler Drive Conditions")
-# ax2a.legend()
+if args.save:
+	fig1.savefig(os.path.join("figures", "AP3_fig1.pdf"))
 
-# # Plot figure 3
-# # ax3a.plot(sigmas_doub_ns, error_Q_doub, linestyle=':', marker='o', color=(33/255, 91/255, 114/255), label="Doubler")
-# # ax3a.plot(sigmas_trad_ns, error_Q_trad, linestyle=':', marker='s', color=(202/255, 158/255, 200/255), label="Traditional")
-
-# # ax3a.plot(sigmas_doub_ns, error_Q_doub, linestyle=':', marker='o', color=(33/255, 170/255, 190/255), label="Doubler")
-# # ax3a.plot(sigmas_trad_ns, error_Q_trad, linestyle=':', marker='s', color=(110/255, 30/255, 110/255), label="Traditional")
-
-# ax3a.plot(sigmas_doub_ns, error_sel_doub, linestyle=':', marker='o', color=(35/255, 142/255, 169/255), label="Doubler")
-# ax3a.plot(sigmas_trad_ns, error_sel_trad, linestyle=':', marker='s', color=(102/255, 35/255, 170/255), label="Traditional")
-
-# ax3a.grid(True)
-# ax3a.set_xlabel("Pre-Doubled $\\sigma$ (ns)")
-# ax3a.set_ylabel(f"Error per Gate")
-# ax3a.set_title("Error Rate Comparison")
-# ax3a.legend()
-
-# plt.savefig("AP2_Error_Rate_Summary.svg")
-# plt.savefig("AP2_Error_Rate_Summary.pdf")
-# plt.savefig("AP2_Error_Rate_Summary.ps")
-# plt.savefig("AP2_Error_Rate_Summary.eps")
 
 plt.show()
