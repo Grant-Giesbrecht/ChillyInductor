@@ -3,10 +3,7 @@
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
-from scipy.optimize import curve_fit
 from colorama import Fore, Style
-from scipy.signal import hilbert
-from scipy.signal import butter, lfilter, freqz
 import time
 import os
 import sys
