@@ -2746,28 +2746,28 @@ class SpectrumPIDomainPlotWidget(TabPlotWidget):
 		
 		self.plot_is_current = True
 
-# class PowerDomainTabWidget(QTabWidget):
-#	
-# 	def __init__(self, global_conditions:dict, main_window):
-# 		super().__init__()
+class PowerDomainTabWidget(QTabWidget):
+	
+	def __init__(self, global_conditions:dict, main_window):
+		super().__init__()
 		
-# 		self.main_window = main_window
-# 		self.object_list = []
-# 		self._is_active = False
+		self.main_window = main_window
+		self.object_list = []
+		self._is_active = False
 		
-# 		#------------ Max Bias widget
+		#------------ Max Bias widget
 		
-# 		self.object_list.append(HarmGenBiasDomainPlotWidget(global_conditions, self.main_window.log, self.main_window.mdata))
-# 		self.main_window.gcond_subscribers.append(self.object_list[-1])
-# 		self.addTab(self.object_list[-1], "Harmonic Generation")
+		self.object_list.append(HarmGenBiasDomainPlotWidget(global_conditions, self.main_window.log, self.main_window.mdata))
+		self.main_window.gcond_subscribers.append(self.object_list[-1])
+		self.addTab(self.object_list[-1], "Harmonic Generation")
 		
-# 		self.currentChanged.connect(self.update_active_tab)
-#		
-# 	def set_active(self, b:bool):
-# 		self._is_active = b
-# 		self.update_active_tab()
-#	
-# 	def update_active_tab(self):
+		self.currentChanged.connect(self.update_active_tab)
+		
+	def set_active(self, b:bool):
+		self._is_active = b
+		self.update_active_tab()
+	
+	def update_active_tab(self):
 		
 		# Set all objects to inactive
 		for obj in self.object_list:

@@ -144,3 +144,4 @@ apps/wyvern/assets/wyvern_src.afdesign~lock~
 *.svg
 *.png
 
+.DS_Store
