@@ -33,20 +33,27 @@ parser.add_argument('--tmin', help='Set min time (ns)', type=float)
 parser.add_argument('--tmax', help='Set max time (ns)', type=float)
 parser.add_argument('--shortlegend', help='Abbreviate legend', action='store_true')
 parser.add_argument('--flip', help='Flip plot order', action='store_true')
+parser.add_argument('--path', help='Specify where to look for files')
 args = parser.parse_args()
 
 
 
 # Read file
 try:
-	df = pd.read_csv(args.filename, skiprows=4, encoding='utf-8')
+	fn = args.filename
+	if args.path is not None:
+		fn = os.path.join(args.path, fn)
+	df = pd.read_csv(fn, skiprows=4, encoding='utf-8')
 except:
 	print(f"Failed to find file {args.filename}. Aborting.")
 	sys.exit()
 
 # Read file
 try:
-	dfc = pd.read_csv(args.comparefile, skiprows=4, encoding='utf-8')
+	fn = args.comparefile
+	if args.path is not None:
+		fn = os.path.join(args.path, fn)
+	dfc = pd.read_csv(fn, skiprows=4, encoding='utf-8')
 except:
 	print(f"Failed to find file {args.comparefile}. Aborting.")
 	sys.exit()
@@ -54,7 +61,10 @@ except:
 # Read file
 if args.file2 is not None:
 	try:
-		df2 = pd.read_csv(args.file2, skiprows=4, encoding='utf-8')
+		fn = args.file2
+		if args.path is not None:
+			fn = os.path.join(args.path, fn)
+		df2 = pd.read_csv(fn, skiprows=4, encoding='utf-8')
 		
 		t2 = np.array(df2['Time']*1e9)
 		v2 = np.array(df2['Ampl']*1e3)
@@ -71,7 +81,10 @@ else:
 # Read file
 if args.file3 is not None:
 	try:
-		df3 = pd.read_csv(args.file3, skiprows=4, encoding='utf-8')
+		fn = args.file3
+		if args.path is not None:
+			fn = os.path.join(args.path, fn)
+		df3 = pd.read_csv(fn, skiprows=4, encoding='utf-8')
 		
 		t3 = np.array(df3['Time']*1e9)
 		v3 = np.array(df3['Ampl']*1e3)
@@ -88,7 +101,10 @@ else:
 # Read file
 if args.file4 is not None:
 	try:
-		df4 = pd.read_csv(args.file4, skiprows=4, encoding='utf-8')
+		fn = args.file4
+		if args.path is not None:
+			fn = os.path.join(args.path, fn)
+		df4 = pd.read_csv(fn, skiprows=4, encoding='utf-8')
 		
 		t4 = np.array(df4['Time']*1e9)
 		v4 = np.array(df4['Ampl']*1e3)
