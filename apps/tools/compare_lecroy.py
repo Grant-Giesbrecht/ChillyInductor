@@ -29,6 +29,8 @@ parser.add_argument('--legend1', help='Label for comparison file 1')
 parser.add_argument('--legend2', help='Label for comparison file 2')
 parser.add_argument('--legend3', help='Label for comparison file 3')
 parser.add_argument('--legend4', help='Label for comparison file 4')
+parser.add_argument('--scale', help='Scale factor for comparison file.', type=float, default=1)
+
 parser.add_argument('--tmin', help='Set min time (ns)', type=float)
 parser.add_argument('--tmax', help='Set max time (ns)', type=float)
 parser.add_argument('--shortlegend', help='Abbreviate legend', action='store_true')
@@ -123,6 +125,9 @@ t = np.array(df['Time']*1e9)
 v = np.array(df['Ampl']*1e3)
 tc = np.array(dfc['Time']*1e9)
 vc = np.array(dfc['Ampl']*1e3)
+
+# Scale comparison file
+vc = vc*args.scale
 
 t_si = np.array(df['Time'])
 v_si = np.array(df['Ampl'])
