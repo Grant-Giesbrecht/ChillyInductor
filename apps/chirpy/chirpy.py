@@ -22,6 +22,7 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('-d', '--detail', help="Show log details.", action='store_true')
 parser.add_argument('-m', '--macos', help="Use macOS filesystem..", action='store_true')
+parser.add_argument('--julymac', help="Use macOS filesystem..", action='store_true')
 parser.add_argument('-x', '--skipfit', help="Skips autofit of data.", action='store_true')
 parser.add_argument('--coarse', help="Coarse fit steps.", action='store_true')
 parser.add_argument('--drive', help="Specify the drive letter from which to load data.", choices=['D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'], type=str.upper)
@@ -183,6 +184,8 @@ class ChirpDataset(bh.BHDataset):
 		self.time_reversal = False
 		self.trim_time = True
 		self.window_step_points = step_points
+		# self.window_size_ns = 10
+		self.window_size_ns = 50
 		
 		self.windowed_freq_analysis_linear_guided()
 	
@@ -225,7 +228,7 @@ class ChirpDataset(bh.BHDataset):
 		fit_method = GUIDED_SINE_FIT
 
 		# Window fit options
-		window_size_ns = self.window_size
+		window_size_ns = self.window_size_ns
 		window_step_points = self.window_step_points
 
 		# Show fits
@@ -294,11 +297,12 @@ class ChirpDataset(bh.BHDataset):
 		
 		# Initial guess
 		freq = 4.825
+		freq = 0.1
 		param = [50, 2*3.14159*freq, 0, 0, 0]
 		
 		# Set bounds
-		lower = [10, 2*pi*4.8, -pi*1.5, -10, -5]
-		upper = [220, 2*pi*4.9, pi*1.5, 10, 5]
+		lower = [10, 2*pi*0.08, -pi*1.5, -10, -5]
+		upper = [220, 2*pi*0.32, pi*1.5, 10, 5]
 		bounds = [lower, upper]
 		
 		# Initialize window
@@ -953,7 +957,10 @@ app.setStyle(f"Fusion")
 
 # Create Data Manager
 data_manager = bh.BHDatasetManager(log, load_function=load_chirp_dataset)
-if args.macos:
+if args.julymac:
+	if not data_manager.load_configuration("chirpy_conf_macOS_july.json"):
+		exit()
+elif args.macos:
 	if not data_manager.load_configuration("chirpy_conf_macOS.json"):
 		exit()
 else:
