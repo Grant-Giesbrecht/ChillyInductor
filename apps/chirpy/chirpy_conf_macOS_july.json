@@ -47,6 +47,36 @@
 			},
 			"notes": "",
 			"valid_active_set_indices": [0]
+		},
+		{
+			"file_path": ["$JULY_TD$", "C1RP23C_f73_AVG5k_00000.txt"],
+			"parameters": {
+				"fund_freq_GHz": 2.36,
+				"bias_V": 0.05,
+				"P_RF_dBm": -14,
+				"channel": 1,
+				"group": "July TD"
+			},
+			"options": {
+				"trim_regions": [[-1200, -870]]
+			},
+			"notes": "",
+			"valid_active_set_indices": [0]
+		},
+		{
+			"file_path": ["$JULY_TD$", "C1RP23C_f75_AVG5k_00000.txt"],
+			"parameters": {
+				"fund_freq_GHz": 2.36,
+				"bias_V": 0.05,
+				"P_RF_dBm": -14,
+				"channel": 1,
+				"group": "July TD"
+			},
+			"options": {
+				"trim_regions": [[-1200, -870]]
+			},
+			"notes": "",
+			"valid_active_set_indices": [0]
 		}
 	],
 	"organization_structure":[

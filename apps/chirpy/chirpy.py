@@ -184,7 +184,8 @@ class ChirpDataset(bh.BHDataset):
 		self.time_reversal = False
 		self.trim_time = True
 		self.window_step_points = step_points
-		self.window_size_ns = 10
+		# self.window_size_ns = 10
+		self.window_size_ns = 50
 		
 		self.windowed_freq_analysis_linear_guided()
 	
@@ -296,11 +297,12 @@ class ChirpDataset(bh.BHDataset):
 		
 		# Initial guess
 		freq = 4.825
+		freq = 0.1
 		param = [50, 2*3.14159*freq, 0, 0, 0]
 		
 		# Set bounds
-		lower = [10, 2*pi*4.8, -pi*1.5, -10, -5]
-		upper = [220, 2*pi*4.9, pi*1.5, 10, 5]
+		lower = [10, 2*pi*0.08, -pi*1.5, -10, -5]
+		upper = [220, 2*pi*0.32, pi*1.5, 10, 5]
 		bounds = [lower, upper]
 		
 		# Initialize window
