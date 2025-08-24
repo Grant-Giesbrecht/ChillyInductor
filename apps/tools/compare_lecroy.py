@@ -35,7 +35,11 @@ parser.add_argument('--tmin', help='Set min time (ns)', type=float)
 parser.add_argument('--tmax', help='Set max time (ns)', type=float)
 parser.add_argument('--shortlegend', help='Abbreviate legend', action='store_true')
 parser.add_argument('--flip', help='Flip plot order', action='store_true')
-parser.add_argument('--path', help='Specify where to look for files')
+parser.add_argument('--path', help='Specify path to append to all provided filenames, both for reading and saving.')
+parser.add_argument('--savepdf', help='Save the figure as a PDF to the provided filename.')
+parser.add_argument('--title', help='Specify graph title')
+parser.add_argument('--figsizex', help='Specify figure x-size. Default=8.', type=float, default=8)
+parser.add_argument('--figsizey', help='Specify figure y-size. Default=8.', type=float, default=8)
 args = parser.parse_args()
 
 
@@ -139,11 +143,14 @@ tc = tc + args.toffns
 vc = vc + args.voffmv
 
 # Create figure
-fig1 = plt.figure(1, figsize=(8, 8))
+fig1 = plt.figure(1, figsize=(args.figsizex, args.figsizey))
 
 gs = fig1.add_gridspec(1, 1)
 ax1a = fig1.add_subplot(gs[0, 0])
-ax1a.set_title(f"{os.path.basename(args.filename)} vs {os.path.basename(args.comparefile)}")
+if args.title is not None:
+	ax1a.set_title(args.title)
+else:
+	ax1a.set_title(f"{os.path.basename(args.filename)} vs {os.path.basename(args.comparefile)}")
 
 if args.shortlegend:
 	label_0 = "orig"
@@ -206,5 +213,18 @@ mplcursors.cursor(multiple=True)
 
 ax1a.legend()
 fig1.tight_layout()
+
+# Save pdf if requested
+if args.savepdf is not None:
+	
+	# Get filename
+	fn = args.savepdf
+	if args.path is not None:
+		fn = os.path.join(args.path, fn)
+	
+	# Save figure
+	fig1.savefig(fn)
+	
+	print(f"Saved figure to: {fn}")
 
 plt.show()
