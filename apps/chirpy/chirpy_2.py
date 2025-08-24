@@ -560,7 +560,7 @@ class ZeroCrossWidget(QWidget):
 		self.plot_widget = bhw.BHMultiPlotWidget(main_window, grid_dim=[1, 1], plot_locations=[[0, 0]], custom_render_func=self.render_zcross, include_settings_button=True)
 		
 		# Add parameters for adjustable bounds
-		self.plot_widget.configure_integrated_bounds(ax=0, xlim=None, ylim=[4.7, 4.9])
+		self.plot_widget.configure_integrated_bounds(ax=0, xlim=None, ylim=[0, 0.4])
 		
 		# Add to control subscriber and local listeners
 		self.main_window.add_control_subscriber(self.plot_widget)
@@ -633,7 +633,7 @@ class FitExplorerWidget(QWidget):
 		self.plot_widget = bhw.BHMultiPlotWidget(main_window, grid_dim=[3, 2], plot_locations=[[slice(0,2), slice(0, 2)], [2, 0], [2, 1]], custom_render_func=self.render_manual_fit, include_settings_button=True)
 		
 		# Add parameters for adjustable bounds
-		self.plot_widget.configure_integrated_bounds(ax=0, xlim=None, ylim=[-75, 75])
+		self.plot_widget.configure_integrated_bounds(ax=0, xlim=None, ylim=[-20, 20])
 		
 		# Add to control subscriber and local listeners
 		self.main_window.add_control_subscriber(self.plot_widget)
@@ -808,8 +808,8 @@ class ChirpAnalyzerMainWindow(bh.BHMainWindow):
 		self.select_widget = bh.BHDatasetSelectBasicWidget(self, log)
 		
 		# Initialize control state
-		self.control_requested.add_param(AMPLITUDE_CTRL, 50)
-		self.control_requested.add_param(FREQUENCY_CTRL, 4850)
+		self.control_requested.add_param(AMPLITUDE_CTRL, 10)
+		self.control_requested.add_param(FREQUENCY_CTRL, 100)
 		self.control_requested.add_param(PHI_CTRL, 0)
 		self.control_requested.add_param(SLOPE_CTRL, 0)
 		self.control_requested.add_param(OFFSET_CTRL, 0)
@@ -846,8 +846,8 @@ class ChirpAnalyzerMainWindow(bh.BHMainWindow):
 		self.tab_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 		
 		#TODO: Create a controller
-		self.ampl_slider = bhw.BHSliderWidget(self, param=AMPLITUDE_CTRL, header_label="Amplitude", min=0, max=200, unit_label="mV", step=0.5)
-		self.freq_slider = bhw.BHSliderWidget(self, param=FREQUENCY_CTRL, header_label="Frequency", min=4700, max=4900, unit_label="MHz", step=1)
+		self.ampl_slider = bhw.BHSliderWidget(self, param=AMPLITUDE_CTRL, header_label="Amplitude", min=0, max=30, unit_label="mV", step=0.5)
+		self.freq_slider = bhw.BHSliderWidget(self, param=FREQUENCY_CTRL, header_label="Frequency", min=85, max=350, unit_label="MHz", step=1)
 		self.phi_slider = bhw.BHSliderWidget(self, param=PHI_CTRL, header_label="Phi", min=-270, max=270, unit_label="deg", step=1)
 		self.slope_slider = bhw.BHSliderWidget(self, param=SLOPE_CTRL, header_label="Slope", min=-2.5, max=2.5, unit_label="mV/ns", step=0.025)
 		self.offset_slider = bhw.BHSliderWidget(self, param=OFFSET_CTRL, header_label="Offset", min=-5, max=5, unit_label="mV", step=0.05)

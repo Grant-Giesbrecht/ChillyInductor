@@ -27,6 +27,7 @@ plt.ylabel("Frequency (MHz)")
 plt.figure(3)
 plt.plot(power_dBm, f_delta*1e3, color=(0, 0.6, 0), linestyle='--', marker='+')
 plt.grid(True)
+plt.title("Doubler, $\sigma$=10 ns, IF=300 MHz")
 plt.xlabel("Power (dBm)")
 plt.ylabel("Frequency Change (MHz)")
 
