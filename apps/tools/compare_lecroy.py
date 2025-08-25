@@ -40,6 +40,7 @@ parser.add_argument('--savepdf', help='Save the figure as a PDF to the provided 
 parser.add_argument('--title', help='Specify graph title')
 parser.add_argument('--figsizex', help='Specify figure x-size. Default=8.', type=float, default=8)
 parser.add_argument('--figsizey', help='Specify figure y-size. Default=8.', type=float, default=8)
+parser.add_argument('--reset0t', help='Reset time=0 to correspond with t-min.', action='store_true')
 args = parser.parse_args()
 
 
@@ -178,25 +179,43 @@ if args.legend3 is not None:
 	label_3 = args.legend3
 if args.legend4 is not None:
 	label_4 = args.legend4
+
+# Get time-shift param
+tshift = 0
+if args.reset0t:
 	
+	# Find amount to shift time by
+	if args.tmin is not None:
+		tshift = args.tmin
+	else:
+		tmin_list = [np.min(t)]
+		tmin_list.append(np.min(tc))
+		if df4 is not None:
+			tmin_list.append(np.min(t4))
+		if df3 is not None:
+			tmin_list.append(np.min(t3))
+		if df2 is not None:
+			tmin_list.append(np.min(t2))
+		tshift = np.min(tmin_list)
+
 if args.flip:
 	if df4 is not None:
-		ax1a.plot(t4, v4, linestyle=':', marker='.', color=color4, alpha=ALPHA, label=label_4)
+		ax1a.plot(t4-tshift, v4, linestyle=':', marker='.', color=color4, alpha=ALPHA, label=label_4)
 	if df3 is not None:
-		ax1a.plot(t3, v3, linestyle=':', marker='.', color=color3, alpha=ALPHA, label=label_3)
+		ax1a.plot(t3-tshift, v3, linestyle=':', marker='.', color=color3, alpha=ALPHA, label=label_3)
 	if df2 is not None:
-		ax1a.plot(t2, v2, linestyle=':', marker='.', color=color2, alpha=ALPHA, label=label_2)
-	ax1a.plot(tc, vc, linestyle=':', marker='.', color=(0.65, 0, 0), alpha=0.4, label=label_c)
-	ax1a.plot(t, v, linestyle='--', marker='.', color=(0, 0, 0.65), alpha=0.4, label=label_0)
+		ax1a.plot(t2-tshift, v2, linestyle=':', marker='.', color=color2, alpha=ALPHA, label=label_2)
+	ax1a.plot(tc-tshift, vc, linestyle=':', marker='.', color=(0.65, 0, 0), alpha=0.4, label=label_c)
+	ax1a.plot(t-tshift, v, linestyle='--', marker='.', color=(0, 0, 0.65), alpha=0.4, label=label_0)
 else:
-	ax1a.plot(t, v, linestyle='--', marker='.', color=(0, 0, 0.65), alpha=0.4, label=label_0)
-	ax1a.plot(tc, vc, linestyle=':', marker='.', color=(0.65, 0, 0), alpha=0.4, label=label_c)
+	ax1a.plot(t-tshift, v, linestyle='--', marker='.', color=(0, 0, 0.65), alpha=0.4, label=label_0)
+	ax1a.plot(tc-tshift, vc, linestyle=':', marker='.', color=(0.65, 0, 0), alpha=0.4, label=label_c)
 	if df2 is not None:
-		ax1a.plot(t2, v2, linestyle=':', marker='.', color=color2, alpha=ALPHA, label=label_2)
+		ax1a.plot(t2-tshift, v2, linestyle=':', marker='.', color=color2, alpha=ALPHA, label=label_2)
 	if df3 is not None:
-		ax1a.plot(t3, v3, linestyle=':', marker='.', color=color3, alpha=ALPHA, label=label_3)
+		ax1a.plot(t3-tshift, v3, linestyle=':', marker='.', color=color3, alpha=ALPHA, label=label_3)
 	if df4 is not None:
-		ax1a.plot(t4, v4, linestyle=':', marker='.', color=color4, alpha=ALPHA, label=label_4)
+		ax1a.plot(t4-tshift, v4, linestyle=':', marker='.', color=color4, alpha=ALPHA, label=label_4)
 		
 ax1a.set_xlabel("Time (ns))")
 ax1a.set_ylabel("Voltage (mV)")
@@ -204,10 +223,10 @@ ax1a.grid(True)
 
 if args.tmin is not None:
 	xl = ax1a.get_xlim()
-	ax1a.set_xlim([args.tmin, xl[1]])
+	ax1a.set_xlim([args.tmin-tshift, xl[1]])
 if args.tmax is not None:
 	xl = ax1a.get_xlim()
-	ax1a.set_xlim([xl[0], args.tmax])
+	ax1a.set_xlim([xl[0], args.tmax-tshift])
 
 mplcursors.cursor(multiple=True)
 
