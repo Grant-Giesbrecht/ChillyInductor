@@ -5,20 +5,23 @@ import numpy as np
 import os
 import pandas as pd
 import sys
+from ganymede import locate_drive
 
 parser = argparse.ArgumentParser()
 # parser.add_argument('-p', '--pub', help="Publication version.", action='store_true')
 parser.add_argument('-s', '--save', help="Save figure to PDF.", action='store_true')
 args = parser.parse_args()
 
-FILE_T0 = "/Volumes/M6 T7S/ARC0 PhD Data/RP-23 Qubit Readout/Data/SMC-C July Campaign/1-July-2025 TD Measurements/C1RP23C_f105_AVG5k_00000.txt"
-FILE_D0 = "/Volumes/M6 T7S/ARC0 PhD Data/RP-23 Qubit Readout/Data/SMC-C July Campaign/1-July-2025 TD Measurements/C1RP23C_f112_AVG5k_00000.txt"
+m6_dir = locate_drive("M6 T7S")
+
+FILE_T0 = os.path.join(m6_dir, "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-C July Campaign", "1-July-2025 TD Measurements", "C1RP23C_f105_AVG5k_00000.txt")
+FILE_D0 = os.path.join(m6_dir, "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-C July Campaign", "1-July-2025 TD Measurements", "C1RP23C_f112_AVG5k_00000.txt")
 OFFSET_D0 = 96.2
 T_MIN0 = -460
 T_MAX0 = -280
 
-FILE_T1 = "/Volumes/M6 T7S/ARC0 PhD Data/RP-23 Qubit Readout/Data/SMC-C July Campaign/1-July-2025 TD Measurements/C1RP23C_f102_AVG5k_00000.txt"
-FILE_D1 = "/Volumes/M6 T7S/ARC0 PhD Data/RP-23 Qubit Readout/Data/SMC-C July Campaign/1-July-2025 TD Measurements/C1RP23C_f107_AVG5k_00000.txt"
+FILE_T1 = os.path.join(m6_dir, "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-C July Campaign", "1-July-2025 TD Measurements", "C1RP23C_f102_AVG5k_00000.txt")
+FILE_D1 = os.path.join(m6_dir, "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-C July Campaign", "1-July-2025 TD Measurements", "C1RP23C_f107_AVG5k_00000.txt")
 OFFSET_D1 = 97.7
 T_MIN1 = -460
 T_MAX1 = -300
