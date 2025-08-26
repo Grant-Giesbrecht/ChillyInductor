@@ -4,11 +4,14 @@ import json
 import matplotlib.pyplot as plt
 import mplcursors
 import argparse
+from ganymede import locate_drive
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-p', '--pub', help="Publication version.", action='store_true')
 parser.add_argument('-s', '--save', help="Save figure to PDF.", action='store_true')
 args = parser.parse_args()
+
+m6_dir = locate_drive("M6 T7S")
 
 # 50 ns
 # file_trad = "G:\ARC0 PhD Data\RP-23 Qubit Readout\Data\SMC-A\Misc\Mai_Exodus\grant_data_mai\SF50ns\Trad\RB\SF50ns_trad_fit_I.json"
