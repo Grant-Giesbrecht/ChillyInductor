@@ -16,14 +16,14 @@ m6_dir = locate_drive("M6 T7S")
 # 50 ns
 file_trad_50 = os.path.join(m6_dir, "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Misc", "Mai_Exodus", "grant_data_mai", "SF50ns", "Trad", "RB", "SF50ns_trad_fit_I.json")
 file_doub_50 = os.path.join(m6_dir, "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Misc", "Mai_Exodus", "grant_data_mai", "SF50ns", "doubler", "RB", "SF50ns_doub_fit_Q.json")
-outfile50 = os.path.join(".", "figures", "AP4b_50ns_fig2.pdf")
+outfile50 = os.path.join(".", "figures", "AP4b_50ns_fig2.eps")
 
 # 10 ns
 base_path = os.path.join(m6_dir, "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A", "Misc", "Mai_Exodus", "grant_data_mai", "SF10ns")
 file_trad = os.path.join(base_path, "trad", "RB", "SF10ns_trad_data_Q.json")
 file_doub = os.path.join(base_path, "doubler", "RB", "SF10ns_doubler_data_Q.json")
 title_str = f""
-outfile = os.path.join(".", "figures", "AP4b_10ns_fig1.pdf")
+outfile = os.path.join(".", "figures", "AP4b_10ns_fig1.eps")
 
 Y_LIMS = [0.3, 1]
 
@@ -66,11 +66,16 @@ ax1a = fig1.add_subplot(gs1[0, 0])
 
 if args.pub:
 	
-	ax1a.plot(trad_x_fit, trad_y_fit, linestyle='--', color=color_trad, label="Direct Drive, $\\sigma$ = 10ns, fit")
-	ax1a.plot(trad_x_pts, trad_y_pts, marker='+', color=color_trad, label="Direct Drive, $\\sigma$ = 10ns", markersize=10, markeredgewidth=2, linewidth=0)
+# 	ax1a.plot(trad_x_fit, trad_y_fit, linestyle='--', color=color_trad, label="Direct Drive, $\\sigma$ = 10ns, fit")
+# 	ax1a.plot(trad_x_pts, trad_y_pts, marker='+', color=color_trad, label="Direct Drive, $\\sigma$ = 10ns", markersize=10, markeredgewidth=2, linewidth=0)
+# 
+# 	ax1a.plot(doub_x_fit, doub_y_fit, linestyle=':', color=color_doub, label="Subharmonic Drive, $\\sigma$ = 10ns, fit")
+# 	ax1a.plot(doub_x_pts, doub_y_pts, marker='o', color=color_doub, label="Subharmonic Drive, $\\sigma$ = 10ns", markersize=7, linewidth=0)
+	ax1a.plot(trad_x_fit, trad_y_fit, linestyle='--', color=color_trad, label="Direct Drive, fit")
+	ax1a.plot(trad_x_pts, trad_y_pts, marker='+', color=color_trad, label="Direct Drive", markersize=10, markeredgewidth=2, linewidth=0)
 
-	ax1a.plot(doub_x_fit, doub_y_fit, linestyle=':', color=color_doub, label="Subharmonic Drive, $\\sigma$ = 10ns, fit")
-	ax1a.plot(doub_x_pts, doub_y_pts, marker='o', color=color_doub, label="Subharmonic Drive, $\\sigma$ = 10ns", markersize=7, linewidth=0)
+	ax1a.plot(doub_x_fit, doub_y_fit, linestyle=':', color=color_doub, label="Subharmonic Drive fit")
+	ax1a.plot(doub_x_pts, doub_y_pts, marker='o', color=color_doub, label="Subharmonic Drive", markersize=7, linewidth=0)
 
 	ax1a.grid(True)
 	ax1a.legend()
@@ -128,11 +133,16 @@ ax2a = fig2.add_subplot(gs2[0, 0])
 
 if args.pub:
 	
-	ax2a.plot(trad_x_fit, trad_y_fit, linestyle='--', color=color_trad, label="Direct Drive, $\\sigma$ = 50ns, fit")
-	ax2a.plot(trad_x_pts, trad_y_pts, marker='+', color=color_trad, label="Direct Drive, $\\sigma$ = 50ns", markersize=10, markeredgewidth=2, linewidth=0)
+# 	ax2a.plot(trad_x_fit, trad_y_fit, linestyle='--', color=color_trad, label="Direct Drive, $\\sigma$ = 50ns, fit")
+# 	ax2a.plot(trad_x_pts, trad_y_pts, marker='+', color=color_trad, label="Direct Drive, $\\sigma$ = 50ns", markersize=10, markeredgewidth=2, linewidth=0)
+# 
+# 	ax2a.plot(doub_x_fit, doub_y_fit, linestyle=':', color=color_doub, label="Subharmonic Drive, $\\sigma$ = 50ns, fit")
+# 	ax2a.plot(doub_x_pts, doub_y_pts, marker='o', color=color_doub, label="Subharmonic Drive, $\\sigma$ = 50ns", markersize=7, linewidth=0)
+	ax2a.plot(trad_x_fit, trad_y_fit, linestyle='--', color=color_trad, label="Direct Drive, fit")
+	ax2a.plot(trad_x_pts, trad_y_pts, marker='+', color=color_trad, label="Direct Drive", markersize=10, markeredgewidth=2, linewidth=0)
 
-	ax2a.plot(doub_x_fit, doub_y_fit, linestyle=':', color=color_doub, label="Subharmonic Drive, $\\sigma$ = 50ns, fit")
-	ax2a.plot(doub_x_pts, doub_y_pts, marker='o', color=color_doub, label="Subharmonic Drive, $\\sigma$ = 50ns", markersize=7, linewidth=0)
+	ax2a.plot(doub_x_fit, doub_y_fit, linestyle=':', color=color_doub, label="Subharmonic Drive, fit")
+	ax2a.plot(doub_x_pts, doub_y_pts, marker='o', color=color_doub, label="Subharmonic Drive", markersize=7, linewidth=0)
 
 	ax2a.grid(True)
 	ax2a.legend()
