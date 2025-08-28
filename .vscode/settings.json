@@ -3,5 +3,7 @@
 		"./Python Sim/"
 	],
 	"editor.mouseWheelScrollSensitivity": 2,
-	"editor.parameterHints.enabled": false
+	"editor.parameterHints.enabled": false,
+	"python-envs.defaultEnvManager": "ms-python.python:system",
+	"python-envs.pythonProjects": []
 }
