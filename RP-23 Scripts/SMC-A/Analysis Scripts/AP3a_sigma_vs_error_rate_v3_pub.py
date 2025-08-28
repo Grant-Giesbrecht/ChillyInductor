@@ -78,6 +78,11 @@ data_points.append(AP3Datapoint( trad_sigma=100e-9, doubler_err = 2.45e-2, trad_
 								doubler_pi_cf=None, doubler_halfpi_cf=None,
 								 trad_pi_cf=1.003, trad_halfpi_cf=1.0046 ))
 
+if args.pub:
+	mpl.rcParams['font.family'] = 'sans-serif'
+	mpl.rcParams['font.sans-serif'] = ['Arial']
+	mpl.rcParams['font.size'] = 12
+
 # data_points.append(AP3Datapoint( trad_sigma=None, doubler_err = None, trad_err=None,
 # 								doubler_pi_cf=None, doubler_halfpi_cf=None,
 # 								 trad_pi_cf=None, trad_halfpi_cf=None ))
@@ -115,13 +120,10 @@ ax1a.plot(trad_sigma, doubler_err, linestyle=':', marker='o', color=color_doub, 
 ax1a.plot(trad_sigma, trad_err, linestyle='--', marker='+', color=color_trad, label="Direct Drive", markersize=10, markeredgewidth=2)
 
 ax1a.grid(True)
-ax1a.set_xlabel("$\\sigma$ (ns)")
+ax1a.set_xlabel("Pulse Width Parameter ($\\sigma$) (ns)")
+
 ax1a.set_ylabel(f"Error per Gate")
 ax1a.legend()
-
-if args.pub:
-	mpl.rcParams['font.family'] = 'sans-serif'
-	mpl.rcParams['font.sans-serif'] = ['Arial']
 
 if args.save:
 	fig1.savefig(os.path.join("figures", "AP3a_fig1.pdf"))
