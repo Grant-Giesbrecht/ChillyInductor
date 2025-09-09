@@ -601,11 +601,12 @@ def get_general_path(sub_dirs:list=[], check_drive_letters:list=None, unix_vol_n
 	if is_unix:
 		if print_details:
 			print(f"get_general_path(): Identified system as UNIX")
+			print(f"unix_vol_name = {unix_vol_name}")
 		if unix_vol_name is None:
 			path = '/'
 		else:
-			path = os.path.join('/', 'Volumes', {unix_vol_name})
-	
+			path = os.path.join('/', 'Volumes', f"{unix_vol_name}")
+		
 	else:
 		if print_details:
 			print(f"get_general_path(): Identified system as DOS")
@@ -645,6 +646,8 @@ def get_general_path(sub_dirs:list=[], check_drive_letters:list=None, unix_vol_n
 	
 	# Add on additional paths
 	for ad in sub_dirs:
+		if print_details:
+			print(f"path={path}, next sub dir={ad}")
 		path = wildcard_path(path, ad)
 	
 	return path
