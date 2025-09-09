@@ -4,11 +4,13 @@ import json
 import matplotlib.pyplot as plt
 import mplcursors
 import argparse
-from ganymede import locate_drive
+from ganymede import locate_drive, extract_visible_xy
+import json
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-p', '--pub', help="Publication version.", action='store_true')
 parser.add_argument('-s', '--save', help="Save figure to PDF.", action='store_true')
+parser.add_argument('-m', '--midas', help="Save figure data to MIDAS text files.", action='store_true')
 args = parser.parse_args()
 
 m6_dir = locate_drive("M6 T7S")
@@ -180,7 +182,31 @@ if args.save:
 	fig1.savefig(outfile)
 	fig2.savefig(outfile50)
 
+def fig_to_midas_dict(fig):
+	
+	def format_dict(dd):
+		return {"sequence_length":list(dd['x']), "visibility":list(dd['y']), "label":dd['label']}
+	
+	data_all = extract_visible_xy(fig)
+	trad_data_fit = data_all[0]
+	trad_data_pts = data_all[1]
+	
+	doub_data_fit = data_all[2]
+	doub_data_pts = data_all[3]
+	
+	return {"subharmonic_trace_fit":format_dict(doub_data_fit), "subharmonic_trace_points": format_dict(doub_data_pts), "direct_drive_trace_fit": format_dict(trad_data_fit), "direct_drive_trace_points": format_dict(trad_data_pts)}
 
+def fig_to_midas_json(fig, filename):
+	
+	midas_dict = fig_to_midas_dict(fig)
+	
+	with open(filename, "w") as json_file:
+		json.dump(midas_dict, json_file)
+
+if args.midas:
+	print(f"Saving midas data")
+	fig_to_midas_json(fig1, os.path.join(".", "midas_data", "Fig3_Top_10ns.json"))
+	fig_to_midas_json(fig2, os.path.join(".", "midas_data", "Fig3_Lower_50ns.json"))
 
 
 
