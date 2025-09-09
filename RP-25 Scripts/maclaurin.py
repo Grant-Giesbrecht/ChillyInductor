@@ -13,15 +13,69 @@ coef_2 = v0*B**2/8/A**1.5
 coef_3 = v0*B**3/16/A**2.5
 
 n_elec = v0*np.sqrt(A+B*x)
-n_elec_approx = coef_0 + coef_1*x # - coef_2*x**2 #+ coef_3*x**3
+n_elec_approx1 = coef_0 + coef_1*x # - coef_2*x**2 #+ coef_3*x**3
+n_elec_approx2 = coef_0 + coef_1*x - coef_2*x**2 #+ coef_3*x**3
+n_elec_approx3 = coef_0 + coef_1*x - coef_2*x**2 + coef_3*x**3
 
 print(f"n_elec = {coef_0} + {coef_1}*x - {coef_2}*x^2 + {coef_3}*x^3")
 
-plt.semilogx(x, n_elec_approx, label=f"Approx.")
-plt.semilogx(x, n_elec, label=f"Exact")
-plt.xlabel("Power (W)")
-plt.ylabel("$n_{elec}$")
+fig1 = plt.figure(1)
+gs1 = fig1.add_gridspec(1, 1)
+ax1a = fig1.add_subplot(gs1[0, 0])
 
-plt.legend()
-plt.grid(True)
+ax1a.semilogx(x, n_elec_approx3, label=f"Approx.")
+ax1a.semilogx(x, n_elec, label=f"Exact")
+ax1a.set_xlabel("Power (W)")
+ax1a.set_ylabel("$n_{elec}$")
+ax1a.legend()
+ax1a.grid(True)
+
+
+fig2 = plt.figure(2, figsize=(8, 6))
+gs = fig2.add_gridspec(3, 2)
+ax2a = fig2.add_subplot(gs[0, 0])
+ax2b = fig2.add_subplot(gs[0, 1])
+ax2c = fig2.add_subplot(gs[1, 0])
+ax2d = fig2.add_subplot(gs[1, 1])
+ax2e = fig2.add_subplot(gs[2, 0])
+ax2f = fig2.add_subplot(gs[2, 1])
+
+ax2a.semilogx(x, n_elec_approx1, label=f"Approx. (1st order)")
+ax2a.semilogx(x, n_elec, label=f"Exact")
+ax2a.set_xlabel("Power (W)")
+ax2a.set_ylabel("$n_{elec}$")
+ax2a.legend()
+ax2a.grid(True)
+
+ax2b.semilogx(x, np.abs(n_elec_approx1-n_elec), label=f"Approx. (1st order)")
+ax2b.set_xlabel("Power (W)")
+ax2b.set_ylabel("Error (1st order)")
+ax2b.grid(True)
+
+ax2c.semilogx(x, n_elec_approx2, label=f"Approx. (2nd order)")
+ax2c.semilogx(x, n_elec, label=f"Exact")
+ax2c.set_xlabel("Power (W)")
+ax2c.set_ylabel("$n_{elec}$")
+ax2c.legend()
+ax2c.grid(True)
+
+ax2d.semilogx(x, np.abs(n_elec_approx2-n_elec), label=f"Approx. (2nd order)")
+ax2d.set_xlabel("Power (W)")
+ax2d.set_ylabel("Error (2nd order)")
+ax2d.grid(True)
+
+ax2e.semilogx(x, n_elec_approx3, label=f"Approx. (3rd order)")
+ax2e.semilogx(x, n_elec, label=f"Exact")
+ax2e.set_xlabel("Power (W)")
+ax2e.set_ylabel("$n_{elec}$")
+ax2e.legend()
+ax2e.grid(True)
+
+ax2f.semilogx(x, np.abs(n_elec_approx3-n_elec), label=f"Approx. (3rd order)")
+ax2f.set_xlabel("Power (W)")
+ax2f.set_ylabel("Error (3rd order)")
+ax2f.grid(True)
+
+fig2.tight_layout()
+
 plt.show()
