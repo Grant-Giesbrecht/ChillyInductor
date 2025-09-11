@@ -184,7 +184,7 @@ class NLTFDTD:
 		p = self.p
 		Nx, dt, Nt = p.Nx, p.dt, self.Nt
 		dx = self.dx
-
+		
 		# Staggering: v at integer nodes [0..Nx], i at half nodes [0..Nx-1]
 		v = np.zeros(Nx+1)            # v_k^n
 		i_half = np.zeros(Nx)         # i_{k+1/2}^{n+1/2}

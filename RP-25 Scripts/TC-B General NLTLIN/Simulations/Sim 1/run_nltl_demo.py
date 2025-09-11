@@ -67,35 +67,38 @@ plt.tight_layout()
 plt.ion()
 fig1 = plt.figure(figsize=(12,6))
 # fig1.suptitle(f"ID hash: {cond_hash}, ({cond_hash_abb})", fontsize=8)
-gs = fig1.add_gridspec(1, 1)
-ax0 = fig1.add_subplot(gs[0, 0])
+gs1 = fig1.add_gridspec(2, 1)
+ax0a = fig1.add_subplot(gs1[0, 0])
+ax0b = fig1.add_subplot(gs1[1, 0])
 
 # Initialize axes
-ax0.set_xlabel("Position (m)")
-ax0.set_ylabel("Amplitude (V)")
-ax0.grid(True)
-ax0.set_xlim([np.min(t), np.max(t)])
-ax0.set_ylim([-1, 1])
+ax0a.set_xlabel("Position (m)")
+ax0a.set_ylabel("Amplitude (V)")
+ax0a.grid(True)
+ax0a.set_xlim([np.min(x), np.max(x)])
+ax0a.set_ylim([-1, 1])
 
 # Initialize artists
-pulse_artist, = ax0.plot([], [], linestyle=':', marker='.', color=(0.35, 0.3, 0.65))
-# region_artist = ax0.fill_between([nonlinear_region[0]/1e-9, nonlinear_region[1]/1e-9], [-100, -100], [100, 100], color=(0.4, 0.4, 0.4), alpha=0.2)
+pulse_artist_0a, = ax0a.plot([], [], linestyle=':', marker='.', color=(0.35, 0.3, 0.65))
+pulse_artist_0b, = ax0a.plot([], [], linestyle=':', marker='.', color=(0.35, 0.3, 0.65))
 
 # Decimate V_hist for faster playback
-decimation = 4
-frame_jump = 4
-V_hist_dec = V_hist[::decimation, ::frame_jump]
-t_dec = t[::decimation]
+decimation = 2
+frame_jump = 10
+V_hist_dec = V_hist[::frame_jump, ::decimation]
+t_dec = t[::frame_jump]
+x_dec = x[::decimation]
 
 # Loop over each frame
 t_frame = 1/30
 t_last = time.time()
 limit_framerate = False
 print(f"Dimensions of V_hist_dec: {V_hist_dec.shape}")
-for v_frame in V_hist_dec.T:
+idx = 0
+for v_frame in V_hist_dec:
 	
 	# Update frame
-	pulse_artist.set_data(t_dec, v_frame)
+	pulse_artist_0a.set_data(x_dec, v_frame)
 	fig1.canvas.draw()
 	
 	# Flush events (neccesary but I don't know why)
@@ -109,3 +112,5 @@ for v_frame in V_hist_dec.T:
 	fps = 1/(t_now-t_last)
 	print(f"FPS = {fps}")
 	t_last = t_now
+	
+	idx += 1
