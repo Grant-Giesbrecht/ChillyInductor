@@ -87,19 +87,22 @@ labels_nom.append("Direct Drive (Bias=0 $\\mu A$)")
 labels_nom.append("Subharmonic Drive (Bias=265 $\\mu A$)")
 #========================== FIG1: OVERDRIVE, PI =======================
 
-def plot_sub_wave(trad_df, doub_df, doub_t_shift, t_scale_shift, fig_num, label_list, x_limits, y_limits):
+def plot_sub_wave(trad_df, doub_df, doub_t_shift, t_scale_shift, fig_num, label_list, x_limits, y_limits, ax_dim=None):
 	
 	t_trad = np.array(trad_df['Time']*1e9) - t_scale_shift
 	v_trad = np.array(trad_df['Ampl']*1e3)
 	
 	t_doub = np.array(doub_df['Time']*1e9) - t_scale_shift + doub_t_shift
 	v_doub = np.array(doub_df['Ampl']*1e3)
-
+	
 	# Prepare figure 1
 	fig1 = plt.figure(fig_num, figsize=FIGSIZE)
 	gs1 = fig1.add_gridspec(1, 1)
 	ax1a = fig1.add_subplot(gs1[0, 0])
-
+	
+	if ax_dim is not None:
+		ax1a.set_position(ax_dim)
+	
 	LW = 2
 	ALP=0.6
 	MKSZ= 2
@@ -115,25 +118,30 @@ def plot_sub_wave(trad_df, doub_df, doub_t_shift, t_scale_shift, fig_num, label_
 	ax1a.set_xlim(x_limits)
 	if y_limits is not None:
 		ax1a.set_ylim(y_limits)
-
-	fig1.tight_layout()
 	
-	return fig1
+	if ax_dim is None:
+		fig1.tight_layout()
+	
+	return (fig1, ax1a)
 
-fig1 = plot_sub_wave(trad_df_ovdr, doub_df_ovdr, doub_t_shift=OFFSET_D0, t_scale_shift=-460+5, fig_num=1, label_list=labels, x_limits=(0, 70), y_limits=(-150, 150) )
-# fig2 = plot_sub_wave(trad_df_ovdr, doub_df_ovdr, doub_t_shift=OFFSET_D0+1.67, t_scale_shift=-460+5, fig_num=2, label_list=labels, x_limits=(97.5, 157.5), y_limits=(-150, 150) )
-fig2 = plot_sub_wave(trad_df_ovdr, doub_df_ovdr, doub_t_shift=OFFSET_D0+1.67, t_scale_shift=-460+5+97.5, fig_num=2, label_list=labels, x_limits=(0, 60), y_limits=(-150, 150) )
+(fig1, ax1) = plot_sub_wave(trad_df_ovdr, doub_df_ovdr, doub_t_shift=OFFSET_D0, t_scale_shift=-460+5, fig_num=1, label_list=labels, x_limits=(0, 70), y_limits=(-150, 150) )
 
-fig3 = plot_sub_wave(trad_df_nom, doub_df_nom, doub_t_shift=OFFSET_D1, t_scale_shift=-445-7.5, fig_num=3, label_list=labels_nom, x_limits=(0, 70), y_limits=(-25, 25) )
+ax_dim = ax1.get_position()
 
-fig4 = plot_sub_wave(trad_df_nom, doub_df_nom, doub_t_shift=OFFSET_D1+1.61, t_scale_shift=-445+85+2.17, fig_num=4, label_list=labels_nom, x_limits=(0, 60), y_limits=(-25, 25) )
+(fig2, ax2) = plot_sub_wave(trad_df_ovdr, doub_df_ovdr, doub_t_shift=OFFSET_D0+1.67, t_scale_shift=-460+5+97.5, fig_num=2, label_list=labels, x_limits=(0, 60), y_limits=(-150, 150), ax_dim=ax_dim )
+
+
+
+(fig3, ax3) = plot_sub_wave(trad_df_nom, doub_df_nom, doub_t_shift=OFFSET_D1, t_scale_shift=-445-7.5, fig_num=3, label_list=labels_nom, x_limits=(0, 70), y_limits=(-25, 25), ax_dim=ax_dim )
+
+(fig4, ax4) = plot_sub_wave(trad_df_nom, doub_df_nom, doub_t_shift=OFFSET_D1+1.61, t_scale_shift=-445+85+2.17, fig_num=4, label_list=labels_nom, x_limits=(0, 60), y_limits=(-25, 25), ax_dim=ax_dim )
 
 
 if args.save:
-	fig1.savefig(os.path.join(".", "figures", "AP5b_ovdrPi_fig1.pdf"))
-	fig2.savefig(os.path.join(".", "figures", "AP5b_ovdrPi2_fig2.pdf"))
-	fig3.savefig(os.path.join(".", "figures", "AP5b_nomPi_fig3.pdf"))
-	fig4.savefig(os.path.join(".", "figures", "AP5b_nomPi2_fig4.pdf"))
+	fig1.savefig(os.path.join(".", "figures", "AP5b_ovdrPi_fig1.eps"))
+	fig2.savefig(os.path.join(".", "figures", "AP5b_ovdrPi2_fig2.eps"))
+	fig3.savefig(os.path.join(".", "figures", "AP5b_nomPi_fig3.eps"))
+	fig4.savefig(os.path.join(".", "figures", "AP5b_nomPi2_fig4.eps"))
 
 mplcursors.cursor(multiple=True)
 plt.show()
