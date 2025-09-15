@@ -22,6 +22,8 @@ from nltl_sim import demo_ladder_v2, demo_fdtd_v2
 fdtd_out, fdtd_p = demo_fdtd_v2()
 ladder_out, ladder_p = demo_ladder_v2()
 
+print("Reinterpolating to common time and space axis:")
+
 # Common spatial axis
 L = fdtd_p.L
 x_fdtd = fdtd_out.x                 # Nx+1
@@ -30,6 +32,8 @@ x_lad  = np.linspace(0.0, L, ladder_p.N + 1)
 # Common time base = FDTD time
 t_common = fdtd_out.t               # Nt_f
 V_fdtd = fdtd_out.v_xt              # (Nt_f, Nx+1)
+
+print("   -> Running interpolation....")
 
 # Interpolate ladder node voltages to t_common
 t_lad = ladder_out.t
@@ -47,6 +51,9 @@ ylims = (vmin - margin, vmax + margin)
 # -------------------------
 # Figure + artists
 # -------------------------
+
+print(f"Preparing figure.")
+
 plt.ioff()
 fig = plt.figure(figsize=(12, 6))
 gs = fig.add_gridspec(2, 1, height_ratios=[1, 1], hspace=0.3)
@@ -81,17 +88,22 @@ def update(frame):
     time_txt.set_text(f"t = {t_common[frame]:.3e} s")
     return (line_top, line_bot, time_txt)
 
+print(f"Preparing animation....")
+
 # Keep a strong reference to the animation at module scope
 ani = FuncAnimation(
     fig, update, frames=len(t_common), init_func=init,
     interval=30, blit=False, cache_frame_data=False
 )
+print(f"    -> Animation complete.")
 
 # Optional save
 try:
-    out_path = "./data/nltl_compare.gif"
+    out_path = "./data/SP1b.gif"
+    print(f"Saving file....")
     ani.save(out_path, writer=PillowWriter(fps=30))
     print(f"Saved animation: {out_path}")
+    print(f"    -> Save complete.")
 except Exception as e:
     print("Animation save skipped or failed:", e)
 

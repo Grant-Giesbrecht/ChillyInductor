@@ -88,7 +88,7 @@ ani = FuncAnimation(
 
 # Save a GIF for quick sharing (optional). Comment out to skip saving.
 try:
-    out_path = "./data/nltl_compare.gif"
+    out_path = "./data/SP1a.gif"
     ani.save(out_path, writer=PillowWriter(fps=30))
     print(f"Saved animation: {out_path}")
 except Exception as e:

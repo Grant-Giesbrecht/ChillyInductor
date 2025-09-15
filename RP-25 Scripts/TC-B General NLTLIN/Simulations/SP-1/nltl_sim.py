@@ -81,7 +81,7 @@ class NLTLadder:
 		self.kin = KinInductance(L0=p.L0, alpha=p.alpha) # Kinetic inductance model
 		self.Nt = int(np.round(p.T / p.dt)) + 1 # Number of time points
 
-	def run(self) -> LadderResult:
+	def run(self, verbose:bool=False) -> LadderResult:
 		p = self.p
 		N, dt, Nt = p.N, p.dt, self.Nt
 
@@ -100,6 +100,9 @@ class NLTLadder:
 
 		# Scan over all time points
 		for n in range(Nt):
+			
+			if verbose and n % 100 == 0:
+				print(f"        [Progress: {n} / {Nt} ]")
 			
 			# Get new absolute time
 			t_n = n * dt
@@ -180,7 +183,7 @@ class NLTFDTD:
 		v = 1.0 / np.sqrt(Ld_min * C)
 		return safety * dx / v
 
-	def run(self) -> FDTDResult:
+	def run(self, verbose:bool=False) -> FDTDResult:
 		p = self.p
 		Nx, dt, Nt = p.Nx, p.dt, self.Nt
 		dx = self.dx
@@ -192,6 +195,10 @@ class NLTFDTD:
 		i_hist = np.zeros((Nt, Nx))
 
 		for n in range(Nt):
+			
+			if verbose and n % 100 == 0:
+				print(f"        [Progress: {n} / {Nt} ]")
+			
 			t_n = n * dt
 			
 			# Call function returning voltage stimulus at this time point. 
@@ -320,6 +327,9 @@ def demo_fdtd() -> Tuple[FDTDResult, FDTDParams]:
 
 def demo_ladder_v2() -> Tuple[LadderResult, LadderParams]:
 	# Example: 200 sections, Z0 ~ sqrt(L0/C), Gaussian pulse source
+	
+	print(f"Beginning ladder simulation:")
+	
 	N = 400
 	L0 = 0.2e-9       # H per section
 	C = 0.08e-12       # F per node
@@ -333,15 +343,22 @@ def demo_ladder_v2() -> Tuple[LadderResult, LadderParams]:
 	t0 = 0.6e-9
 	sigma = 0.15e-9
 	V0 = 0.5
-
+	
+	print(f"    -> Simulation parameters prepared.")
+	
 	Vs = lambda t: gaussian_pulse(t, t0, sigma, V0)
 
 	p = LadderParams(N=N, L0=L0, alpha=alpha, C=C, Rs=Rs, RL=RL, dt=dt, T=T, Vs_func=Vs)
 	sim = NLTLadder(p)
-	out = sim.run()
+	print(f"    -> Simulation object created. Running....")
+	out = sim.run(verbose=True)
+	print(f"    -> Simulation complete.")
 	return out, p
 
 def demo_fdtd_v2() -> Tuple[FDTDResult, FDTDParams]:
+	
+	print(f"Beginning FDTD simulation:")
+	
 	Nx = 400
 	L = 0.2            # meters
 	L0m = 400e-9       # H/m
@@ -362,10 +379,14 @@ def demo_fdtd_v2() -> Tuple[FDTDResult, FDTDParams]:
 	sigma = 0.15e-9
 	V0 = 0.5
 	Vs = lambda t: gaussian_pulse(t, t0, sigma, V0)
-
+	
+	print(f"    -> Simulation parameters prepared.")
+	
 	p = FDTDParams(Nx=Nx, L=L, L0_per_m=L0m, alpha=alpha, C_per_m=Cm, dt=dt, T=T, Rs=Rs, RL=RL, Vs_func=Vs)
 	sim = NLTFDTD(p)
-	out = sim.run()
+	print(f"    -> Simulation object created. Running....")
+	out = sim.run(verbose=True)
+	print(f"    -> Simulation complete.")
 	return out, p
 
 if __name__ == "__main__":
