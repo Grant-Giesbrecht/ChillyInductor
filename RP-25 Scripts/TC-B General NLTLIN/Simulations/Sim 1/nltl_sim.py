@@ -318,6 +318,56 @@ def demo_fdtd() -> Tuple[FDTDResult, FDTDParams]:
 	out = sim.run()
 	return out, p
 
+def demo_ladder_v2() -> Tuple[LadderResult, LadderParams]:
+	# Example: 200 sections, Z0 ~ sqrt(L0/C), Gaussian pulse source
+	N = 400
+	L0 = 0.2e-9       # H per section
+	C = 0.08e-12       # F per node
+	alpha = 5.0e-3    # 1/A^2 — tweak to taste
+	Z0 = np.sqrt(L0/C)
+	Rs = Z0           # well-matched source
+	RL = Z0           # matched load
+
+	dt = 2.0e-12      # s (ensure stability; explicit scheme)
+	T  = 3.0e-9       # s
+	t0 = 0.6e-9
+	sigma = 0.15e-9
+	V0 = 0.5
+
+	Vs = lambda t: gaussian_pulse(t, t0, sigma, V0)
+
+	p = LadderParams(N=N, L0=L0, alpha=alpha, C=C, Rs=Rs, RL=RL, dt=dt, T=T, Vs_func=Vs)
+	sim = NLTLadder(p)
+	out = sim.run()
+	return out, p
+
+def demo_fdtd_v2() -> Tuple[FDTDResult, FDTDParams]:
+	Nx = 400
+	L = 0.2            # meters
+	L0m = 400e-9       # H/m
+	Cm  = 160e-12      # F/m => Z0 ~ sqrt(L/C) ~ 50 Ohm
+	alpha = 5.0e-3     # 1/A^2
+
+	kin = KinInductance(L0=L0m, alpha=alpha)
+	dx = L / Nx
+	Ld_min = kin.min_Ld_over_range(Imax=0.5)  # conservative
+	dt_cfl = NLTFDTD.cfl_dt(dx, Ld_min, Cm, safety=0.9)
+
+	dt = dt_cfl
+	T  = 3.0e-9
+	Rs = 50.0
+	RL = 50.0
+
+	t0 = 0.6e-9
+	sigma = 0.15e-9
+	V0 = 0.5
+	Vs = lambda t: gaussian_pulse(t, t0, sigma, V0)
+
+	p = FDTDParams(Nx=Nx, L=L, L0_per_m=L0m, alpha=alpha, C_per_m=Cm, dt=dt, T=T, Rs=Rs, RL=RL, Vs_func=Vs)
+	sim = NLTFDTD(p)
+	out = sim.run()
+	return out, p
+
 if __name__ == "__main__":
 	# Quick smoke test when run directly (no plotting here).
 	out_lad, p_lad = demo_ladder()

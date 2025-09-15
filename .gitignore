@@ -149,3 +149,4 @@ apps/wyvern/assets/wyvern_src.afdesign~lock~
 .DS_Store
 *.eps
 *.pdf
+*/.DS_Store

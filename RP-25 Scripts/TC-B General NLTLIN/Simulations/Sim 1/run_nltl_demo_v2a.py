@@ -14,13 +14,13 @@ import numpy as np
 import matplotlib.pyplot as plt
 from matplotlib.animation import FuncAnimation, PillowWriter
 
-from nltl_sim import demo_ladder, demo_fdtd
+from nltl_sim import demo_ladder_v2, demo_fdtd_v2
 
 # -------------------------
 # Run simulations (once)
 # -------------------------
-fdtd_out, fdtd_p = demo_fdtd()
-ladder_out, ladder_p = demo_ladder()
+fdtd_out, fdtd_p = demo_fdtd_v2()
+ladder_out, ladder_p = demo_ladder_v2()
 
 # Common spatial axis
 L = fdtd_p.L
@@ -89,7 +89,7 @@ ani = FuncAnimation(
 
 # Optional save
 try:
-    out_path = "/mnt/data/nltl_compare.gif"
+    out_path = "./data/nltl_compare.gif"
     ani.save(out_path, writer=PillowWriter(fps=30))
     print(f"Saved animation: {out_path}")
 except Exception as e:
