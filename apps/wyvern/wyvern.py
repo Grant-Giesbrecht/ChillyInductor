@@ -137,7 +137,7 @@ class DataLoadingManager:
 		for dss in self.data_conf['sweep_sources']:
 			
 			#For each entry, evaluate wildcards and find actual path
-			full_path = get_general_path(dss['path'], dos_id_folder=True, print_details=cli_args.autopathdetails)
+			full_path = get_general_path(dss['path'], dos_id_folder=True, print_details=cli_args.autopathdetails, unix_vol_name="M6 T7S")
 			
 			# Write log
 			name = dss['chip_name']
@@ -154,7 +154,7 @@ class DataLoadingManager:
 		for dss in self.data_conf['sparam_sources']:
 			
 			#For each entry, evaluate wildcards and find actual path
-			cryo_full_path = get_general_path(dss['cryostat_file'], dos_id_folder=True, print_details=cli_args.autopathdetails)
+			cryo_full_path = get_general_path(dss['cryostat_file'], dos_id_folder=True, print_details=cli_args.autopathdetails, unix_vol_name="M6 T7S")
 			
 			# Write log
 			name = dss['chip_name']

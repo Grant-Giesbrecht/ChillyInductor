@@ -6,11 +6,13 @@ import os
 import pandas as pd
 import sys
 import mplcursors
-from ganymede import locate_drive
+from ganymede import locate_drive, extract_visible_xy
+import json
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-p', '--pub', help="Publication version.", action='store_true')
 parser.add_argument('-s', '--save', help="Save figure to PDF.", action='store_true')
+parser.add_argument('-m', '--midas', help="Save figure data to MIDAS text files.", action='store_true')
 args = parser.parse_args()
 
 m6_dir = locate_drive("M6 T7S")
@@ -142,6 +144,34 @@ if args.save:
 	fig2.savefig(os.path.join(".", "figures", "AP5b_ovdrPi2_fig2.eps"))
 	fig3.savefig(os.path.join(".", "figures", "AP5b_nomPi_fig3.eps"))
 	fig4.savefig(os.path.join(".", "figures", "AP5b_nomPi2_fig4.eps"))
+
+def fig_to_midas_dict(fig):
+	
+	def format_dict(dd):
+		return {"time_ns":list(dd['x']), "amplitude_mV":list(dd['y']), "label":dd['label']}
+	
+	data_all = extract_visible_xy(fig)
+	trad_data = data_all[0]
+	doub_data = data_all[1]
+	
+	return {"subharmonic_trace":format_dict(doub_data), "direct_drive_trace": format_dict(trad_data)}
+
+def fig_to_midas_json(fig, filename):
+	
+	midas_dict = fig_to_midas_dict(fig)
+	
+	with open(filename, "w") as json_file:
+		json.dump(midas_dict, json_file)
+
+if args.midas:
+	print(f"Saving midas data")
+	# Top Left
+	fig_to_midas_json(fig3, os.path.join(".", "midas_data", "Fig5_TopLeft_Pi_NominalPower.json"))
+	fig_to_midas_json(fig4, os.path.join(".", "midas_data", "Fig5_TopRight_HalfPi_NominalPower.json"))
+	fig_to_midas_json(fig1, os.path.join(".", "midas_data", "Fig5_LowerLeft_Pi_ExtraPower.json"))
+	fig_to_midas_json(fig2, os.path.join(".", "midas_data", "Fig5_LowerRight_HalfPi_ExtraPower.json"))
+	
+	
 
 mplcursors.cursor(multiple=True)
 plt.show()

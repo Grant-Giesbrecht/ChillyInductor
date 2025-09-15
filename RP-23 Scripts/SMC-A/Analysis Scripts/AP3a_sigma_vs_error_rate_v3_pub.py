@@ -7,10 +7,13 @@ import argparse
 import matplotlib.pyplot as plt
 import numpy as np
 import os
+from ganymede import extract_visible_xy
+import json
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-p', '--pub', help="Publication version.", action='store_true')
 parser.add_argument('-s', '--save', help="Save figure to PDF.", action='store_true')
+parser.add_argument('-m', '--midas', help="Save figure data to MIDAS text files.", action='store_true')
 args = parser.parse_args()
 
 #------------------------------------------------------------------
@@ -127,6 +130,28 @@ ax1a.legend()
 
 if args.save:
 	fig1.savefig(os.path.join("figures", "AP3a_fig1.pdf"))
+
+def fig_to_midas_dict(fig):
+	
+	def format_dict(dd):
+		return {"pulse_width_sigma_ns":list(dd['x']), "error_per_gate":list(dd['y']), "label":dd['label']}
+	
+	data_all = extract_visible_xy(fig)
+	trad_data = data_all[1]
+	doub_data = data_all[0]
+	
+	return {"subharmonic_trace":format_dict(doub_data), "direct_drive_trace": format_dict(trad_data)}
+
+def fig_to_midas_json(fig, filename):
+	
+	midas_dict = fig_to_midas_dict(fig)
+	
+	with open(filename, "w") as json_file:
+		json.dump(midas_dict, json_file)
+
+if args.midas:
+	print(f"Saving midas data")
+	fig_to_midas_json(fig1, os.path.join(".", "midas_data", "Fig4_data.json"))
 
 
 plt.show()
