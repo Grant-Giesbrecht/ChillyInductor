@@ -4,6 +4,7 @@ import csv
 import matplotlib.pyplot as plt
 
 from nltl_core import *
+from nltl_analysis import *
 
 # ----------------------------
 # Builders
