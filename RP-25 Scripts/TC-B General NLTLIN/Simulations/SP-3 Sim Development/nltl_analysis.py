@@ -23,7 +23,7 @@ def analytic_signal(x: np.ndarray) -> np.ndarray:
 		H[1:(N+1)//2] = 2.0
 	Zf = Xf * H
 	
-	# 
+	# Recreate time domain signal from inverse fourier transform - will be complex valued
 	z = np.fft.ifft(Zf, n=N)
 	return z
 

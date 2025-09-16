@@ -6,9 +6,6 @@ import matplotlib.pyplot as plt
 from nltl_core import *
 from nltl_analysis import *
 
-# ----------------------------
-# Builders
-
 def build_fdtd(L: float, f0: float, V0: float, T: float, dx_ref: float, implicit: bool):
 	Rs = 50.0; RL = 50.0
 	reg = [FDTDRegion(x0=0.0,   x1=0.5*L, L0_per_m=400e-9, C_per_m=160e-12, alpha=2.0e-3), FDTDRegion(x0=0.5*L, x1=1.0*L, L0_per_m=600e-9, C_per_m=250e-12, alpha=8.0e-3)]
@@ -32,8 +29,7 @@ def build_ladder(L: float, f0: float, V0: float, T: float, dx_ref: float, implic
 	p = LumpedElementParams(N=N, L=L, Rs=Rs, RL=RL, dt=dt, T=T, Vs_func=Vs, regions=reg, nonlinear_update=("implicit" if implicit else "explicit"))
 	return p
 
-# ----------------------------
-# Harmonic power estimator
+# ---------------------------- Harmonic power estimator ---------------
 
 def harmonic_power_from_psd(v: np.ndarray, dt: float, freqs: np.ndarray, psd: np.ndarray,
 							f_target: float, bw_bins: int, RL: float = 50.0):
@@ -70,18 +66,21 @@ def main():
 	ap.add_argument("--out", type=str, default="sweep_length.csv", help="Output CSV path")
 	ap.add_argument("--plot", action="store_true", help="Plot P(dBm) vs L for harmonics")
 	args = ap.parse_args()
-
+	
 	if args.dx_ref is None:
 		args.dx_ref = (0.3/600) if args.solver == "fdtd" else (0.24/240)
-
+	
 	L_vals = np.linspace(args.Lmin, args.Lmax, args.nL)
 	rows = [["L_m", "P1_W", "P2_W", "P3_W", "P1_dBm", "P2_dBm", "P3_dBm"]]
-
+	
 	P1_list = []
 	P2_list = []
 	P3_list = []
-
+	
+	# 
 	for L in L_vals:
+		
+		# 
 		if args.solver == "fdtd":
 			p = build_fdtd(L, args.f0, args.V0, args.T, args.dx_ref, args.implicit)
 			out = FiniteDiffSim(p).run()
@@ -90,13 +89,13 @@ def main():
 			p = build_ladder(L, args.f0, args.V0, args.T, args.dx_ref, args.implicit)
 			out = LumpedElementSim(p).run()
 			t = out.t; v_t = out.v_nodes[:, -1]
-
+		
 		# Tail for steady-state
 		if args.tail is not None and args.tail > 0:
 			t0 = max(0.0, t[-1] - args.tail)
 			m = t >= t0
 			t = t[m]; v_t = v_t[m]
-
+		
 		dt = t[1] - t[0]
 		spec = spectrum_probe(v_t, dt, window="hann", scaling="psd")
 		f = spec.freqs_hz

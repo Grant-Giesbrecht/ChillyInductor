@@ -106,8 +106,9 @@ class LumpedElementParams:
 	regions: List[LadderRegion]
 	nonlinear_update: Literal["explicit","implicit"] = "explicit"
 
+#NOTE: Was FDTDRegion
 @dataclass
-class FDTDRegion:
+class TLINRegion:
 	x0: float
 	x1: float
 	L0_per_m: float
