@@ -172,11 +172,11 @@ def probe_fdtd_voltage(fdtd_result, x: Optional[float] = None, index: Optional[i
 	v_t = np.asarray(fdtd_result.v_xt)[:, idx]
 	return t, v_t
 
-def probe_ladder_voltage(ladder_result, node: int) -> Tuple[np.ndarray, np.ndarray]:
-	t = np.asarray(ladder_result.t)
-	node = int(node)
-	v_t = np.asarray(ladder_result.v_nodes)[:, node]
-	return t, v_t
+# def probe_ladder_voltage(ladder_result, node: int) -> Tuple[np.ndarray, np.ndarray]:
+# 	t = np.asarray(ladder_result.t)
+# 	node = int(node)
+# 	v_t = np.asarray(ladder_result.v_nodes)[:, node]
+# 	return t, v_t
 
 def time_gate(t: np.ndarray, x: np.ndarray, t0: float, t1: float) -> Tuple[np.ndarray, np.ndarray]:
 	t = np.asarray(t)
