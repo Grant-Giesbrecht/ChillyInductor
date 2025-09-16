@@ -22,24 +22,24 @@ from dataclasses import dataclass
 import numpy as np
 from typing import Callable, List, Literal, Tuple, Optional
 
-# -----------------------
-# Nonlinearity (L_d(I))
-# -----------------------
+# # -----------------------
+# # Nonlinearity (L_d(I))
+# # -----------------------
 
-@dataclass
-class KinInductance:
-	"""Differential inductance model L_d(I) for kinetic inductance nonlinearity.
+# @dataclass
+# class KinInductance:
+# 	"""Differential inductance model L_d(I) for kinetic inductance nonlinearity.
 
-	Default model: L_d(I) = L0 * (1 + alpha * I^2)
-	"""
-	L0: float       # base inductance (H or H/m)
-	alpha: float    # nonlinearity coefficient (1/A^2)
+# 	Default model: L_d(I) = L0 * (1 + alpha * I^2)
+# 	"""
+# 	L0: float       # base inductance (H or H/m)
+# 	alpha: float    # nonlinearity coefficient (1/A^2)
 
-	def Ld(self, I: np.ndarray) -> np.ndarray:
-		return self.L0 * (1.0 + self.alpha * I**2)
+# 	def Ld(self, I: np.ndarray) -> np.ndarray:
+# 		return self.L0 * (1.0 + self.alpha * I**2)
 
-	def min_Ld_over_range(self, Imax: float) -> float:
-		return self.L0
+# 	def min_Ld_over_range(self, Imax: float) -> float:
+# 		return self.L0
 
 
 # ------------------
@@ -77,19 +77,19 @@ def _newton_i_update(i0: np.ndarray, s: np.ndarray, L0: np.ndarray, alpha: np.nd
 		i = i_new
 	return i
 
-#NOTE: Previously LadderParams
-@dataclass
-class LumpedElementParams:
-	N: int
-	L0: float
-	alpha: float
-	C: float
-	Rs: float
-	RL: float
-	dt: float
-	T: float
-	Vs_func: Callable[[float], float]
-	nonlinear_update: Literal["explicit","implicit"] = "explicit"
+# #NOTE: Previously LadderParams
+# @dataclass
+# class LumpedElementParams:
+# 	N: int
+# 	L0: float
+# 	alpha: float
+# 	C: float
+# 	Rs: float
+# 	RL: float
+# 	dt: float
+# 	T: float
+# 	Vs_func: Callable[[float], float]
+# 	nonlinear_update: Literal["explicit","implicit"] = "explicit"
 
 #NOTE: Previously LadderResult
 @dataclass
@@ -167,20 +167,20 @@ class LumpedElementResult:
 # 		return LumpedElementResult(t=t, v_nodes=v_hist, i_L=i_hist)
 
 
-#NOTE: Previously FDTDParams
-@dataclass
-class FiniteDiffParams:
-	Nx: int
-	L: float
-	L0_per_m: float
-	alpha: float
-	C_per_m: float
-	dt: float
-	T: float
-	Rs: float
-	RL: float
-	Vs_func: Callable[[float], float]
-	nonlinear_update: Literal["explicit","implicit"] = "explicit"
+# #NOTE: Previously FDTDParams
+# @dataclass
+# class FiniteDiffParams:
+# 	Nx: int
+# 	L: float
+# 	L0_per_m: float
+# 	alpha: float
+# 	C_per_m: float
+# 	dt: float
+# 	T: float
+# 	Rs: float
+# 	RL: float
+# 	Vs_func: Callable[[float], float]
+# 	nonlinear_update: Literal["explicit","implicit"] = "explicit"
 
 #NOTE: Previously FDTDResult
 @dataclass
@@ -680,3 +680,6 @@ def plot_signal_diagnostics(t, v, dt, center_freq_hz=None, smooth_points=0, fmax
 
 	plt.tight_layout()
 	return fig, axes
+
+def w2dbm(Pw):
+	return 10*np.log10(Pw/1e-3) if Pw > 0 else -np.inf

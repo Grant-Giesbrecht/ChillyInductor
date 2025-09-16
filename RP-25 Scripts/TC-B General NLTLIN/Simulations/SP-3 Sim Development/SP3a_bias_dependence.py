@@ -1,43 +1,9 @@
-
-"""
-run_sine_sweep_length.py
-------------------------
-Sweep the TOTAL LINE LENGTH L, drive with a continuous sine at f0, and measure the
-power at the fundamental, 2nd, and 3rd harmonics at the load. Works with either
-piecewise FDTD or piecewise Ladder WITHOUT modifying nltl_sim.py.
-
-Method
-------
-- For each L in [L_min, L_max], we keep the region *fractions* the same (e.g., [0, 1/2, 1]).
-  Per-unit parameters (L0_per_m, C_per_m, alpha) remain fixed; only the total length changes.
-- Spatial resolution is kept roughly constant by scaling Nx (FDTD) or N (Ladder) ~ L/dx_ref.
-- We simulate for duration T, optionally analyze only the last 'tail' seconds to suppress transients.
-- Spectrum is computed (Hann + PSD). Harmonic power is estimated by integrating PSD within a small
-  bandwidth around each target frequency and converting to power into RL (default 50 Ω).
-
-Usage
------
-python run_sine_sweep_length.py --solver fdtd --f0 8e9 --V0 0.5 --Lmin 0.10 --Lmax 0.40 --nL 7 \
-	--T 4e-9 --tail 1.5e-9 --dx_ref 0.3/600 --implicit --bw_bins 3 --out sweep_fdtd.csv
-
-python run_sine_sweep_length.py --solver ladder --f0 8e9 --V0 0.5 --Lmin 0.10 --Lmax 0.40 --nL 7 \
-	--T 4e-9 --tail 1.5e-9 --dx_ref 0.24/240 --implicit --bw_bins 3 --out sweep_ladder.csv
-"""
-
 import argparse
 import numpy as np
 import csv
 import matplotlib.pyplot as plt
 
-from nltl_sim_implicit import (
-	FDTDRegion, FDTDParamsPW, NLTFDTD_PW,
-	LadderRegion, LadderParamsPW, NLTLadderPW,
-)
-
-from nltl_analysis import spectrum_probe
-
-def w2dbm(Pw):
-	return 10*np.log10(Pw/1e-3) if Pw > 0 else -np.inf
+from nltl_core import *
 
 # ----------------------------
 # Builders
@@ -49,10 +15,10 @@ def build_fdtd(L: float, f0: float, V0: float, T: float, dx_ref: float, implicit
 	dx = L / Nx
 	Lmin = min(r.L0_per_m for r in reg)
 	Cmax = max(r.C_per_m for r in reg)
-	dt = NLTFDTD_PW.cfl_dt(dx, Lmin, Cmax, safety=0.85)
+	dt = FiniteDiffSim.cfl_dt(dx, Lmin, Cmax, safety=0.85)
 	w0 = 2*np.pi*f0
 	Vs = lambda t: V0 * np.sin(w0 * t)
-	p = FDTDParamsPW(Nx=Nx, L=L, dt=dt, T=T, Rs=Rs, RL=RL, Vs_func=Vs, regions=reg, nonlinear_update=("implicit" if implicit else "explicit"))
+	p = FiniteDiffParams(Nx=Nx, L=L, dt=dt, T=T, Rs=Rs, RL=RL, Vs_func=Vs, regions=reg, nonlinear_update=("implicit" if implicit else "explicit"))
 	return p
 
 def build_ladder(L: float, f0: float, V0: float, T: float, dx_ref: float, implicit: bool):
@@ -62,7 +28,7 @@ def build_ladder(L: float, f0: float, V0: float, T: float, dx_ref: float, implic
 	dt = 2.0e-12  # fixed ladder dt (edit if needed)
 	w0 = 2*np.pi*f0
 	Vs = lambda t: V0 * np.sin(w0 * t)
-	p = LadderParamsPW(N=N, L=L, Rs=Rs, RL=RL, dt=dt, T=T, Vs_func=Vs, regions=reg, nonlinear_update=("implicit" if implicit else "explicit"))
+	p = LumpedElementParams(N=N, L=L, Rs=Rs, RL=RL, dt=dt, T=T, Vs_func=Vs, regions=reg, nonlinear_update=("implicit" if implicit else "explicit"))
 	return p
 
 # ----------------------------
@@ -117,11 +83,11 @@ def main():
 	for L in L_vals:
 		if args.solver == "fdtd":
 			p = build_fdtd(L, args.f0, args.V0, args.T, args.dx_ref, args.implicit)
-			out = NLTFDTD_PW(p).run()
+			out = FiniteDiffSim(p).run()
 			t = out.t; v_t = out.v_xt[:, -1]
 		else:
 			p = build_ladder(L, args.f0, args.V0, args.T, args.dx_ref, args.implicit)
-			out = NLTLadderPW(p).run()
+			out = LumpedElementSim(p).run()
 			t = out.t; v_t = out.v_nodes[:, -1]
 
 		# Tail for steady-state
