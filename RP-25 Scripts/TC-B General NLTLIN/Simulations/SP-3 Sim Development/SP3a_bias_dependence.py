@@ -24,24 +24,6 @@ parser.add_argument("--out", type=str, default="sweep_length.csv", help="Output 
 parser.add_argument("--plot", action="store_true", help="Plot P(dBm) vs L for harmonics")
 args = parser.parse_args()
 
-# ---------------------------- Harmonic power estimator ---------------
-
-def harmonic_power_from_psd(v: np.ndarray, dt: float, freqs: np.ndarray, psd: np.ndarray,
-							f_target: float, bw_bins: int, RL: float = 50.0):
-	"""
-	Estimate power at f_target (fundamental/harmonics) by integrating PSD over +/- bw_bins bins.
-	PSD has units ~ V^2/Hz. Multiply by bin bandwidth (df) and sum to get V^2, then P=V_rms^2/RL.
-	"""
-	if len(freqs) < 3:
-		return np.nan
-	df = freqs[1] - freqs[0]
-	k0 = int(np.argmin(np.abs(freqs - f_target)))
-	k_lo = max(0, k0 - bw_bins)
-	k_hi = min(len(freqs)-1, k0 + bw_bins)
-	v2 = np.trapz(psd[k_lo:k_hi+1], dx=df)  # integrate PSD over band -> V^2
-	P = v2 / RL                             # watts (since V_rms^2/R)
-	return P
-
 # ---------------------------- Main ----------------------------
 
 def main():
@@ -67,13 +49,15 @@ def main():
 		if args.solver == "fdtd":
 			sim = FiniteDiffSim(fdtd_params) # Create sim
 			out = sim.run() # run
+			v_t = out.v_xt[:, -1]
 		else:
 			sim = LumpedElementSim(le_params) # Create sim
 			out = sim.run() # Run
+			v_t = out.v_nodes[:, -1]
 		
 		# Get numpy arrays from simulation results
 		t = out.t
-		v_t = out.v_nodes[:, -1]
+		
 		
 		# Tail for steady-state
 		if args.tail is not None and args.tail > 0:
@@ -86,9 +70,9 @@ def main():
 		f = spec.freqs_hz
 		psd = spec.spec
 
-		P1 = harmonic_power_from_psd(v_t, dt, f, psd, args.f0, args.bw_bins, RL=50.0)
-		P2 = harmonic_power_from_psd(v_t, dt, f, psd, 2*args.f0, args.bw_bins, RL=50.0)
-		P3 = harmonic_power_from_psd(v_t, dt, f, psd, 3*args.f0, args.bw_bins, RL=50.0)
+		P1 = tone_power_from_psd(f, psd, args.f0, args.bw_bins, RL=50.0)
+		P2 = tone_power_from_psd(f, psd, 2*args.f0, args.bw_bins, RL=50.0)
+		P3 = tone_power_from_psd(f, psd, 3*args.f0, args.bw_bins, RL=50.0)
 
 		def w2dbm(Pw):
 			return 10*np.log10(Pw/1e-3) if Pw > 0 else -np.inf
