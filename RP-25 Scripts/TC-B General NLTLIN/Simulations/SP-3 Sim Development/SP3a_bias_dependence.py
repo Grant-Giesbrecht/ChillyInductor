@@ -5,29 +5,24 @@ import matplotlib.pyplot as plt
 
 from nltl_core import *
 from nltl_analysis import *
+from system import *
 
-def build_fdtd(L: float, f0: float, V0: float, T: float, dx_ref: float, implicit: bool):
-	Rs = 50.0; RL = 50.0
-	reg = [FDTDRegion(x0=0.0,   x1=0.5*L, L0_per_m=400e-9, C_per_m=160e-12, alpha=2.0e-3), FDTDRegion(x0=0.5*L, x1=1.0*L, L0_per_m=600e-9, C_per_m=250e-12, alpha=8.0e-3)]
-	Nx = max(50, int(np.round(L / dx_ref)))
-	dx = L / Nx
-	Lmin = min(r.L0_per_m for r in reg)
-	Cmax = max(r.C_per_m for r in reg)
-	dt = FiniteDiffSim.cfl_dt(dx, Lmin, Cmax, safety=0.85)
-	w0 = 2*np.pi*f0
-	Vs = lambda t: V0 * np.sin(w0 * t)
-	p = FiniteDiffParams(Nx=Nx, L=L, dt=dt, T=T, Rs=Rs, RL=RL, Vs_func=Vs, regions=reg, nonlinear_update=("implicit" if implicit else "explicit"))
-	return p
-
-def build_ladder(L: float, f0: float, V0: float, T: float, dx_ref: float, implicit: bool):
-	Rs = 50.0; RL = 50.0
-	reg = [LadderRegion(x0=0.0,     x1=L/3,   L0_per_m=380e-9, C_per_m=150e-12, alpha=2.0e-3), LadderRegion(x0=L/3,     x1=2*L/3, L0_per_m=420e-9, C_per_m=170e-12, alpha=100), LadderRegion(x0=2*L/3,   x1=L,     L0_per_m=600e-9, C_per_m=250e-12, alpha=8.0e-3)]
-	N = max(30, int(np.round(L / dx_ref)))
-	dt = 2.0e-12  # fixed ladder dt (edit if needed)
-	w0 = 2*np.pi*f0
-	Vs = lambda t: V0 * np.sin(w0 * t)
-	p = LumpedElementParams(N=N, L=L, Rs=Rs, RL=RL, dt=dt, T=T, Vs_func=Vs, regions=reg, nonlinear_update=("implicit" if implicit else "explicit"))
-	return p
+parser = argparse.ArgumentParser()
+parser.add_argument("--solver", choices=["fdtd", "ladder"], default="fdtd")
+parser.add_argument("--f0", type=float, default=8e9, help="Stimulus frequency [Hz]")
+parser.add_argument("--V0", type=float, default=0.5, help="Stimulus amplitude [V]")
+parser.add_argument("--Lmin", type=float, default=0.10, help="Min total length [m]")
+parser.add_argument("--Lmax", type=float, default=0.40, help="Max total length [m]")
+parser.add_argument("--nL", type=int, default=7, help="Number of sweep points")
+parser.add_argument("--dx_ref", type=float, default=None,
+				help="Reference spatial step [m]. If None, use 0.3/600 for FDTD, 0.24/240 for Ladder")
+parser.add_argument("--T", type=float, default=4e-9, help="Total simulation time [s]")
+parser.add_argument("--tail", type=float, default=1.5e-9, help="Analyze only last 'tail' seconds")
+parser.add_argument("--bw_bins", type=int, default=3, help="Half-width in FFT bins for harmonic integration")
+parser.add_argument("--implicit", action="store_true", help="Use implicit nonlinearity update")
+parser.add_argument("--out", type=str, default="sweep_length.csv", help="Output CSV path")
+parser.add_argument("--plot", action="store_true", help="Plot P(dBm) vs L for harmonics")
+args = parser.parse_args()
 
 # ---------------------------- Harmonic power estimator ---------------
 
@@ -50,22 +45,7 @@ def harmonic_power_from_psd(v: np.ndarray, dt: float, freqs: np.ndarray, psd: np
 # ---------------------------- Main ----------------------------
 
 def main():
-	ap = argparse.ArgumentParser()
-	ap.add_argument("--solver", choices=["fdtd", "ladder"], default="fdtd")
-	ap.add_argument("--f0", type=float, default=8e9, help="Stimulus frequency [Hz]")
-	ap.add_argument("--V0", type=float, default=0.5, help="Stimulus amplitude [V]")
-	ap.add_argument("--Lmin", type=float, default=0.10, help="Min total length [m]")
-	ap.add_argument("--Lmax", type=float, default=0.40, help="Max total length [m]")
-	ap.add_argument("--nL", type=int, default=7, help="Number of sweep points")
-	ap.add_argument("--dx_ref", type=float, default=None,
-					help="Reference spatial step [m]. If None, use 0.3/600 for FDTD, 0.24/240 for Ladder")
-	ap.add_argument("--T", type=float, default=4e-9, help="Total simulation time [s]")
-	ap.add_argument("--tail", type=float, default=1.5e-9, help="Analyze only last 'tail' seconds")
-	ap.add_argument("--bw_bins", type=int, default=3, help="Half-width in FFT bins for harmonic integration")
-	ap.add_argument("--implicit", action="store_true", help="Use implicit nonlinearity update")
-	ap.add_argument("--out", type=str, default="sweep_length.csv", help="Output CSV path")
-	ap.add_argument("--plot", action="store_true", help="Plot P(dBm) vs L for harmonics")
-	args = ap.parse_args()
+	
 	
 	if args.dx_ref is None:
 		args.dx_ref = (0.3/600) if args.solver == "fdtd" else (0.24/240)
@@ -77,18 +57,23 @@ def main():
 	P2_list = []
 	P3_list = []
 	
-	# 
+	# Scan over all lengths
 	for L in L_vals:
+		
+		# Define system parameters
+		fdtd_params, le_params = define_system(L, args.f0, args.V0, args.T, args.dx_ref, args.implicit)
 		
 		# 
 		if args.solver == "fdtd":
-			p = build_fdtd(L, args.f0, args.V0, args.T, args.dx_ref, args.implicit)
-			out = FiniteDiffSim(p).run()
-			t = out.t; v_t = out.v_xt[:, -1]
+			sim = FiniteDiffSim(fdtd_params) # Create sim
+			out = sim.run() # run
 		else:
-			p = build_ladder(L, args.f0, args.V0, args.T, args.dx_ref, args.implicit)
-			out = LumpedElementSim(p).run()
-			t = out.t; v_t = out.v_nodes[:, -1]
+			sim = LumpedElementSim(le_params) # Create sim
+			out = sim.run() # Run
+		
+		# Get numpy arrays from simulation results
+		t = out.t
+		v_t = out.v_nodes[:, -1]
 		
 		# Tail for steady-state
 		if args.tail is not None and args.tail > 0:

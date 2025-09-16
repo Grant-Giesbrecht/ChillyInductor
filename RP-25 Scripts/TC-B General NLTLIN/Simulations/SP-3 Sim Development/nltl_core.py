@@ -85,8 +85,9 @@ class FiniteDiffResult:
 		v_t = np.asarray(self.v_xt)[:, idx]
 		return t, v_t
 
+#NOTE: Was FDTDRegion
 @dataclass
-class LadderRegion:
+class TLINRegion:
 	x0: float
 	x1: float
 	L0_per_m: float
@@ -103,17 +104,8 @@ class LumpedElementParams:
 	dt: float
 	T: float
 	Vs_func: Callable[[float], float]
-	regions: List[LadderRegion]
+	regions: List[TLINRegion]
 	nonlinear_update: Literal["explicit","implicit"] = "explicit"
-
-#NOTE: Was FDTDRegion
-@dataclass
-class TLINRegion:
-	x0: float
-	x1: float
-	L0_per_m: float
-	C_per_m: float
-	alpha: float
 
 #NOTE: Previously FiniteDiffParamsPW
 @dataclass
@@ -125,7 +117,7 @@ class FiniteDiffParams:
 	Rs: float
 	RL: float
 	Vs_func: Callable[[float], float]
-	regions: List[FDTDRegion]
+	regions: List[TLINRegion]
 	nonlinear_update: Literal["explicit","implicit"] = "explicit"
 
 def _sample_regions_on_grid(regions: List, grid: np.ndarray, field: str) -> np.ndarray:
