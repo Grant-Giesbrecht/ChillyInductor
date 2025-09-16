@@ -1,6 +1,7 @@
 from dataclasses import dataclass
 import numpy as np
 from typing import Literal, Tuple, Optional
+import matplotlib.pyplot as plt
 
 def analytic_signal(x: np.ndarray) -> np.ndarray:
 	''' Creates an analytic signal from a real-valued signal: runs an FFT, removes all negative
@@ -211,3 +212,42 @@ def plot_signal_diagnostics(t, v, dt, center_freq_hz=None, smooth_points=0, fmax
 
 def w2dbm(Pw):
 	return 10*np.log10(Pw/1e-3) if Pw > 0 else -np.inf
+
+def tone_power_from_psd(freqs: np.ndarray, psd: np.ndarray, f_target: float, bw_bins: int, RL: float = 50.0) -> float:
+	"""
+	Estimate power at f_target (fundamental/harmonics) by integrating PSD over +/- bw_bins bins.
+	PSD has units ~ V^2/Hz. Multiply by bin bandwidth (df) and sum to get V^2, then P=V_rms^2/RL.
+	
+	Params:
+		freqs (list): List of frequency values for psd list. Assumes equal spacing.
+		psd (list): Power spectral density list, in V^2/Hz #TODO: convert to dBm/Hz? or W/sqrt(Hz)?
+		f_target (float): Center freqeuncy around which to integrate
+		bw_bins (int); Bandwidth in bins over which to integrate.
+		RL (float): Load impedance from which to convert voltage to power.
+		
+	Returns:
+		float: Returns pwoer in watts 
+	"""
+	
+	# Ensure enough points exist
+	if len(freqs) < 3:
+		return np.nan
+	
+	# Get ∆f
+	df = freqs[1] - freqs[0]
+	
+	# Get index of smallest frequency delta
+	k0 = int(np.argmin(np.abs(freqs - f_target)))
+	
+	# Get indices above and below
+	k_lo = max(0, k0 - bw_bins)
+	k_hi = min(len(freqs)-1, k0 + bw_bins)
+	
+	# Integrate with trapezoid method over region
+	v2 = np.trapz(psd[k_lo:k_hi+1], dx=df)  # integrate PSD over band -> V^2
+	
+	# Convert to power
+	P = v2 / RL                             # watts (since V_rms^2/R)
+	
+	# Return power in region of spectrum
+	return P
