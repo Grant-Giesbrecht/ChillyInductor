@@ -47,10 +47,12 @@ def build_fdtd_piecewise(f0: float, V0: float, T: float):
 	Lmin = min(r.L0_per_m for r in reg)
 	Cmax = max(r.C_per_m for r in reg)
 	dt = NLTFDTD_PW.cfl_dt(dx, Lmin, Cmax, safety=0.85)
-
+	
+	Vdc = 1
+	
 	# Continuous sine source
 	w0 = 2*np.pi*f0
-	Vs = lambda t: V0 * np.sin(w0 * t)
+	Vs = lambda t: V0 * np.sin(w0 * t) + Vdc
 
 	p = FDTDParamsPW(Nx=Nx, L=L, dt=dt, T=T, Rs=Rs, RL=RL, Vs_func=Vs, regions=reg,
 					 nonlinear_update="explicit")
@@ -61,16 +63,21 @@ def build_ladder_piecewise(f0: float, V0: float, T: float):
 	N = 240
 	Rs = 50.0
 	RL = 50.0
-
+	
+	alpha_0 = 1e-3
+	alpha_1 = 100
+	
 	reg = [
-		LadderRegion(x0=0.0,   x1=L/3,   L0_per_m=380e-9, C_per_m=150e-12, alpha=2.0e-3),
-		LadderRegion(x0=L/3,   x1=2*L/3, L0_per_m=420e-9, C_per_m=170e-12, alpha=4.0e-3),
-		LadderRegion(x0=2*L/3, x1=L,     L0_per_m=600e-9, C_per_m=250e-12, alpha=8.0e-3),
+		LadderRegion(x0=0.0,   x1=L/3,   L0_per_m=380e-9, C_per_m=150e-12, alpha=alpha_0),
+		LadderRegion(x0=L/3,   x1=2*L/3, L0_per_m=420e-9, C_per_m=170e-12, alpha=alpha_1),
+		LadderRegion(x0=2*L/3, x1=L,     L0_per_m=600e-9, C_per_m=250e-12, alpha=alpha_0),
 	]
-
+	
+	Vdc = 1*0
+	
 	dt = 2.0e-12  # maintain your earlier ladder dt
 	w0 = 2*np.pi*f0
-	Vs = lambda t: V0 * np.sin(w0 * t)
+	Vs = lambda t: V0 * np.sin(w0 * t) + Vdc
 
 	p = LadderParamsPW(N=N, L=L, Rs=Rs, RL=RL, dt=dt, T=T, Vs_func=Vs, regions=reg,
 					   nonlinear_update="explicit")

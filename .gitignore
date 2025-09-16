@@ -151,3 +151,4 @@ apps/wyvern/assets/wyvern_src.afdesign~lock~
 *.pdf
 */.DS_Store
 *.gif
+*.csv

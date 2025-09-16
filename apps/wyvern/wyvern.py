@@ -1180,6 +1180,7 @@ class DataSelectWidget(QWidget):
 		
 		# Get list of files in directory
 		file_list = [f for f in os.listdir(full_path) if os.path.isfile(os.path.join(full_path, f))]
+		self.log.debug(f"Full path = {full_path}, listdir={os.listdir(full_path)}")
 		
 		# Scan over directory, add all matching files
 		has_items = False
