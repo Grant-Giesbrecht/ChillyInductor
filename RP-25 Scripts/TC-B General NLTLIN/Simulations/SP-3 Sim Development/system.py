@@ -27,7 +27,7 @@ def define_system(L:float, f0:float, V0:float, T:float, dx_ref:float, implicit:b
 	# Define regions
 	regions = [
 		TLINRegion(x0=0.0,     x1=L/4,   L0_per_m=dist_L0, C_per_m=dist_C0, alpha=2.0e-3),
-		TLINRegion(x0=L/4,     x1=3*L/4, L0_per_m=dist_L0, C_per_m=dist_C0, alpha=10),
+		TLINRegion(x0=L/4,     x1=3*L/4, L0_per_m=dist_L0, C_per_m=dist_C0, alpha=100),
 		TLINRegion(x0=3*L/4,   x1=L,     L0_per_m=dist_L0, C_per_m=dist_C0, alpha=1.0e-3),
 	]
 	
@@ -45,7 +45,7 @@ def define_system(L:float, f0:float, V0:float, T:float, dx_ref:float, implicit:b
 	Vs = lambda t: V0 * np.sin(w0 * t) + V_bias
 	
 	update_type = ("implicit" if implicit else "explicit")
-	print(f"update = {update_type}")
+	# print(f"update = {update_type}")
 	
 	N_lumped = max(30, int(np.round(L / dx_ref)))
 	dt_ladder = 2.0e-12  # fixed ladder dt (edit if needed)

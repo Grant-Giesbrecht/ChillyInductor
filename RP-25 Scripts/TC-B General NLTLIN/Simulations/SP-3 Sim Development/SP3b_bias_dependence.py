@@ -22,6 +22,7 @@ parser.add_argument("--bw_bins", type=int, default=3, help="Half-width in FFT bi
 parser.add_argument("--implicit", action="store_true", help="Use implicit nonlinearity update")
 parser.add_argument("--out", type=str, default="sweep_length.csv", help="Output CSV path")
 parser.add_argument("--plot", action="store_true", help="Plot P(dBm) vs L for harmonics")
+parser.add_argument("--csv", action="store_true", help="Save result to CSV")
 args = parser.parse_args()
 
 # ---------------------------- Main ----------------------------
@@ -32,23 +33,23 @@ def main():
 	if args.dx_ref is None:
 		args.dx_ref = (0.3/600) if args.solver == "fdtd" else (0.24/240)
 	
-	# L_vals = np.linspace(args.Vmin, args.Vmax, args.num_sweep)
-	L_vals = linstep(0.1, 1, 0.05)
+	bias_vals = np.linspace(args.Vmin, args.Vmax, args.num_sweep)
+	# L_vals = linstep(0.1, 1, 0.05)
 	rows = [["L_m", "P1_W", "P2_W", "P3_W", "P1_dBm", "P2_dBm", "P3_dBm"]]
 	
 	P1_list = []
 	P2_list = []
 	P3_list = []
 	
-	LEN = 0.5
+	phys_length = 0.2
 	
 	# Scan over all lengths
-	for L in L_vals:
+	for vb in bias_vals:
 		
 		# L = 0.5
 		
 		# Define system parameters
-		fdtd_params, le_params = define_system(L, args.f0, args.V0, args.T, args.dx_ref, args.implicit)
+		fdtd_params, le_params = define_system(phys_length, args.f0, args.V0, args.T, args.dx_ref, args.implicit, V_bias=vb)
 		
 		# 
 		if args.solver == "fdtd":
@@ -84,30 +85,31 @@ def main():
 
 		P1_dBm = w2dbm(P1); P2_dBm = w2dbm(P2); P3_dBm = w2dbm(P3)
 
-		rows.append([f"{L:.6g}", f"{P1:.6e}", f"{P2:.6e}", f"{P3:.6e}",
+		rows.append([f"{vb:.6g}", f"{P1:.6e}", f"{P2:.6e}", f"{P3:.6e}",
 					 f"{P1_dBm:.2f}", f"{P2_dBm:.2f}", f"{P3_dBm:.2f}"])
 
 		P1_list.append(P1_dBm); P2_list.append(P2_dBm); P3_list.append(P3_dBm)
-		print(f"L={L:.3f} m  ->  P1={P1_dBm:.2f} dBm,  P2={P2_dBm:.2f} dBm,  P3={P3_dBm:.2f} dBm")
+		print(f"Vdc={vb:.3f} m  ->  P1={P1_dBm:.2f} dBm,  P2={P2_dBm:.2f} dBm,  P3={P3_dBm:.2f} dBm")
 		
-		plt.plot(f/1e9, psd, linestyle=':', marker='o')
-		plt.xlim([0, args.f0/1e9*4])
-		plt.show()
+		# plt.plot(f/1e9, psd, linestyle=':', marker='o')
+		# plt.xlim([0, args.f0/1e9*4])
+		# plt.show()
 		
 	# Write CSV
-	out_path = args.out
-	with open(out_path, "w", newline="") as fcsv:
-		writer = csv.writer(fcsv)
-		writer.writerows(rows)
-	print(f"Saved: {out_path}")
+	if args.csv:
+		out_path = args.out
+		with open(out_path, "w", newline="") as fcsv:
+			writer = csv.writer(fcsv)
+			writer.writerows(rows)
+		print(f"Saved: {out_path}")
 
 	if args.plot:
 		
 		plt.figure(figsize=(8,5))
-		plt.plot(L_vals, P1_list, marker='o', label='Fundamental')
-		plt.plot(L_vals, P2_list, marker='s', label='2nd harmonic')
-		plt.plot(L_vals, P3_list, marker='^', label='3rd harmonic')
-		plt.xlabel("Total line length L (m)")
+		plt.plot(bias_vals, P1_list, marker='o', label='Fundamental')
+		plt.plot(bias_vals, P2_list, marker='s', label='2nd harmonic')
+		plt.plot(bias_vals, P3_list, marker='^', label='3rd harmonic')
+		plt.xlabel("Bias Voltage (V)")
 		plt.ylabel("Power at load (dBm)")
 		plt.title(f"{args.solver.upper()} — Harmonic power vs. L (f0={args.f0/1e9:.2f} GHz, V0={args.V0} V)")
 		plt.grid(True, alpha=0.3)
