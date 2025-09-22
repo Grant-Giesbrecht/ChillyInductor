@@ -2,6 +2,8 @@ import argparse
 import numpy as np
 import csv
 import matplotlib.pyplot as plt
+from joblib import Parallel, delayed
+import time
 
 from nltl_core import *
 from nltl_analysis import *
@@ -16,11 +18,14 @@ parser.add_argument("--num_sweep", type=int, default=9, help="Number of sweep po
 parser.add_argument("--dx_ref", type=float, default=None,
 				help="Reference spatial step [m]. If None, use 0.3/600 for FDTD, 0.24/240 for Ladder")
 parser.add_argument("--T", type=float, default=4e-9, help="Total simulation time [s]")
+parser.add_argument("-p", "--parallel", action='store_true', help="Run simulations in parallel")
 parser.add_argument("--tail", type=float, default=1.5e-9, help="Analyze only last 'tail' seconds")
 parser.add_argument("--bw_bins", type=int, default=3, help="Half-width in FFT bins for harmonic integration")
 parser.add_argument("--out", type=str, default="sweep_length.csv", help="Output CSV path")
 parser.add_argument("--plot", action="store_true", help="Plot P(dBm) vs L for harmonics")
 parser.add_argument("--csv", action="store_true", help="Save result to CSV")
+parser.add_argument("--n_jobs", type=int, default=-1, help="Parallel workers for the sweep (use -1 for all cores)")
+
 args = parser.parse_args()
 
 # ---------------------------- Main ----------------------------
@@ -62,12 +67,49 @@ def process_ouput(out, vb, hp_obj):
 	P3_dBm = w2dbm(P3)
 
 	# rows.append([f"{vb:.6g}", f"{P1:.6e}", f"{P2:.6e}", f"{P3:.6e}",f"{P1_dBm:.2f}", f"{P2_dBm:.2f}", f"{P3_dBm:.2f}"])
-
-	hp_obj.P1_list.append(P1_dBm)
-	hp_obj.P2_list.append(P2_dBm)
-	hp_obj.P3_list.append(P3_dBm)
+	
+	if hp_obj is not None:
+		hp_obj.P1_list.append(P1_dBm)
+		hp_obj.P2_list.append(P2_dBm)
+		hp_obj.P3_list.append(P3_dBm)
 	
 	print(f"Vdc={vb:.3f} m  ->  P1={P1_dBm:.2f} dBm,  P2={P2_dBm:.2f} dBm,  P3={P3_dBm:.2f} dBm")
+	return(P1_dBm, P2_dBm, P3_dBm)
+
+
+def process_bias_value(vb:float, phys_length):
+	
+	sim_result = {}
+	
+	# Define system parameters
+	fdtd_params_exp, le_params_exp = define_system(phys_length, args.f0, args.V0, args.T, args.dx_ref, False, V_bias=vb) # Explicit params
+	fdtd_params_imp, le_params_imp = define_system(phys_length, args.f0, args.V0, args.T, args.dx_ref, True, V_bias=vb) # Implicit params
+	
+	fdtd_exp_sim = FiniteDiffSim(fdtd_params_exp) # Create sim
+	fdtd_exp_out = fdtd_exp_sim.run() # run
+	power_tup = process_ouput(fdtd_exp_out, vb, None)
+	sim_result['fdtd_exp_out'] = fdtd_exp_out
+	sim_result['fdtd_exp_power'] = power_tup
+	
+	le_exp_sim = LumpedElementSim(le_params_exp) # Create sim
+	le_exp_out = le_exp_sim.run() # Run
+	power_tup = process_ouput(le_exp_out, vb, None)
+	sim_result['le_exp_out'] = le_exp_out
+	sim_result['le_exp_power'] = power_tup
+	
+	fdtd_imp_sim = FiniteDiffSim(fdtd_params_imp) # Create sim
+	fdtd_imp_out = fdtd_imp_sim.run() # run
+	power_tup = process_ouput(fdtd_imp_out, vb, None)
+	sim_result['fdtd_imp_out'] = fdtd_imp_out
+	sim_result['fdtd_imp_power'] = power_tup
+	
+	le_imp_sim = LumpedElementSim(le_params_imp) # Create sim
+	le_imp_out = le_imp_sim.run() # Run
+	power_tup = process_ouput(le_imp_out, vb, None)
+	sim_result['le_imp_out'] = le_imp_out
+	sim_result['le_imp_power'] = power_tup
+	
+	return sim_result
 
 def main():
 	
@@ -86,45 +128,66 @@ def main():
 	
 	phys_length = 0.2
 	
-	# Scan over all lengths
-	for vb in bias_vals:
+	if args.parallel:
 		
-		# L = 0.5
+		t0 = time.time()
+		print(f"Running in parallel....")
+		# Run in parallel; order is preserved to match the order of sweep_vals.
+		results = Parallel(n_jobs=args.n_jobs, prefer="processes")(delayed(process_bias_value)(vb, phys_length) for vb in bias_vals)
 		
-		# Define system parameters
-		fdtd_params_exp, le_params_exp = define_system(phys_length, args.f0, args.V0, args.T, args.dx_ref, False, V_bias=vb) # Explicit params
-		fdtd_params_imp, le_params_imp = define_system(phys_length, args.f0, args.V0, args.T, args.dx_ref, True, V_bias=vb) # Implicit params
+		print(f"Parallel simulations completed ({time.time()-t0} sec). Transposing result shape.")
 		
-		fdtd_exp_sim = FiniteDiffSim(fdtd_params_exp) # Create sim
-		fdtd_exp_out = fdtd_exp_sim.run() # run
-		process_ouput(fdtd_exp_out, vb, fdtd_exp_powers)
-		# fdtd_exp_vt = fdtd_exp_out.v_xt[:, -1]
-		# fdtd_exp_t = fdtd_exp_out.t
+		# Unpack results
+		for vb, res in zip(bias_vals, results):
+			
+			fdtd_exp_powers.P1_list.append(res['fdtd_exp_power'][0])
+			fdtd_exp_powers.P2_list.append(res['fdtd_exp_power'][1])
+			fdtd_exp_powers.P3_list.append(res['fdtd_exp_power'][2])
+			
+			fdtd_imp_powers.P1_list.append(res['fdtd_imp_power'][0])
+			fdtd_imp_powers.P2_list.append(res['fdtd_imp_power'][1])
+			fdtd_imp_powers.P3_list.append(res['fdtd_imp_power'][2])
+			
+			le_exp_powers.P1_list.append(res['le_exp_power'][0])
+			le_exp_powers.P2_list.append(res['le_exp_power'][1])
+			le_exp_powers.P3_list.append(res['le_exp_power'][2])
+			
+			le_imp_powers.P1_list.append(res['le_imp_power'][0])
+			le_imp_powers.P2_list.append(res['le_imp_power'][1])
+			le_imp_powers.P3_list.append(res['le_imp_power'][2])
 		
-		le_exp_sim = LumpedElementSim(le_params_exp) # Create sim
-		le_exp_out = le_exp_sim.run() # Run
-		process_ouput(le_exp_out, vb, le_exp_powers)
+	else:
 		
-		# le_exp_vt = le_exp_out.v_nodes[:, -1]
-		# le_exp_t = le_exp_out.t
+		t0 = time.time()
+		print(f"Running sequentially.")
 		
-		fdtd_imp_sim = FiniteDiffSim(fdtd_params_imp) # Create sim
-		fdtd_imp_out = fdtd_imp_sim.run() # run
-		process_ouput(fdtd_imp_out, vb, fdtd_imp_powers)
-		# fdtd_imp_vt = fdtd_imp_out.v_xt[:, -1]
-		# fdtd_imp_t = fdtd_imp_out.t
+		# Scan over all lengths
+		for vb in bias_vals:
+			
+			# Define system parameters
+			fdtd_params_exp, le_params_exp = define_system(phys_length, args.f0, args.V0, args.T, args.dx_ref, False, V_bias=vb) # Explicit params
+			fdtd_params_imp, le_params_imp = define_system(phys_length, args.f0, args.V0, args.T, args.dx_ref, True, V_bias=vb) # Implicit params
+			
+			fdtd_exp_sim = FiniteDiffSim(fdtd_params_exp) # Create sim
+			fdtd_exp_out = fdtd_exp_sim.run() # run
+			process_ouput(fdtd_exp_out, vb, fdtd_exp_powers)
+			
+			le_exp_sim = LumpedElementSim(le_params_exp) # Create sim
+			le_exp_out = le_exp_sim.run() # Run
+			process_ouput(le_exp_out, vb, le_exp_powers)
+			
+			fdtd_imp_sim = FiniteDiffSim(fdtd_params_imp) # Create sim
+			fdtd_imp_out = fdtd_imp_sim.run() # run
+			process_ouput(fdtd_imp_out, vb, fdtd_imp_powers)
+			
+			le_imp_sim = LumpedElementSim(le_params_imp) # Create sim
+			le_imp_out = le_imp_sim.run() # Run
+			process_ouput(le_imp_out, vb, le_imp_powers)
 		
-		le_imp_sim = LumpedElementSim(le_params_imp) # Create sim
-		le_imp_out = le_imp_sim.run() # Run
-		process_ouput(le_imp_out, vb, le_imp_powers)
-		# le_imp_vt = le_imp_out.v_nodes[:, -1]
-		# le_imp_t = le_imp_out.t
-		
+		print(f"Sequential simulation finished ({time.time()-t0} sec).")
 
-		
-		# plt.plot(f/1e9, psd, linestyle=':', marker='o')
-		# plt.xlim([0, args.f0/1e9*4])
-		# plt.show()
+
+# Convert list of results into 'transposed' objects
 		
 	# # Write CSV
 	# if args.csv:
