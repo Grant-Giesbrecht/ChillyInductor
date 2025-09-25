@@ -22,7 +22,10 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('-d', '--detail', help="Show log details.", action='store_true')
 parser.add_argument('-m', '--macos', help="Use macOS filesystem..", action='store_true')
-parser.add_argument('--drive', help="Specify the drive letter from which to load data.", choices=['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q'], type=str.upper)
+parser.add_argument('--julymac', help="Use macOS filesystem..", action='store_true')
+parser.add_argument('-x', '--skipfit', help="Skips autofit of data.", action='store_true')
+parser.add_argument('--coarse', help="Coarse fit steps.", action='store_true')
+parser.add_argument('--drive', help="Specify the drive letter from which to load data.", choices=['D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'], type=str.upper)
 parser.add_argument('--loglevel', help="Set the logging display level.", choices=['LOWDEBUG', 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], type=str.upper)
 args = parser.parse_args()
 
@@ -50,8 +53,29 @@ SLOPE_CTRL = "slope"
 OFFSET_CTRL = "offset"
 
 FIT_EXPLORE_IDX_CTRL = "fit-explore-idx"
+ZCROSS_EXPLORE_NAVG_CTRL = "zcross-n-avg"
 
 ##==================== Create custom classes for Black-Hole ======================
+
+def find_zero_crossings(x, y):
+	''' Finds zero crossings of x, then uses y-data to interpolate between the points.'''
+	
+	signs = np.sign(y)
+	sign_changes = np.diff(signs)
+	zc_indices = np.where(sign_changes != 0)[0]
+	
+	# Trim end points - weird things can occur if the waveform starts or ends at zero
+	zc_indices = zc_indices[1:-1]
+	
+	# Interpolate each zero-crossing
+	cross_times = []
+	for zci in zc_indices:
+		dx = x[zci+1] - x[zci]
+		dy = y[zci+1] - y[zci]
+		frac = np.abs(y[zci]/dy)
+		cross_times.append(x[zci]+dx*frac)
+	
+	return cross_times
 
 def get_colormap_colors(colormap_name, n):
 	"""
@@ -112,7 +136,7 @@ class FitResult():
 
 class ChirpDataset(bh.BHDataset):
 	
-	def __init__(self, log:plf.LogPile, source_info:bh.BHDataSource):
+	def __init__(self, log:plf.LogPile, source_info:bh.BHDataSource, do_fit:bool=True, step_points=10):
 		super().__init__(log, source_info)
 		
 		self.log.info(f"Creating new BHDataset object from file: >{source_info.file_fullpath}<.")
@@ -144,6 +168,11 @@ class ChirpDataset(bh.BHDataset):
 		self.fit_offsets = []
 		self.window_rms = []
 		
+		# Zero-crossing analysis results
+		# -> Key is N_avg value
+		self.zerocross_times = {}
+		self.zerocross_freqs = {} 
+		
 		self.ampl_bounds_low = []
 		self.ampl_bounds_hi = []
 		self.slope_bounds_low = []
@@ -154,10 +183,41 @@ class ChirpDataset(bh.BHDataset):
 		# Define options
 		self.time_reversal = False
 		self.trim_time = True
-		self.window_step_points = 10
+		self.window_step_points = step_points
+		# self.window_size_ns = 10
+		self.window_size_ns = 50
 		
 		self.windowed_freq_analysis_linear_guided()
+	
+	def get_zero_cross(self, N_avg:int):
+		''' Returns the list of N_avg times and frequencies in a tuple. Calculates
+		values if not previously calculated.'''
 		
+		# Calculate parameters if required
+		if N_avg not in self.zerocross_freqs:
+			self.log.info("Running zero-crossings analysis for N_avg=>{N_avg}<.")
+			self.calculate_zero_cross(N_avg)
+		
+		# Return values
+		return (self.zerocross_times[N_avg], self.zerocross_freqs[N_avg])
+		
+	
+	def calculate_zero_cross(self, N_avg:int):
+		
+		# Find zero crossings
+		tzc = find_zero_crossings(self.time_ns_trim, self.volt_mV_trim)
+		
+		# Select every other zero crossing to see full periods and become insensitive to y-offsets.
+		tzc_fullperiod = tzc[::2*N_avg]
+		periods = np.diff(tzc_fullperiod)
+				
+		# Calcualte frequencies
+		self.zerocross_freqs[N_avg] = (1/periods)*N_avg
+		
+		# Calculate times
+		self.zerocross_times[N_avg] = tzc_fullperiod[:-1] + periods/2
+		
+	
 	def windowed_freq_analysis_linear_guided(self):
 		
 		GUIDED_SINE_FIT = 2
@@ -165,12 +225,11 @@ class ChirpDataset(bh.BHDataset):
 		merge = True
 		include_3rd = False
 
-		trim_time = True
 		fit_method = GUIDED_SINE_FIT
 
 		# Window fit options
-		window_size_ns = 3.5
-		window_step_points = 10
+		window_size_ns = self.window_size_ns
+		window_step_points = self.window_step_points
 
 		# Show fits
 		show_example_fits = False
@@ -181,13 +240,18 @@ class ChirpDataset(bh.BHDataset):
 		reset_start_positions = True
 		
 		dframe = self.master_df
-		pulse_range_ns=[(-410, -330), (-300, -225), (-190, -120)]
+		pulse_range_ns = self.source_info.options['trim_regions']
+		if pulse_range_ns == []:
+			self.log.debug(f"No trim regions provided. Skipping trim action.")
+			self.trim_time = False
+			
+		# pulse_range_ns=[(-410, -330), (-300, -225), (-190, -120)]
 		
 		def print_range(index, name, bounds, param):
 			lb=bounds[0][index]
 			ub=bounds[1][index]
 			val=param[index]
-			print(plf.markdown(f"    {name}: >:q{lb}< \< >{val}< \< >:q{ub}<"))
+			print(plf.markdown(f"    {name}: >:q{lb}< \\< >{val}< \\< >:q{ub}<"))
 		
 		self.log.debug(f"Beginning windowed fit on data id:>{self.unique_id}<.")
 		t0 = time.time()
@@ -209,9 +273,13 @@ class ChirpDataset(bh.BHDataset):
 				idx_end = find_closest_index(time_ns_full, prange[1])
 				time_ns = np.concatenate([time_ns, time_ns_full[idx_start:idx_end+1]])
 				ampl_mV = np.concatenate([ampl_mV, ampl_mV_full[idx_start:idx_end+1]])
+			
 		else:
 			time_ns = time_ns_full
 			ampl_mV = ampl_mV_full
+		
+		self.time_ns_trim = time_ns
+		self.volt_mV_trim = ampl_mV
 		
 		# Get period and widnow size
 		example_fit_sample_period = round((len(time_ns)/window_step_points-1)/num_example_fits)
@@ -229,11 +297,12 @@ class ChirpDataset(bh.BHDataset):
 		
 		# Initial guess
 		freq = 4.825
+		freq = 0.1
 		param = [50, 2*3.14159*freq, 0, 0, 0]
 		
 		# Set bounds
-		lower = [10, 2*pi*4.8, -pi*1.5, -10, -5]
-		upper = [220, 2*pi*4.9, pi*1.5, 10, 5]
+		lower = [10, 2*pi*0.08, -pi*1.5, -10, -5]
+		upper = [220, 2*pi*0.32, pi*1.5, 10, 5]
 		bounds = [lower, upper]
 		
 		# Initialize window
@@ -417,14 +486,15 @@ class ChirpDataset(bh.BHDataset):
 				break
 			
 			# Else check for window in-between pulses
-			next_region = is_interstitial(pulse_range_ns, window[1])
-			if next_region != -1: # Not in a region
-				
-				if next_region == -2: # THis should have been caught above
-					self.log.error(f"Outside all bounds!")
-				else:
-					self.log.debug(f"Jumping to region idx >{next_region}<")
-					window = [pulse_range_ns[next_region][0], pulse_range_ns[next_region][0]+window_size_ns]
+			if self.trim_time:
+				next_region = is_interstitial(pulse_range_ns, window[1])
+				if next_region != -1: # Not in a region
+					
+					if next_region == -2: # THis should have been caught above
+						self.log.error(f"Outside all bounds!")
+					else:
+						self.log.debug(f"Jumping to region idx >{next_region}<")
+						window = [pulse_range_ns[next_region][0], pulse_range_ns[next_region][0]+window_size_ns]
 		
 		# convert from angular frequency
 		fit_freqs = np.array(fit_omegas)/2/np.pi
@@ -475,6 +545,78 @@ class ChirpDataset(bh.BHDataset):
 			
 # 			ds.get_para
 		
+class ZeroCrossWidget(QWidget):
+	''' This inherits from QWidget not BHListenerWidget because it will contain
+	both listener and controller widgets. '''
+	
+	def __init__(self, main_window):
+		super().__init__()
+		
+		self.main_window = main_window
+		self.listener_widgets = [] # Used to set the active state for all listeners in widget
+		
+		# Create plot widget
+		self.plot_widget = bhw.BHMultiPlotWidget(main_window, grid_dim=[1, 1], plot_locations=[[0, 0]], custom_render_func=self.render_zcross, include_settings_button=True)
+		
+		# Add parameters for adjustable bounds
+		self.plot_widget.configure_integrated_bounds(ax=0, xlim=None, ylim=[4.7, 4.9])
+		
+		# Add to control subscriber and local listeners
+		self.main_window.add_control_subscriber(self.plot_widget)
+		self.listener_widgets.append(self.plot_widget)
+		
+		# Create slider
+		self.n_avg_slider = bhw.BHSliderWidget(main_window, ZCROSS_EXPLORE_NAVG_CTRL, header_label="Averaging\nCount", min=1, max=10, step=1, initial_val=3)
+		self.main_window.add_dataset_subscriber(self.n_avg_slider)
+		
+		# self.fit_cb = QCheckBox("Show Fit")
+		# self.fit_cb.setChecked(True)
+		# self.fit_cb.stateChanged.connect(self.render_zcross)
+		
+		# Apply widgets
+		self.grid = QGridLayout()
+		self.grid.addWidget(self.plot_widget, 0, 0)
+		self.grid.addWidget(self.n_avg_slider, 0, 1)
+		self.setLayout(self.grid)
+	
+	@staticmethod
+	def render_zcross(pw):
+		''' Callback for plot update. '''
+		
+		NUM_PLOTS = 1
+		ds = pw.data_manager.get_active()
+		
+		# Abort if no dataset exists
+		if ds is None:
+			return
+		
+		# Get averaging number
+		N_avg = pw.control_requested.get_param(ZCROSS_EXPLORE_NAVG_CTRL)
+		(t_zc, f_zc) = ds.get_zero_cross(N_avg)
+		
+		# Clear old data
+		for i in range(NUM_PLOTS):
+			pw.axes[i].cla()
+		
+		# Replot
+		pw.axes[0].plot(t_zc, f_zc, linestyle=':', marker='o', color=(0, 0.65, 0), label='Zero-Crossing')
+		pw.axes[0].set_ylabel("Frequency (GHz)")
+		pw.axes[0].set_title("Zero-Crossing Analysis")
+		pw.axes[0].legend()
+		
+		pw.axes[0].plot(ds.fit_times, ds.fit_freqs, linestyle=':', marker='.', color=(0.65, 0, 0.35), label='Fit')
+		pw.axes[0].legend()
+		
+		# Apply universal settings
+		for i in range(NUM_PLOTS):
+			pw.axes[i].grid(True)
+			pw.axes[i].set_xlabel("Time (ns)")
+	
+	def set_active(self, b:bool):
+		
+		for lw in self.listener_widgets:
+			lw.set_active(b)
+
 
 class FitExplorerWidget(QWidget):
 	''' This inherits from QWidget not BHListenerWidget because it will contain
@@ -490,7 +632,7 @@ class FitExplorerWidget(QWidget):
 		self.plot_widget = bhw.BHMultiPlotWidget(main_window, grid_dim=[3, 2], plot_locations=[[slice(0,2), slice(0, 2)], [2, 0], [2, 1]], custom_render_func=self.render_manual_fit, include_settings_button=True)
 		
 		# Add parameters for adjustable bounds
-		self.plot_widget.configure_integrated_bounds(ax=0, xlim=None, ylim=[-75, 75])
+		self.plot_widget.configure_integrated_bounds(ax=0, xlim=None, ylim=[-15, 15])
 		
 		# Add to control subscriber and local listeners
 		self.main_window.add_control_subscriber(self.plot_widget)
@@ -599,6 +741,10 @@ class FitExplorerWidget(QWidget):
 		if ds is None:
 			return
 		
+		# Abort if fit has not been run
+		if len(ds.fit_ampls) < 1:
+			return
+		
 		# Get window size and fit result
 		fit_idx = pw.control_requested.get_param(FIT_EXPLORE_IDX_CTRL)
 		window = ds.fit_results[fit_idx].window
@@ -667,6 +813,7 @@ class ChirpAnalyzerMainWindow(bh.BHMainWindow):
 		self.control_requested.add_param(SLOPE_CTRL, 0)
 		self.control_requested.add_param(OFFSET_CTRL, 0)
 		self.control_requested.add_param(FIT_EXPLORE_IDX_CTRL, 0)
+		self.control_requested.add_param(ZCROSS_EXPLORE_NAVG_CTRL, 1)
 		
 		# Create fit viewer
 		self.auto_fit_plot =  bhw.BHMultiPlotWidget(self, grid_dim=[4, 2], plot_locations=[[slice(0,2), 0], [slice(2,4), 0], [0, 1], [1, 1], [2, 1], [3, 1]], custom_render_func=render_auto_fit)
@@ -682,6 +829,8 @@ class ChirpAnalyzerMainWindow(bh.BHMainWindow):
 		
 		self.fit_explorer = FitExplorerWidget(self)
 		
+		self.zero_cross = ZeroCrossWidget(self)
+		
 		
 		
 		# self.manual_plot = bhw.BHMultiPlotWidget(self, grid_dim=[2, 2], plot_locations=[[0, slice(0, 2)], [1, 0], [1, 1]], custom_render_func=render_manual_fit)
@@ -692,11 +841,12 @@ class ChirpAnalyzerMainWindow(bh.BHMainWindow):
 		self.tab_widget.addTab(self.auto_fit_plot, "Fit Viewer")
 		self.tab_widget.addTab(self.fit_explorer, "Manual Fit Explorer")
 		self.tab_widget.addTab(self.rms_plot, "RMS Viewer")
+		self.tab_widget.addTab(self.zero_cross, "Zero-Crossings Viewer")
 		self.tab_widget.setSizePolicy(QSizePolicy.Policy.Expanding, QSizePolicy.Policy.Expanding)
 		
 		#TODO: Create a controller
-		self.ampl_slider = bhw.BHSliderWidget(self, param=AMPLITUDE_CTRL, header_label="Amplitude", min=0, max=200, unit_label="mV", step=0.5)
-		self.freq_slider = bhw.BHSliderWidget(self, param=FREQUENCY_CTRL, header_label="Frequency", min=4700, max=4900, unit_label="MHz", step=1)
+		self.ampl_slider = bhw.BHSliderWidget(self, param=AMPLITUDE_CTRL, header_label="Amplitude", min=0, max=30, unit_label="mV", step=0.5)
+		self.freq_slider = bhw.BHSliderWidget(self, param=FREQUENCY_CTRL, header_label="Frequency", min=80, max=330, unit_label="MHz", step=0.5)
 		self.phi_slider = bhw.BHSliderWidget(self, param=PHI_CTRL, header_label="Phi", min=-270, max=270, unit_label="deg", step=1)
 		self.slope_slider = bhw.BHSliderWidget(self, param=SLOPE_CTRL, header_label="Slope", min=-2.5, max=2.5, unit_label="mV/ns", step=0.025)
 		self.offset_slider = bhw.BHSliderWidget(self, param=OFFSET_CTRL, header_label="Offset", min=-5, max=5, unit_label="mV", step=0.05)
@@ -730,7 +880,10 @@ class ChirpAnalyzerMainWindow(bh.BHMainWindow):
 ##==================== Create custom functions for Black-Hole ======================
 
 def load_chirp_dataset(source, log):
-	return ChirpDataset(log, source)
+	pts = 10
+	if args.coarse:
+		pts = 100
+	return ChirpDataset(log, source, do_fit=(not args.skipfit), step_points=pts)
 
 def render_rms(pw):
 	
@@ -804,7 +957,10 @@ app.setStyle(f"Fusion")
 
 # Create Data Manager
 data_manager = bh.BHDatasetManager(log, load_function=load_chirp_dataset)
-if args.macos:
+if args.julymac:
+	if not data_manager.load_configuration("chirpy_conf_macOS_july.json"):
+		exit()
+elif args.macos:
 	if not data_manager.load_configuration("chirpy_conf_macOS.json"):
 		exit()
 else:

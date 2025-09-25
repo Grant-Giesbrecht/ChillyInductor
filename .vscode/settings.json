@@ -2,5 +2,8 @@
 	"python.analysis.extraPaths": [
 		"./Python Sim/"
 	],
-	"editor.mouseWheelScrollSensitivity": 2
+	"editor.mouseWheelScrollSensitivity": 2,
+	"editor.parameterHints.enabled": false,
+	"python-envs.defaultEnvManager": "ms-python.python:system",
+	"python-envs.pythonProjects": []
 }

@@ -137,7 +137,7 @@ class DataLoadingManager:
 		for dss in self.data_conf['sweep_sources']:
 			
 			#For each entry, evaluate wildcards and find actual path
-			full_path = get_general_path(dss['path'], dos_id_folder=True, print_details=cli_args.autopathdetails)
+			full_path = get_general_path(dss['path'], dos_id_folder=True, print_details=cli_args.autopathdetails, unix_vol_name="M6 T7S")
 			
 			# Write log
 			name = dss['chip_name']
@@ -154,7 +154,7 @@ class DataLoadingManager:
 		for dss in self.data_conf['sparam_sources']:
 			
 			#For each entry, evaluate wildcards and find actual path
-			cryo_full_path = get_general_path(dss['cryostat_file'], dos_id_folder=True, print_details=cli_args.autopathdetails)
+			cryo_full_path = get_general_path(dss['cryostat_file'], dos_id_folder=True, print_details=cli_args.autopathdetails, unix_vol_name="M6 T7S")
 			
 			# Write log
 			name = dss['chip_name']
@@ -1180,6 +1180,7 @@ class DataSelectWidget(QWidget):
 		
 		# Get list of files in directory
 		file_list = [f for f in os.listdir(full_path) if os.path.isfile(os.path.join(full_path, f))]
+		self.log.debug(f"Full path = {full_path}, listdir={os.listdir(full_path)}")
 		
 		# Scan over directory, add all matching files
 		has_items = False
@@ -2746,28 +2747,28 @@ class SpectrumPIDomainPlotWidget(TabPlotWidget):
 		
 		self.plot_is_current = True
 
-# class PowerDomainTabWidget(QTabWidget):
-#	
-# 	def __init__(self, global_conditions:dict, main_window):
-# 		super().__init__()
+class PowerDomainTabWidget(QTabWidget):
+	
+	def __init__(self, global_conditions:dict, main_window):
+		super().__init__()
 		
-# 		self.main_window = main_window
-# 		self.object_list = []
-# 		self._is_active = False
+		self.main_window = main_window
+		self.object_list = []
+		self._is_active = False
 		
-# 		#------------ Max Bias widget
+		#------------ Max Bias widget
 		
-# 		self.object_list.append(HarmGenBiasDomainPlotWidget(global_conditions, self.main_window.log, self.main_window.mdata))
-# 		self.main_window.gcond_subscribers.append(self.object_list[-1])
-# 		self.addTab(self.object_list[-1], "Harmonic Generation")
+		self.object_list.append(HarmGenBiasDomainPlotWidget(global_conditions, self.main_window.log, self.main_window.mdata))
+		self.main_window.gcond_subscribers.append(self.object_list[-1])
+		self.addTab(self.object_list[-1], "Harmonic Generation")
 		
-# 		self.currentChanged.connect(self.update_active_tab)
-#		
-# 	def set_active(self, b:bool):
-# 		self._is_active = b
-# 		self.update_active_tab()
-#	
-# 	def update_active_tab(self):
+		self.currentChanged.connect(self.update_active_tab)
+		
+	def set_active(self, b:bool):
+		self._is_active = b
+		self.update_active_tab()
+	
+	def update_active_tab(self):
 		
 		# Set all objects to inactive
 		for obj in self.object_list:

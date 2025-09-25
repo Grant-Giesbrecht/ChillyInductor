@@ -1,6 +1,12 @@
 ''' The purpose of this script is to measure the harmonic generation capacity of the C2024Q1 chips.
 
 Allows a temperature-wait condition to be set s.t. the sweep doesn't begin until the cryostat is properly cooled-down. 
+
+Required measurement setup:
+
+
+
+
 '''
 
 from heimdallr.all import *
@@ -12,6 +18,7 @@ from ganymede import *
 import datetime
 from pathlib import Path
 import argparse
+from jarnsaxa import hdf_to_dict, dict_to_hdf
 
 # Set directories for data and sweep configuration
 CONF_DIRECTORY = "sweep_configs"
@@ -21,8 +28,8 @@ CONF_DIRECTORY = "sweep_configs"
 # DATA_DIRECTORY = "C:\\Users\\gmg3\\Mega\\remote_data\\data"
 # LOG_DIRECTORY = "C:\\Users\\gmg3\\Mega\\remote_data\\logs"
 
-DATA_DIRECTORY = "C:\\Users\\gmg3\\OneDrive - UCB-O365\\remote_data\\data"
-LOG_DIRECTORY = "C:\\Users\\gmg3\\OneDrive - UCB-O365\\remote_data\\logs"
+DATA_DIRECTORY = "C:\\Users\\Grant Giesbrecht\\Documents\\Measurement Data\\RP-22 SMC-C\\data"
+LOG_DIRECTORY = "C:\\Users\\Grant Giesbrecht\\Documents\\Measurement Data\\RP-22 SMC-C\\logs"
 
 # Set autosave period in seconds
 TIME_AUTOSAVE_S = 600

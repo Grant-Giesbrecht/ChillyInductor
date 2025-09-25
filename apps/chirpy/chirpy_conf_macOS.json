@@ -1,0 +1,161 @@
+{
+	"dir_abbrev": [
+		{
+			"shortcut": "$DATA_ROOT$",
+			"expanded": ["/", "Volumes", "M6 T7S", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A"]
+		},
+		{
+			"shortcut": "$20FEB2025$",
+			"expanded": ["$DATA_ROOT$", "Time Domain Measurements", "20_feb_2025"]
+		},
+		{
+			"shortcut": "$TEMP$",
+			"expanded": ["/", "Volumes", "M5 PERSONAL", "datafile_transfer"]
+		}
+	],
+	"data_sources": [
+		{
+			"file_path": ["$20FEB2025$", "C1 BIAS0,05V_2,368GHz_HalfPiOut_-14dBm00000.txt"],
+			"parameters": {
+				"fund_freq_GHz": 2.36,
+				"bias_V": 0.05,
+				"P_RF_dBm": -14,
+				"channel": 1,
+				"group": "Pi & Half Pi: 20-Feb-2025"
+			},
+			"options": {
+				"trim_regions": [[-410, -330], [-300, -225], [-190, -120]]
+			},
+			"notes": "",
+			"valid_active_set_indices": [0]
+		},
+		{
+			"file_path": ["$20FEB2025$", "C1 BIAS0,30V_2,368GHz_HalfPiOut_-14dBm00000.txt"],
+			"parameters": {
+				"fund_freq_GHz": 2.36,
+				"bias_V": 0.30,
+				"P_RF_dBm": -14,
+				"channel": 1,
+				"group": "Pi & Half Pi: 20-Feb-2025"
+			},
+			"options": {
+				"trim_regions": [[-410, -330], [-300, -225], [-190, -120]]
+			},
+			"notes": "",
+			"valid_active_set_indices": [0]
+		},
+		{
+			"file_path": ["$20FEB2025$", "C1 BIAS0,15V_2,368GHZ_HalfPiOut_-4dBm00000.txt"],
+			"parameters": {
+				"fund_freq_GHz": 2.36,
+				"bias_V": 0.15,
+				"P_RF_dBm": -4,
+				"channel": 1,
+				"group": "Pi & Half Pi: 20-Feb-2025"
+			},
+			"options": {
+				"trim_regions": [[-410, -330], [-300, -225], [-190, -120]]
+			},
+			"notes": "",
+			"valid_active_set_indices": [0]
+		},
+		{
+			"file_path": ["$20FEB2025$", "C1 BIAS0,05V_2,368GHZ_HalfPiOut_-4dBm00000.txt"],
+			"parameters": {
+				"fund_freq_GHz": 2.36,
+				"bias_V": 0.05,
+				"P_RF_dBm": -4,
+				"channel": 1,
+				"group": "Pi & Half Pi: 20-Feb-2025"
+			},
+			"options": {
+				"trim_regions": [[-410, -330], [-300, -225], [-190, -120]]
+			},
+			"notes": "",
+			"valid_active_set_indices": [0]
+		},
+		{
+			"file_path": ["$20FEB2025$", "C1 BIAS0,30V_2,368GHZ_HalfPiOut_-4dBm00000.txt"],
+			"parameters": {
+				"fund_freq_GHz": 2.36,
+				"bias_V": 0.30,
+				"P_RF_dBm": -4,
+				"channel": 1,
+				"group": "Pi & Half Pi: 20-Feb-2025"
+			},
+			"options": {
+				"trim_regions": [[-410, -330], [-300, -225], [-190, -120]]
+			},
+			"notes": "",
+			"valid_active_set_indices": [0]
+		},
+		{
+			"file_path": ["$TEMP$", "C1setting100000.txt"],
+			"parameters": {
+				"fund_freq_GHz": 2.36,
+				"bias_V": 0.275,
+				"P_RF_dBm": -11.16,
+				"channel": 1,
+				"group": "Pi & Half Pi: 6-March-2025"
+			},
+			"options": {
+				"trim_regions": [[75323, 75406], [75478, 75563], [75617, 75715]]
+			},
+			"notes": "Half-pi mult = x1",
+			"valid_active_set_indices": [0]
+		},
+		{
+			"file_path": ["$TEMP$", "C1setting200000.txt"],
+			"parameters": {
+				"fund_freq_GHz": 2.36,
+				"bias_V": 0.275,
+				"P_RF_dBm": -11.16,
+				"channel": 1,
+				"group": "Pi & Half Pi: 6-March-2025"
+			},
+			"options": {
+				"trim_regions": [[75323, 75406], [75478, 75563], [75617, 75715]]
+			},
+			"notes": "Half-pi mult = x1.05",
+			"valid_active_set_indices": [0]
+		},
+		{
+			"file_path": ["$TEMP$", "C1setting200000.txt"],
+			"parameters": {
+				"fund_freq_GHz": 2.36,
+				"bias_V": 0.275,
+				"P_RF_dBm": -11.16,
+				"channel": 1,
+				"group": "Pi & Half Pi: 6-March-2025"
+			},
+			"options": {
+				"trim_regions": [[75323, 75406], [75478, 75563], [75617, 75715]]
+			},
+			"notes": "Half-pi mult = x1.05",
+			"valid_active_set_indices": [0]
+		}
+		
+	],
+	"organization_structure":[
+		{
+			"layer":0,
+			"group_parameters": "group",
+			"include_all_option": true
+		},
+		{
+			"layer":1,
+			"group_parameters": "fund_freq_GHz",
+			"include_all_option": true
+		},
+		{
+			"layer":2,
+			"group_parameters": "bias_V",
+			"include_all_option": true
+		},
+		{
+			"layer":3,
+			"group_parameters": "P_RF_dBm",
+			"include_all_option": true
+		}
+	]
+}

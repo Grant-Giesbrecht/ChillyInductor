@@ -2,67 +2,80 @@
 	"dir_abbrev": [
 		{
 			"shortcut": "$DATA_ROOT$",
-			"expanded": ["/", "Volumes", "M7 PhD Data", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A"]
+			"expanded": ["$DRIVE_LETTER$", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-A"]
 		},
 		{
 			"shortcut": "$20FEB2025$",
 			"expanded": ["$DATA_ROOT$", "Time Domain Measurements", "20_feb_2025"]
+		},
+		{
+			"shortcut": "$JULY_TD$",
+			"expanded": ["$DRIVE_LETTER$", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-C July Campaign", "1-July-2025 TD Measurements"]
+		},
+		{
+			"shortcut": "$TEMP$",
+			"expanded": ["/", "Volumes", "M5 PERSONAL", "datafile_transfer"]
 		}
 	],
 	"data_sources": [
 		{
-			"file_path": ["$20FEB2025$", "C1 BIAS0,05V_2,368GHz_HalfPiOut_-14dBm00000.txt"],
+			"file_path": ["$JULY_TD$", "C1RP23C_f60_AVG5k_00000.txt"],
 			"parameters": {
 				"fund_freq_GHz": 2.36,
 				"bias_V": 0.05,
 				"P_RF_dBm": -14,
 				"channel": 1,
-				"group": "Pi & Half Pi: 20-Feb-2025"
+				"group": "July TD"
 			},
+			"options": {
+				"trim_regions": [[-540, -480]]
+			},
+			"notes": "",
 			"valid_active_set_indices": [0]
 		},
 		{
-			"file_path": ["$20FEB2025$", "C1 BIAS0,30V_2,368GHz_HalfPiOut_-14dBm00000.txt"],
-			"parameters": {
-				"fund_freq_GHz": 2.36,
-				"bias_V": 0.30,
-				"P_RF_dBm": -14,
-				"channel": 1,
-				"group": "Pi & Half Pi: 20-Feb-2025"
-			},
-			"valid_active_set_indices": [0]
-		},
-		{
-			"file_path": ["$20FEB2025$", "C1 BIAS0,15V_2,368GHZ_HalfPiOut_-4dBm00000.txt"],
-			"parameters": {
-				"fund_freq_GHz": 2.36,
-				"bias_V": 0.15,
-				"P_RF_dBm": -4,
-				"channel": 1,
-				"group": "Pi & Half Pi: 20-Feb-2025"
-			},
-			"valid_active_set_indices": [0]
-		},
-		{
-			"file_path": ["$20FEB2025$", "C1 BIAS0,05V_2,368GHZ_HalfPiOut_-4dBm00000.txt"],
+			"file_path": ["$JULY_TD$", "C1RP23C_f61_AVG5k_00000.txt"],
 			"parameters": {
 				"fund_freq_GHz": 2.36,
 				"bias_V": 0.05,
-				"P_RF_dBm": -4,
+				"P_RF_dBm": -14,
 				"channel": 1,
-				"group": "Pi & Half Pi: 20-Feb-2025"
+				"group": "July TD"
 			},
+			"options": {
+				"trim_regions": [[-450, -380]]
+			},
+			"notes": "",
 			"valid_active_set_indices": [0]
 		},
 		{
-			"file_path": ["$20FEB2025$", "C1 BIAS0,30V_2,368GHZ_HalfPiOut_-4dBm00000.txt"],
+			"file_path": ["$JULY_TD$", "C1RP23C_f73_AVG5k_00000.txt"],
 			"parameters": {
 				"fund_freq_GHz": 2.36,
-				"bias_V": 0.30,
-				"P_RF_dBm": -4,
+				"bias_V": 0.05,
+				"P_RF_dBm": -14,
 				"channel": 1,
-				"group": "Pi & Half Pi: 20-Feb-2025"
+				"group": "July TD"
 			},
+			"options": {
+				"trim_regions": [[-1200, -870]]
+			},
+			"notes": "",
+			"valid_active_set_indices": [0]
+		},
+		{
+			"file_path": ["$JULY_TD$", "C1RP23C_f75_AVG5k_00000.txt"],
+			"parameters": {
+				"fund_freq_GHz": 2.36,
+				"bias_V": 0.05,
+				"P_RF_dBm": -14,
+				"channel": 1,
+				"group": "July TD"
+			},
+			"options": {
+				"trim_regions": [[-1200, -870]]
+			},
+			"notes": "",
 			"valid_active_set_indices": [0]
 		}
 	],

@@ -58,6 +58,11 @@
 			"path": ["ARC0*", "RP-22*", "Data", "SMC-B*", "*R3C3*", "Track 3*"]
 		},
 		{
+			"chip_name": "R3C3",
+			"track": "Track 2  (43 mm)",
+			"path": ["ARC0*", "RP-22*", "Data", "SMC-B*", "*R3C3*", "Track 2*"]
+		},
+		{
 			"chip_name": "R4C0W0",
 			"track": "Track 3  (454 mm)",
 			"path": ["ARC0*", "RP-22*", "Data", "SMC-B*", "*R4C0W0*", "Track 3*"]
