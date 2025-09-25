@@ -46,8 +46,6 @@ parser.add_argument('--loglevel', help="Set the logging display level.", choices
 parser.add_argument('--tempwait', help="Set the logging display level.", type=float)
 args = parser.parse_args()
 
-disable_rf = args.disablerf
-
 # Initialize log
 log = LogPile()
 if args.loglevel is not None:
@@ -59,6 +57,10 @@ log.str_format.show_detail = args.detail
 # Check for tempwait argument
 if args.tempwait is not None:
 	log.info(f"Will wait to begin sweep until temperature >{args.tempwait} K< has been reached.")
+
+disable_rf = args.disablerf
+if disable_rf:
+	log.info(f"Disabling RF source, per command line argument.")
 
 ##======================================================
 # Get configuration
@@ -184,7 +186,7 @@ except Exception as e:
 calibration_dict = {"current_sense_res_ohms": cs_res, "time_of_meas": str(cs_time)}
 dataset_dict = {"freq_rf_GHz":[], "power_rf_dBm":[], "times":[], "MFLI_V_offset_V":[], "requested_Idc_mA":[], "raw_meas_Vdc_V":[], "Idc_mA":[], "detect_normal":[], "temperature_K":[], "waveform_f_Hz":[], "waveform_s_dBm":[], "waveform_rbw_Hz":[], "measurement_stage":[]}
 
-summary_dict = {'Ic_meas_mA':[], "Ic_set_mA":[], "Ic_uncert_mA": [], "power_rf_dBm":[], "freq_rf_GHz":[], "times":[], "temperature_K":[]}
+summary_dict = {'Ic_meas_mA':[], "Ic_set_mA":[], "Ic_uncert_mA": [], "power_rf_dBm":[], "freq_rf_GHz":[], "times":[], "temperature_K":[], 'rf_disabled':[]}
 
 info_dict = {'source_script': __file__, 'operator_notes':operator_notes, 'configuration': json.dumps(conf_data), 'source_script_full':self_contents}
 
@@ -247,6 +249,7 @@ mfli.set_offset(0)
 ##======================================================
 # Begin logging data
 
+# If RF is disabled, make sure each loop runs only once.
 if disable_rf:
 	freq_rf = [1e9]
 	power_rf_dBm = [-40]
@@ -420,6 +423,14 @@ for f_rf in freq_rf:
 		
 		while True:
 			
+			# Prepare the signal generator
+			if disable_rf:
+				sig_gen.set_enable_rf(False)
+			else:
+				sig_gen.set_freq(f_rf)
+				sig_gen.set_power(p_rf)
+				sig_gen.set_enable_rf(True)
+			
 			# Calculate delta, check for end condition
 			#NOTE: Cannot calculate (delta_meas = lowest_norm_meas - highest_sc_meas) because highest_sc_meas is meaningless (val taken when chip is doing god knows what)
 			# INstead we look at how our measured values are missing the set point, then using that to extrapolate what real measured current CANNOT be hit because the chip would first go normal.
@@ -573,6 +584,14 @@ for f_rf in freq_rf:
 		running = True
 		while running:
 			
+			# Prepare the signal generator
+			if disable_rf:
+				sig_gen.set_enable_rf(False)
+			else:
+				sig_gen.set_freq(f_rf)
+				sig_gen.set_power(p_rf)
+				sig_gen.set_enable_rf(True)
+			
 			# Increase target current
 			idc_target += idc_fine_step_mA
 			
@@ -580,7 +599,7 @@ for f_rf in freq_rf:
 			
 			# Set offset voltage
 			Voffset = current_set_res * idc_target/1e3
-			log.debug(f"Selected offset voltage {Voffset} V from current_set_res={current_set_res} Ohms and idc={idc_target} mA")
+			log.debug(f"Selected offset voltage {Voffset} V from current_set_res={current_set_res} Ohms and >:atarget idc={idc_target} mA<")
 			mfli.set_offset(Voffset)
 			mfli.set_output_enable(True)
 			
@@ -589,7 +608,7 @@ for f_rf in freq_rf:
 			
 			# Calculate current
 			I_meas_A = v_cs_read/cs_res
-			log.debug(f"Measured bias current at {I_meas_A*1e3} mA", detail=f"V_current_sense_read = {v_cs_read} V, CS-resistor = {cs_res} ohms.")
+			log.debug(f"Measured bias current at >{I_meas_A*1e3} mA<", detail=f"V_current_sense_read = {v_cs_read} V, CS-resistor = {cs_res} ohms.")
 			
 			# Read temperature
 			t_meas = tempctrl.get_temp()
@@ -661,6 +680,7 @@ for f_rf in freq_rf:
 				dataset['summary_dataset']['freq_rf_GHz'].append(f_rf)
 				dataset['summary_dataset']['times'].append(str(datetime.datetime.now()))
 				dataset['summary_dataset']['temperature_K'].append(t_meas)
+				dataset['summary_dataset']['rf_disabled'].append(disable_rf)
 				
 				# Let chip recover
 				log.debug("Turning off DC bias and signal generator to let chip recover")
@@ -674,7 +694,12 @@ for f_rf in freq_rf:
 			else:
 				log.debug(f"Chip remained superconducting.")
 				last_sc_point_targ = idc_target
-				last_sc_point_meas = I_meas_A*1e3
+				try:
+					last_sc_point_meas = np.max([last_sc_point_meas, I_meas_A*1e3])
+				except TypeError:
+					last_sc_point_meas = I_meas_A*1e3
+				
+				
 			
 			log.debug(f"Saving datapoint.")
 			

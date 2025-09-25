@@ -22,7 +22,7 @@ import argparse
 parser = argparse.ArgumentParser()
 parser.add_argument('-d', '--detail', help="Show log details.", action='store_true')
 parser.add_argument('-m', '--macos', help="Use macOS filesystem..", action='store_true')
-parser.add_argument('--drive', help="Specify the drive letter from which to load data.", choices=['D', 'E', 'F', 'G', 'H', 'I', 'J', 'K'], type=str.upper)
+parser.add_argument('--drive', help="Specify the drive letter from which to load data.", choices=['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'I', 'J', 'K', 'L', 'M', 'N', 'O', 'P', 'Q'], type=str.upper)
 parser.add_argument('--loglevel', help="Set the logging display level.", choices=['LOWDEBUG', 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], type=str.upper)
 args = parser.parse_args()
 

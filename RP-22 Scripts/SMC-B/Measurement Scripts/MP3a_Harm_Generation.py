@@ -21,8 +21,8 @@ CONF_DIRECTORY = "sweep_configs"
 # DATA_DIRECTORY = "C:\\Users\\gmg3\\Mega\\remote_data\\data"
 # LOG_DIRECTORY = "C:\\Users\\gmg3\\Mega\\remote_data\\logs"
 
-DATA_DIRECTORY = "C:\\Users\\gmg3\\OneDrive - UCB-O365\\remote_data\\data"
-LOG_DIRECTORY = "C:\\Users\\gmg3\\OneDrive - UCB-O365\\remote_data\\logs"
+DATA_DIRECTORY = "C:\\Users\\gmg3\\Desktop\\Files\\sweep_data"
+LOG_DIRECTORY = "C:\\Users\\gmg3\\Desktop\\Files\\sweep_logs"
 
 # Set autosave period in seconds
 TIME_AUTOSAVE_S = 600
@@ -67,6 +67,7 @@ conf_file_name = os.path.join(".", CONF_DIRECTORY, f"{conf_file_prefix}.json")
 try:
 	with open(conf_file_name, "r") as outfile:
 		conf_data = json.load(outfile)
+	log.info(f"Configuration file >{conf_file_name}< loaded successfully.")
 except Exception as e:
 	log.critical(f"Failed to read configuration file >{conf_file_name}<. ({e})")
 	exit()
@@ -94,6 +95,7 @@ if dmm.online:
 else:
 	log.critical("Failed to connect to multimeter!")
 	exit()
+print("A", flush=True)
 
 tempctrl = LakeShoreModel335("GPIB::12::INSTR", log)
 if tempctrl.online:
@@ -101,6 +103,7 @@ if tempctrl.online:
 else:
 	log.critical("Failed to connect to temperature controller!")
 	exit()
+print("B", flush=True)
 
 mfli = ZurichInstrumentsMFLI("dev5652", "192.168.88.82", log)
 if mfli.online:
@@ -108,6 +111,7 @@ if mfli.online:
 else:
 	log.critical("Failed to connect to Zurich Instruments MFLI!")
 	exit()
+print("C", flush=True)
 
 sig_gen = Keysight8360L("GPIB::18::INSTR", log)
 if sig_gen.online:
@@ -116,6 +120,7 @@ else:
 	log.critical("Failed to connect to Keysight signal generator!")
 	exit()
 sig_gen.set_enable_rf(False)
+print("D", flush=True)
 
 spec_an = RohdeSchwarzFSE("GPIB::20::INSTR", log)
 if spec_an.online:
@@ -123,6 +128,7 @@ if spec_an.online:
 else:
 	log.critical("Failed to connect to Rohde & Schwarz FSEK spectrum analyzer!")
 	exit()
+print("E", flush=True)
 
 ##======================================================
 # Get User Input re: sweep
