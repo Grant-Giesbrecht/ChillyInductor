@@ -9,6 +9,7 @@ import numpy as np
 import os
 from ganymede import extract_visible_xy
 import json
+import mplcursors
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-p', '--pub', help="Publication version.", action='store_true')
@@ -153,5 +154,6 @@ if args.midas:
 	print(f"Saving midas data")
 	fig_to_midas_json(fig1, os.path.join(".", "midas_data", "Fig4_data.json"))
 
+mplcursors.cursor(multiple=True)
 
 plt.show()
