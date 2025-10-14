@@ -124,8 +124,9 @@ subharm_err = np.array([8.19E-03, 5.62e-3, 3.32E-03, 4.64E-03, 5.02E-03, 5.64E-0
 subharm_max_sigma = [10, 15, 20, 25, 30, 35, 40, 50, 100]
 subharm_max_err = [3.614e-3, 4.387e-3, 5.46e-3, 6.987e-3, 8.391e-3, 9.5975e-3, 1.097e-2, 1.405e-2, 3.337e-2]
 
-trad_max_sigma = [10, 15, 20, 25, 35, 40, 50, 100]
-trad_max_err = [3.08e-3, 3.7913e-3, 5.0167e-3, 6.637e-3, 1.01e-2, 1.09e-2, 1.38e-2, 3.17e-2]
+trad_max_sigma = [5, 10, 15, 20, 25, 35, 40, 50, 100, 200]
+trad_max_err = [2.412e-3, 3.08e-3, 3.7913e-3, 5.0167e-3, 6.637e-3, 1.01e-2, 1.09e-2, 1.38e-2, 2.497e-2, 4.169e-2]
+
 
 # color_trad = (0.7, 0, 0.3)
 # color_doub = (0, 0.3, 0.7)
@@ -147,9 +148,9 @@ ax1a = fig1.add_subplot(gs1[0, 0])
 
 ax1a.plot(trad_sigma, doubler_err, linestyle=':', marker='o', color=color_doub, label="Subharmonic Drive, Trace-3", markersize=7)
 ax1a.plot(trad_sigma, trad_err, linestyle='--', marker='+', color=color_trad, label="Direct Drive, Trace-3", markersize=10, markeredgewidth=2)
-ax1a.plot(trad_sigma, direct_err, linestyle='-.', marker='x', color=color_direct, label="Direct Drive, Trace-2", markersize=10, markeredgewidth=2)
-ax1a.plot(subharm_sigma, subharm_err, linestyle=':', marker='v', color=color_subh, label="Subharm, Trace-2", markersize=6, markeredgewidth=2)
-ax1a.plot(subharm_max_sigma, subharm_max_err, linestyle=':', marker='*', color=color_subhmax, label="Subharmonic Drive, Trace-2, Long Sigma", markersize=10, markeredgewidth=2)
+# ax1a.plot(trad_sigma, direct_err, linestyle='-.', marker='x', color=color_direct, label="Direct Drive, Trace-2", markersize=10, markeredgewidth=2)
+# ax1a.plot(subharm_sigma, subharm_err, linestyle=':', marker='v', color=color_subh, label="Subharm, Trace-2", markersize=6, markeredgewidth=2)
+ax1a.plot(subharm_max_sigma, subharm_max_err, linestyle=':', marker='o', color=color_subhmax, label="Subharmonic Drive, Trace-2, Long Sigma", markersize=10, markeredgewidth=2)
 ax1a.plot(trad_max_sigma, trad_max_err, linestyle=':', marker='+', color=color_tradhmax, label="Traditional Drive, Trace-2, Long Sigma", markersize=10, markeredgewidth=2)
 
 ax1a.grid(True)
