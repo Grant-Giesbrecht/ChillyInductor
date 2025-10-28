@@ -121,11 +121,16 @@ subharm_sigma_presquare = np.array([10, 12, 15, 20, 25, 30, 35.35, 40, 70.7, 141
 subharm_sigma = subharm_sigma_presquare/np.sqrt(2)
 subharm_err = np.array([8.19E-03, 5.62e-3, 3.32E-03, 4.64E-03, 5.02E-03, 5.64E-03, 6.72e-3 , 8.04E-03, 1.37e-2, 2.78e-2, 5.1e-2])
 
-subharm_max_sigma = [5, 10, 15, 20, 25, 30, 35, 40, 50, 100]
-subharm_max_err = [5.3573e-3, 3.614e-3, 4.387e-3, 5.46e-3, 6.987e-3, 8.391e-3, 9.5975e-3, 1.097e-2, 1.405e-2, 3.337e-2]
+# subharm_max_sigma = [5, 10, 15, 20, 25, 30, 35, 40, 50, 100]
+# subharm_max_err = [5.3573e-3, 3.614e-3, 4.387e-3, 5.46e-3, 6.987e-3, 8.391e-3, 9.5975e-3, 1.097e-2, 1.405e-2, 3.337e-2]
+subharm_max_sigma = [5, 10, 15, 20, 25, 30, 35, 40, 50, 75]
+subharm_max_err = [5.3573e-3, 3.614e-3, 4.387e-3, 5.46e-3, 6.987e-3, 8.391e-3, 9.5975e-3, 1.097e-2, 1.405e-2, 2.8396e-2]
 
 trad_max_sigma = [5, 10, 15, 20, 25, 35, 40, 50, 100, 200]
 trad_max_err = [2.412e-3, 3.08e-3, 3.7913e-3, 5.0167e-3, 6.637e-3, 1.01e-2, 1.09e-2, 1.38e-2, 2.497e-2, 4.169e-2]
+
+tri_max_sigma = [25, 30, 35]
+tri_max_err = [8.822e-3, 1.0268e-2, 1.1624e-2]
 
 
 # color_trad = (0.7, 0, 0.3)
@@ -139,6 +144,7 @@ color_direct = (179/255, 119/255, 0) # From TQE template section header color
 color_subh = (119/255, 179/255, 0) # From TQE template section header color
 color_subhmax = (0, 179/255, 0) # From TQE template section header color
 color_tradhmax = (0.7, 0, 0) # From TQE template section header color
+color_trihmax = (0, 0, 0.7) # From TQE template section header color
 
 
 # Prepare figure 1
@@ -152,6 +158,9 @@ ax1a.plot(trad_sigma, trad_err, linestyle='--', marker='+', color=color_trad, la
 # ax1a.plot(subharm_sigma, subharm_err, linestyle=':', marker='v', color=color_subh, label="Subharm, Trace-2", markersize=6, markeredgewidth=2)
 ax1a.plot(subharm_max_sigma, subharm_max_err, linestyle=':', marker='o', color=color_subhmax, label="Subharmonic Drive, Trace-2, Long Sigma", markersize=10, markeredgewidth=2)
 ax1a.plot(trad_max_sigma, trad_max_err, linestyle=':', marker='+', color=color_tradhmax, label="Traditional Drive, Trace-2, Long Sigma", markersize=10, markeredgewidth=2)
+
+ax1a.plot(tri_max_sigma, tri_max_err, linestyle=':', marker='x', color=color_trihmax, label="Third harmonic Drive, Trace-2, Long Sigma", markersize=10, markeredgewidth=2)
+
 
 ax1a.grid(True)
 ax1a.set_xlabel("Pulse Width Parameter ($\\sigma$) (ns)")
