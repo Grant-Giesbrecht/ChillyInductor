@@ -76,13 +76,15 @@ epg_std  = std(epg);
 
 fprintf('Mean error per gate: %.4g ± %.4g\n', epg_mean, epg_std);
 
-figure; hold on;
+fig2 = figure(2);
+hold off;
 xFit = linspace(min(sequence), max(sequence), 200);
 
 for i = 1:size(fitParams, 1)
 % 	(a*b.^x+c)
 	yFit = fitParams(i,1)*fitParams(i,2).^xFit+fitParams(i,3);
     plot(xFit, yFit, 'Color', [0.6 0.6 0.6]);
+	hold on;
 end
 
 % for i = 1:nRepeats
@@ -99,3 +101,6 @@ ylabel('Visibility');
 title(sprintf('(Mean EPG = %.3g ± %.3g)', epg_mean, epg_std));
 grid on;
 
+
+savefig(fig1, 'uncertainty_scatter.fig');
+savefig(fig2, 'uncertainty_epg.fig');
