@@ -1,3 +1,7 @@
+% filename = clipboard('paste');
+% load(filename);
+data_raw = XX;
+
 % Assume you already have:
 % sequence -> 1x25 array of x positions
 % data -> 15x25 array of y values
@@ -20,7 +24,7 @@ x = x(:);
 y = data_mapped(:);
 
 % Make the scatter plot
-figure(1);
+fig1= figure(1);
 hold off;
 % scatter(x, y, 'Marker', '.');
 scatter(x, y, 'filled', 'MarkerFaceAlpha', 0.3);
@@ -36,3 +40,5 @@ xlabel('Sequence Length');
 ylabel('Visibility');
 title('Scatter plot of repeated measurements');
 grid on;
+
+AP4_per_trace_error_per_gate
