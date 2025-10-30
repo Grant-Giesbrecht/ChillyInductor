@@ -12,15 +12,25 @@ subharm_sigma = subharm_sigma_presquare/np.sqrt(2)
 subharm_err = np.array([8.19E-03, 5.62e-3, 3.32E-03, 4.64E-03, 5.02E-03, 5.64E-03, 6.72e-3 , 8.04E-03, 1.37e-2, 2.78e-2, 5.1e-2])
 
 
-subharm_max_sigma = [5, 10, 15, 20, 25, 30, 35, 40, 50, 75]
-subharm_max_err = [5.3573e-3, 3.614e-3, 4.387e-3, 5.46e-3, 6.987e-3, 8.391e-3, 9.5975e-3, 1.097e-2, 1.405e-2, 2.8396e-2]
+# subharm_max_sigma = [5, 10, 15, 20, 25, 30, 35, 40, 50, 75]
+# subharm_max_err = [5.3573e-3, 3.614e-3, 4.387e-3, 5.46e-3, 6.987e-3, 8.391e-3, 9.5975e-3, 1.097e-2, 1.405e-2, 2.8396e-2]
+
+subharm_max_sigma = [5, 10, 15, 20, 25, 30, 35, 40, 50, 80]
+subharm_max_err = [5.3573e-3, 3.614e-3, 4.387e-3, 5.46e-3, 6.987e-3, 8.391e-3, 9.5975e-3, 1.097e-2, 1.405e-2, 2.5997e-2]
 
 trad_max_sigma = [5, 10, 15, 20, 25, 35, 40, 50, 100, 200]
-trad_max_err = [2.412e-3, 3.08e-3, 3.7913e-3, 5.0167e-3, 6.637e-3, 1.01e-2, 1.09e-2, 1.38e-2, 2.497e-2, 4.169e-2]
+trad_max_err = [2.412e-3, 3.08e-3, 3.7913e-3, 5.0167e-3, 6.637e-3, 1.01e-2, 1.09e-2, 1.38e-2, 3.247e-2, 4.169e-2]
 
 tri_max_sigma = [15, 20, 25, 30, 35, 40, 50, 75]
 tri_max_err = [7.32e-3, 7.63e-3, 8.822e-3, 1.0268e-2, 1.1255e-2, 1.256e-2, 1.492e-2, 3.725e-2]
 # tri_max_err = [8.822e-3, 1.0268e-2, 1.1255e-2, 1.256e-2, 1.492e-2, 2.48e-2] # Here i'm using the lower error 75ns point which has lower SNR but seems more reasonable. This is just a test, dont publish this one!
+
+expected_err_x_us = np.linspace(0, 0.2, 101)
+T1_us = 36
+T2_us = 20
+tau = 1.875*expected_err_x_us*8
+expected_err_y_F = 1/6*(3+np.exp(-tau/T1_us)+2*np.exp(-tau/T2_us))
+expected_err_y_err = 1-expected_err_y_F
 
 color_trad = (0.3, 0.3, 0.3)
 # color_trad = (0.45, 0.45, 0.45)
@@ -39,6 +49,7 @@ gs1 = fig1.add_gridspec(1, 1)
 ax1a = fig1.add_subplot(gs1[0, 0])
 
 
+ax1a.plot(expected_err_x_us*1e3, expected_err_y_err, linestyle='-', color=(0, 0, 0), label="Expected error")
 ax1a.plot(subharm_max_sigma, subharm_max_err, linestyle=':', marker='o', color=color_subhmax, label="Subharmonic Drive, Trace-2, Long Sigma", markersize=10, markeredgewidth=2)
 ax1a.plot(trad_max_sigma, trad_max_err, linestyle=':', marker='+', color=color_tradhmax, label="Traditional Drive, Trace-2, Long Sigma", markersize=10, markeredgewidth=2)
 

@@ -235,7 +235,7 @@ def search_spectrum_peak_harms(freqs:list, pwr:list, f_targ_fund:float, nharms:i
 	'''
 	
 	#TODO: Implement
-	#TODO: Make it listy in wyvern!
+	#TODO: Make it listy in hga!
 	
 	# Remove all nan values
 	valid_indices = np.where(~np.isnan(freqs) & ~np.isnan(pwr)) # Find indices where neither array has NaN

@@ -105,7 +105,7 @@ class DataLoadingManager:
 		# Get conf data
 		self.data_conf = {}
 		if conf_file is None:
-			conf_file = os.path.join(".", "wyv_conf.json")
+			conf_file = os.path.join(".", "hga_conf.json")
 		self.load_conf(conf_file)
 		
 		# This mutex is used to protect sweep_data and sparam_data
@@ -2794,7 +2794,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 		if cli_args.subtle:
 			self.setWindowTitle("Cryogenic Data Analyzer MX")
 		else:
-			self.setWindowTitle("Wyvern MX Cryogenic Data Analyzer")
+			self.setWindowTitle("hga MX Cryogenic Data Analyzer")
 		self.grid = QtWidgets.QGridLayout() # Create the primary layout
 		self.add_menu()
 		
@@ -3248,7 +3248,7 @@ class HGA1Window(QtWidgets.QMainWindow):
 			self.set_gcond('sparam_show_sum', self.sparam_showsum_act.isChecked())
 			self.plot_all()
 
-dlm = DataLoadingManager(log, conf_file=os.path.join(".", "wyv_conf.json"))
+dlm = DataLoadingManager(log, conf_file=os.path.join(".", "hga_conf.json"))
 master_data = MasterData(log, dlm)
 app = QtWidgets.QApplication(sys.argv)
 app.setStyle(f"Fusion")
@@ -3269,7 +3269,7 @@ else:
 
 if platform == "win32":
 	# Manually override app ID to tell windows to use the Window Icon in the taskbar
-	myappid = 'giesbrecht.wyvern.main.v0' # arbitrary string
+	myappid = 'giesbrecht.hga.main.v0' # arbitrary string
 	ctypes.windll.shell32.SetCurrentProcessExplicitAppUserModelID(myappid)
 
 w = HGA1Window(log, master_data, app)
