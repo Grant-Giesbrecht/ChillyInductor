@@ -1,5 +1,8 @@
 from AP2UNIV_data_source import *
 import matplotlib.pyplot as plt
+import argparse
+
+
 
 #========== Get expected error ===========
 
@@ -12,8 +15,12 @@ expected_err_y_err = 1-expected_err_y_F
 
 #========= Plot results ===========
 
-ylim_common = [0, 0.02]
-xlim_common = [0, 60]
+ylim_common = [0, 0.04]
+xlim_common = [0, 100]
+if args.pub:
+	ylim_common = [0, 0.02]
+	xlim_common = [0, 60]
+
 CSIZE = 6
 GUIDE_COLOR = (0.5, 0.5, 0.5)
 GUIDE_ALPHA = 0.7

@@ -1,5 +1,11 @@
 import numpy as np
 from dataclasses import dataclass
+import argparse
+
+parser = argparse.ArgumentParser()
+parser.add_argument('-p', '--pub', help="Show publishable data only.", action='store_true')
+args = parser.parse_args()
+
 
 @dataclass
 class datapoint:
@@ -24,8 +30,9 @@ doubler_points.append(datapoint(sigma=30 , err=8.391e-3 , err_unc=8.66e-3 , std_
 doubler_points.append(datapoint(sigma=35, err=9.598e-3 , err_unc=9.82e-3 , std_unc=2.227e-3 ))
 doubler_points.append(datapoint(sigma=40 , err=1.09e-2 , err_unc=1.13e-2 , std_unc=2.41e-3 ))
 doubler_points.append(datapoint(sigma=50 , err=1.405e-2 , err_unc=1.44e-2 , std_unc=3.46e-3 ))
+doubler_points.append(datapoint(sigma=80 , err=2.60e-2 , err_unc=2.78e-2 , std_unc=1.08e-2 ))
 
-traditional_points.append(datapoint(sigma=5 , err=2.412e-2 , err_unc=2.33e-3 , std_unc=1.5e-3 ))
+traditional_points.append(datapoint(sigma=5 , err=2.412e-3 , err_unc=2.33e-3 , std_unc=1.5e-3 ))
 traditional_points.append(datapoint(sigma=10, err=3.08e-3 , err_unc=3.02e-3 , std_unc=9.01e-4 ))
 traditional_points.append(datapoint(sigma=15, err=3.791e-3 , err_unc=3.793e-3 , std_unc=8.99e-4 ))
 traditional_points.append(datapoint(sigma=20 , err=5.0167e-3 , err_unc=5.03e-3 , std_unc=9.53e-4 ))
@@ -34,8 +41,8 @@ traditional_points.append(datapoint(sigma=30 , err=7.785e-3 , err_unc=7.88e-3 , 
 traditional_points.append(datapoint(sigma=35 , err=1.0078e-2 , err_unc=1.01e-2 , std_unc=1.87e-3 ))
 traditional_points.append(datapoint(sigma=40 , err=1.09e-2 , err_unc=1.11e-2 , std_unc=2.3e-3 ))
 traditional_points.append(datapoint(sigma=50 , err=1.379e-2 , err_unc=1.42e-2 , std_unc=3.71e-3 ))
+traditional_points.append(datapoint(sigma=80 , err=4.81e-2 , err_unc=3.24e-2 , std_unc=7.01e-2 ))
 
-# traditional_points.append(datapoint(sigma= , err= , err_unc= , std_unc= ))
 # traditional_points.append(datapoint(sigma= , err= , err_unc= , std_unc= ))
 # traditional_points.append(datapoint(sigma= , err= , err_unc= , std_unc= ))
 # traditional_points.append(datapoint(sigma= , err= , err_unc= , std_unc= ))
@@ -50,12 +57,21 @@ tripler_points.append(datapoint(sigma=35 , err=1.255e-2 , err_unc=1.29e-2 , std_
 tripler_points.append(datapoint(sigma=40 , err=1.257e-2 , err_unc=1.3e-2 , std_unc=3.93e-3 ))
 tripler_points.append(datapoint(sigma=50 , err=1.492e-2 , err_unc=1.56e-2 , std_unc=4.79e-3 ))
 # tripler_points.append(datapoint(sigma=75 , err= , err_unc= , std_unc= ))
+tripler_points.append(datapoint(sigma=80 , err=4.85e-2 , err_unc=2.9e-2 , std_unc=7.15e-2 ))
 
 # tripler_points.append(datapoint(sigma= , err= , err_unc= , std_unc= ))
 # tripler_points.append(datapoint(sigma= , err= , err_unc= , std_unc= ))
-# tripler_points.append(datapoint(sigma= , err= , err_unc= , std_unc= ))
 
-# datapoint(sigma=20, )
+##==================== Trim points per command line opts ======================
+
+if args.pub:
+	
+	# Trim 80 ns point
+	traditional_points = traditional_points[:-1]
+	doubler_points = doubler_points[:-1]
+	tripler_points = tripler_points[:-1]
+
+##==================== Create sub arrays ======================
 
 trad_sigmas = []
 trad_errs = []
