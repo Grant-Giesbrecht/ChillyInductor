@@ -7,8 +7,15 @@ import argparse
 #========== Get expected error ===========
 
 expected_err_x_us = np.linspace(0, 0.2, 101)
-T1_us = 36
-T2_us = 20
+# T1_us = 36
+# T2_us = 20
+
+T1_us = 33
+T2_us = 40
+
+T1_us = 24
+T2_us = 39
+
 tau = 1.875*expected_err_x_us*8
 expected_err_y_F = 1/6*(3+np.exp(-tau/T1_us)+2*np.exp(-tau/T2_us))
 expected_err_y_err = 1-expected_err_y_F

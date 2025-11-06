@@ -78,10 +78,10 @@ trad_errs = []
 trad_err_uncs = []
 trad_std_uncs = []
 for pt in traditional_points:
-	trad_sigmas.append(pt.sigma)
+	trad_sigmas.append(pt.sigma  )
 	trad_errs.append(pt.err)
 	trad_err_uncs.append(pt.err_unc)
-	trad_std_uncs.append(pt.std_unc)
+	trad_std_uncs.append(pt.std_unc / np.sqrt(15))
 
 doubler_sigmas = []
 doubler_errs = []
@@ -91,7 +91,7 @@ for pt in doubler_points:
 	doubler_sigmas.append(pt.sigma)
 	doubler_errs.append(pt.err)
 	doubler_err_uncs.append(pt.err_unc)
-	doubler_std_uncs.append(pt.std_unc)
+	doubler_std_uncs.append(pt.std_unc / np.sqrt(15))
 
 tri_sigmas = []
 tri_errs = []
@@ -101,4 +101,4 @@ for pt in tripler_points:
 	tri_sigmas.append(pt.sigma)
 	tri_errs.append(pt.err)
 	tri_err_uncs.append(pt.err_unc)
-	tri_std_uncs.append(pt.std_unc)
+	tri_std_uncs.append(pt.std_unc / np.sqrt(15))
