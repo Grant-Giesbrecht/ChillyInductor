@@ -7,16 +7,7 @@ from hallett.core import dB_to_Np
 from hallett.nltsim.core import *
 from hallett.nltsim.analysis import *
 
-def loss_to_conductance(C:float, R:float, L:float, loss_dB_per_m):
-	''' Converts loss per meter to conductance (approx).
-	'''
-	
-	Z0 = np.sqrt(L/C)
-	
-	alpha = dB_to_Np(loss_dB_per_m) # Np/m
-	# return 4*C*(alpha**2 - R/L)
-	
-	return (alpha - R/2/Z0)*2/Z0 # Equation from 2.85a in Pozar 4e, rearranged.
+
 
 def define_system(total_length:float, f0:float, V0:float, t_end:float, dx_ref:float, implicit:bool, V_bias:float=0, LPM:float=0):
 	''' Returns parameter objects for the two sim types. Defined in a function so it's easier
@@ -45,7 +36,7 @@ def define_system(total_length:float, f0:float, V0:float, t_end:float, dx_ref:fl
 	]
 	
 	# Select a ∆t using the CFL condition
-	Nx = max(50, int(np.round(total_length / dx_ref))) 
+	Nx = max(50, int(np.round(total_length / dx_ref)))
 	dx = total_length / Nx # Get ∆x
 	Lmin = min(r.L0_per_m for r in regions) # Get max total_length
 	Cmax = max(r.C_per_m for r in regions) # Get max C
