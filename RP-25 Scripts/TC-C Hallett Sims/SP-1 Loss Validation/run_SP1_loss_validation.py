@@ -28,13 +28,10 @@ args = parser.parse_args()
 
 def main():
 	
-	
 	if args.dx_ref is None:
 		args.dx_ref = 5e-4
 	
 	total_lenths = np.linspace(args.Lmin, args.Lmax, args.num_sweep)
-	
-	harm_powers = HarmonicPowers(x_parameter="Device Length", x_values=total_lenths)
 	
 	t0 = time.time()
 	print(f"Running sequentially.")
@@ -49,17 +46,13 @@ def main():
 		
 		fdtd_exp_sim = FiniteDiffSim(fdtd_params_exp) # Create sim
 		fdtd_exp_out = fdtd_exp_sim.run() # run
-		load_harmonics_probe(fdtd_exp_out, harm_powers, args.f0, args.tail, args.bw_bins, 3)
+		harm_powers = load_harmonics_probe(fdtd_exp_out, args.f0, args.tail, args.bw_bins, 3, x_parameter="Device Length", x_values=total_lenths)
 	
 	print(f"Sequential simulation finished ({time.time()-t0} sec).")
 	
 	c_fund = 'tab:blue'
 	c_2h = 'tab:orange'
 	c_3h = 'tab:green'
-	
-	c_fundL = 'tab:cyan'
-	c_2hL = 'tab:purple'
-	c_3hL = 'tab:gray'
 	
 	plt.figure(1, figsize=(8,5))
 	

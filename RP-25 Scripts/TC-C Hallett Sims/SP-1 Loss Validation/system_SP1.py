@@ -3,11 +3,9 @@ import numpy as np
 import csv
 import matplotlib.pyplot as plt
 
-from hallett.core import dB_to_Np
+from hallett.core import dB_to_Np, loss_to_conductance
 from hallett.nltsim.core import *
 from hallett.nltsim.analysis import *
-
-
 
 def define_system(total_length:float, f0:float, V0:float, t_end:float, dx_ref:float, implicit:bool, V_bias:float=0, LPM:float=0):
 	''' Returns parameter objects for the two sim types. Defined in a function so it's easier
