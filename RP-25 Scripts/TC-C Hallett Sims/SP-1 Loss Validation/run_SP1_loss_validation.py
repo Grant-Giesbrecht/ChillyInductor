@@ -38,15 +38,30 @@ def main():
 	
 	loss_per_meter = 10
 	
+	# Create HP Result object
+	hp_obj = HarmonicPowerResult(x_parameter="Total Length [m]")
+	
+	# Create result group
+	result_group = SimulationResultGroup()
+	
 	# Scan over all lengths
 	for tot_len in total_lenths:
 		
 		# Define system parameters
 		fdtd_params_exp= define_system(tot_len, args.f0, args.V0, args.T, args.dx_ref, False, V_bias=args.Vbias, LPM=loss_per_meter)
 		
+		# Create and run simulator
 		fdtd_exp_sim = FiniteDiffSim(fdtd_params_exp) # Create sim
 		fdtd_exp_out = fdtd_exp_sim.run() # run
+		
+		# Measure harmonic content at load, and add to HP_OBJ
 		harm_powers = load_harmonics_probe(fdtd_exp_out, args.f0, args.tail, args.bw_bins, 3, x_parameter="Device Length", x_values=total_lenths)
+		hp_obj.append_point(harm_powers, tot_len, fdtd_exp_sim.id)
+		
+		# Add simulation to result group
+		result_group.add_simulation(fdtd_exp_sim)
+	
+	result_group.add_result(hp_obj)
 	
 	print(f"Sequential simulation finished ({time.time()-t0} sec).")
 	
@@ -56,9 +71,9 @@ def main():
 	
 	plt.figure(1, figsize=(8,5))
 	
-	plt.plot(total_lenths, harm_powers.f0, marker='x', label='Fundamental, Explicit', color=c_fund, linestyle='--')
-	plt.plot(total_lenths, harm_powers.h2, marker='x', label='2nd harmonic, Explicit', color=c_2h, linestyle='--')
-	plt.plot(total_lenths, harm_powers.h3, marker='x', label='3rd harmonic, Explicit', color=c_3h, linestyle='--')
+	plt.plot(total_lenths, hp_obj.f0, marker='x', label='Fundamental, Explicit', color=c_fund, linestyle='--')
+	plt.plot(total_lenths, hp_obj.h2, marker='x', label='2nd harmonic, Explicit', color=c_2h, linestyle='--')
+	plt.plot(total_lenths, hp_obj.h3, marker='x', label='3rd harmonic, Explicit', color=c_3h, linestyle='--')
 	
 	plt.xlabel("Bias Voltage (V)")
 	plt.ylabel("Power at load (dBm)")
@@ -68,6 +83,10 @@ def main():
 	plt.tight_layout()
 
 	mplcursors.cursor(multiple=True)	
+	
+	result_group.print_summary()
+	
+	result_group.save("sim_result_test.nltsim.hdf")
 	
 	plt.show()
 
