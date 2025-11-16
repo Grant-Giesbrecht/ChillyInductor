@@ -6,7 +6,7 @@ import mplcursors
 
 from hallett.nltsim.core import *
 from hallett.nltsim.analysis import *
-from system_SP1 import *
+from system_SP2 import *
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--f0", type=float, default=4e9, help="Stimulus frequency [Hz]")
@@ -14,8 +14,7 @@ parser.add_argument("--V0", type=float, default=1, help="Stimulus amplitude [V]"
 parser.add_argument("--Lmin", type=float, default=0.01, help="Min total length [m]")
 parser.add_argument("--Lmax", type=float, default=1, help="Max total length [m]")
 parser.add_argument("--num_sweep", type=int, default=9, help="Number of sweep points")
-parser.add_argument("--dx_ref", type=float, default=None,
-				help="Reference spatial step [m]. If None, use 0.3/600 for FDTD, 0.24/240 for Ladder")
+parser.add_argument("--dx_ref", type=float, default=None, help="Reference spatial step [m]. If None, use 0.3/600 for FDTD, 0.24/240 for Ladder")
 parser.add_argument("--T", type=float, default=50e-9, help="Total simulation time [s]")
 parser.add_argument("-p", "--parallel", action='store_true', help="Run simulations in parallel")
 parser.add_argument("--tail", type=float, default=1.5e-9, help="Analyze only last 'tail' seconds")
