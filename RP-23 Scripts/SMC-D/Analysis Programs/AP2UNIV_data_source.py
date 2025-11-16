@@ -1,10 +1,5 @@
 import numpy as np
 from dataclasses import dataclass
-import argparse
-
-parser = argparse.ArgumentParser()
-parser.add_argument('-p', '--pub', help="Show publishable data only.", action='store_true')
-args = parser.parse_args()
 
 
 @dataclass
@@ -64,7 +59,8 @@ tripler_points.append(datapoint(sigma=80 , err=4.85e-2 , err_unc=2.9e-2 , std_un
 
 ##==================== Trim points per command line opts ======================
 
-if args.pub:
+# Select if you want to trim things
+if True:
 	
 	# Trim 80 ns point
 	traditional_points = traditional_points[:-1]

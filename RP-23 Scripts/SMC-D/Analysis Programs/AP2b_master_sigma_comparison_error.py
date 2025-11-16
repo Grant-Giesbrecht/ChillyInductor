@@ -1,8 +1,14 @@
-from AP2UNIV_data_source import *
 import matplotlib.pyplot as plt
+import matplotlib as mpl
 import argparse
+import os
 
+parser = argparse.ArgumentParser()
+parser.add_argument('-p', '--pub', help="Publication version.", action='store_true')
+parser.add_argument('-s', '--save', help="Save figure to PDF.", action='store_true')
+args = parser.parse_args()
 
+from AP2UNIV_data_source import *
 
 #========== Get expected error ===========
 
@@ -29,12 +35,16 @@ if args.pub:
 	xlim_common = [0, 60]
 
 CSIZE = 6
-GUIDE_COLOR = (0.5, 0.5, 0.5)
+GUIDE_COLOR = (0.7, 0, 0)
 GUIDE_ALPHA = 0.7
-COLOR_TRAD = (0.75, 0, 0)
-COLOR_DOUB = (0, 0, 0.75)
-COLOR_TRIPLE = (0, 0.75, 0)
+
+COLOR_TRAD = (0.3, 0.3, 0.3)
+COLOR_DOUB = (0, 119/255, 179/255) # From TQE template section header color
+COLOR_TRIPLE = (0, 179/255, 119/255) # From TQE template section header color
 ERROR_ALPHA = 0.7
+
+# color_trad = 
+# color_doub = 
 
 fig1 = plt.figure(1, figsize=(15, 5))
 gs1 = fig1.add_gridspec(1, 3)
@@ -91,5 +101,13 @@ ax2a.legend()
 
 fig1.tight_layout()
 fig2.tight_layout()
+
+if args.pub:
+	mpl.rcParams['font.family'] = 'sans-serif'
+	mpl.rcParams['font.sans-serif'] = ['Arial']
+
+if args.save:
+	fig1.savefig(os.path.join("figures", "AP2b_fig1.pdf"))
+	fig2.savefig(os.path.join("figures", "AP2b_fig2.pdf"))
 
 plt.show()
