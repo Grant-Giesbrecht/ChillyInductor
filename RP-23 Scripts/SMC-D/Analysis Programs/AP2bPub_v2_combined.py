@@ -10,6 +10,21 @@ args = parser.parse_args()
 
 from AP2UNIV_data_source import *
 
+if args.pub:
+	
+	fsz = 20
+	mpl.rcParams['font.family'] = 'sans-serif'
+	mpl.rcParams['font.size'] = fsz
+	mpl.rcParams['font.sans-serif'] = ['Arial']
+
+	plt.rc('font', size=fsz)          # Controls default text sizes
+	plt.rc('axes', titlesize=fsz)     # Fontsize of the axes title
+	plt.rc('axes', labelsize=fsz)     # Fontsize of the x and y labels
+	plt.rc('xtick', labelsize=fsz)    # Fontsize of the x-axis tick labels
+	plt.rc('ytick', labelsize=fsz)    # Fontsize of the y-axis tick labels
+	plt.rc('legend', fontsize=fsz)    # Fontsize of the legend
+	plt.rc('figure', titlesize=fsz)   # Fontsize of the figure title
+
 #========== Get expected error ===========
 
 expected_err_x_us = np.linspace(0, 0.06, 101)
@@ -53,7 +68,7 @@ ax1b = fig1.add_subplot(gs1[0, 1])
 ax1c = fig1.add_subplot(gs1[0, 2])
 
 # fig2 = plt.figure(2)
-fig2 = plt.figure(2, figsize=(10, 5))
+fig2 = plt.figure(2, figsize=(10, 8))
 gs2 = fig2.add_gridspec(1, 1)
 ax2a = fig2.add_subplot(gs2[0, 0])
 
@@ -97,17 +112,13 @@ ax2a.errorbar(tri_sigmas, np.array(tri_err_uncs)*1e3, yerr=np.array(tri_std_uncs
 ax2a.grid(True)
 ax2a.set_xlabel("Sigma (ns)")
 ax2a.set_ylabel("Error per gate (x1e3)")
-ax2a.set_title("Error Comparison")
+# ax2a.set_title("Error Comparison")
 ax2a.set_ylim(ylim_common)
 ax2a.set_xlim(xlim_common)
 ax2a.legend()
 
 fig1.tight_layout()
 fig2.tight_layout()
-
-if args.pub:
-	mpl.rcParams['font.family'] = 'sans-serif'
-	mpl.rcParams['font.sans-serif'] = ['Arial']
 
 if args.save:
 	fig1.savefig(os.path.join("figures", "AP2bPub_v2_fig1.pdf"))
