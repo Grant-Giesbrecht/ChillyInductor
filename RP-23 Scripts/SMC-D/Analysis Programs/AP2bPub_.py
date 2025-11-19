@@ -2,6 +2,7 @@ import matplotlib.pyplot as plt
 import matplotlib as mpl
 import argparse
 import os
+import mplcursors as mpl
 
 parser = argparse.ArgumentParser()
 parser.add_argument('-p', '--pub', help="Publication version.", action='store_true')
@@ -115,5 +116,14 @@ if args.save:
 	
 	fig1.savefig(os.path.join("figures", "AP2bPub_fig1.eps"))
 	fig2.savefig(os.path.join("figures", "AP2bPub_fig2.eps"))
+
+mpl.cursor(multiple=True)
+
+# Calcualte average error increase in doubler versus traditional
+doubler_percent_worse = np.array(doubler_err_uncs[1:])/np.array(trad_err_uncs[1:])*100
+tri_percent_worse = np.array(tri_err_uncs)/np.array(trad_err_uncs[2:])*100
+
+print(f"doubler percent worse: {doubler_percent_worse}, --> {np.mean(doubler_percent_worse)}")
+print(f"Tripler percent worse: {tri_percent_worse}, --> {np.mean(tri_percent_worse)}")
 
 plt.show()
