@@ -130,7 +130,7 @@ expected_err_y_F = 1/6*(3+np.exp(-tau/t1_)+2*np.exp(-tau/t2_))
 y2 = np.array(1-expected_err_y_F) 
 
 # Fill the area between y1 and y2
-ax2a.fill_between(expected_err_x_us*1e3, y1*1e3, y2*1e3, color='skyblue', alpha=0.4, label='Optimal error rate')
+ax2a.fill_between(expected_err_x_us*1e3, y1*1e3, y2*1e3, color='skyblue', alpha=0.2, label='Optimal error rate')
 
 ax2a.errorbar(trad_sigmas, np.array(trad_err_uncs)*1e3, yerr=np.array(trad_std_uncs)*1e3, linestyle='--', marker=marker_trad[0], color=COLOR_TRAD, label="Traditional", capsize=CSIZE, alpha=ERROR_ALPHA, markersize=marker_trad[1])
 ax2a.errorbar(doubler_sigmas[1:], np.array(doubler_err_uncs[1:])*1e3, yerr=np.array(doubler_std_uncs[1:])*1e3, linestyle='--', marker=marker_doub[0], color=COLOR_DOUB, label="Doubler", capsize=CSIZE, alpha=ERROR_ALPHA, markersize=marker_doub[1])
@@ -149,10 +149,10 @@ fig2.tight_layout()
 
 if args.save:
 	# fig1.savefig(os.path.join("figures", "AP2bPub_v2_fig1.pdf"))
-	fig2.savefig(os.path.join("figures", "AP2bPub_v4_fig2.pdf"))
+	fig2.savefig(os.path.join("figures", "AP2bPub_v5_fig2.pdf"))
 	
 	# fig1.savefig(os.path.join("figures", "AP2bPub_v2_fig1.eps"))
-	fig2.savefig(os.path.join("figures", "AP2bPub_v4_fig2.eps"))
+	fig2.savefig(os.path.join("figures", "AP2bPub_v5_fig2.eps"))
 
 mc.cursor(multiple=True)
 

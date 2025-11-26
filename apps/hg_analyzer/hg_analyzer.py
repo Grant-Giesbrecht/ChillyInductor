@@ -2,7 +2,7 @@ import sys
 from sys import platform
 import matplotlib
 import copy
-from heimdallr.base import interpret_range
+from constellation.base import interpret_range
 import ctypes
 from jarnsaxa import *
 matplotlib.use('qtagg')

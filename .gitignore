@@ -153,3 +153,5 @@ apps/wyvern/assets/wyvern_src.afdesign~lock~
 *.gif
 *.csv
 *.nltsim
+*.afdesign
+*.afdesign~lock~
