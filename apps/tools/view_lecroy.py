@@ -24,6 +24,56 @@ parser.add_argument('--zcmax', help='Zero-crossing analysis plot, maximum Y valu
 args = parser.parse_args()
 
 
+def run_fft_old(t_si:list, v_si:list):
+	''' Original FFT code used for view_lecroy. Replaced with run_fft_windowed on 3-Dec-2025.
+	'''
+	
+	R = 50
+	sample_period = (t_si[-1]-t_si[0])/(len(t_si)-1)
+	sample_rate = 1/sample_period
+	spectrum_double = np.fft.fft(v_si)
+	freq_double = np.fft.fftfreq(len(spectrum_double), d=1/sample_rate)
+	
+	# Get single-ended results
+	freq = freq_double[:len(freq_double)//2]
+	spectrum_W = (np.abs(spectrum_double[:len(freq_double)//2])**2) / (R * sample_rate) #len(v_si))
+	spectrum = 10 * np.log10(spectrum_W*1e3)
+	
+	return freq, spectrum
+
+def run_fft_windowed(t_si:list, v_si:list):
+	''' Original FFT code used for view_lecroy. Replaced with run_fft on 3-Dec-2025.
+	'''
+	
+	print(f"Using windowed FFT.")
+	
+	R = 50
+	
+	# Sampling info
+	dt = t_si[1] - t_si[0]
+	fs = 1.0 / dt
+	N = len(t_si)
+	
+	# Windowing (use Nuttall if you want the cleanest skirts)
+	window = np.hanning(N)
+	v_win = v_si * window
+	
+	# Coherent gain of window (needed for proper amplitude)
+	U = np.sum(window**2) / N   # window power loss factor
+	
+	# FFT
+	V = np.fft.rfft(v_win)
+	freq = np.fft.rfftfreq(N, d=dt)
+	
+	# Power spectral density (single-sided)
+	# PSD_W_per_Hz
+	PSD = (np.abs(V)**2) / (R * fs * N * U)
+	
+	# Convert to dBm/Hz or dBm-bin
+	PSD_dBm_per_Hz = 10*np.log10(PSD * 1e3)
+	
+	return freq, PSD_dBm_per_Hz
+
 
 # def find_closest_index(lst, X):
 # 	closest_index = min(range(len(lst)), key=lambda i: abs(lst[i] - X))
@@ -84,16 +134,7 @@ if args.fft and (df_f1 is not None):
 	ax1b = fig1.add_subplot(gs[2, 0])
 	ax1c = fig1.add_subplot(gs[3, 0])
 	
-	R = 50
-	sample_period = (t_si[-1]-t_si[0])/(len(t_si)-1)
-	sample_rate = 1/sample_period
-	spectrum_double = np.fft.fft(v_si)
-	freq_double = np.fft.fftfreq(len(spectrum_double), d=1/sample_rate)
-	
-	# Get single-ended results
-	freq = freq_double[:len(freq_double)//2]
-	spectrum_W = (np.abs(spectrum_double[:len(freq_double)//2])**2) / (R * sample_rate) #len(v_si))
-	spectrum = 10 * np.log10(spectrum_W*1e3)
+	freq, spectrum = run_fft_windowed(t_si, v_si)
 	
 	df1_freq = np.array(df_f1['Time']/1e9)
 	df1_spec = np.array(df_f1['Ampl'])
@@ -121,18 +162,7 @@ elif args.fft:
 	ax1b = fig1.add_subplot(gs[2, 0])
 	ax1c = fig1.add_subplot(gs[3, 0])
 	
-	sample_period = (t_si[-1]-t_si[0])/(len(t_si)-1)
-	sample_rate = 1/sample_period
-	spectrum_double = np.fft.fft(v_si)
-	freq_double = np.fft.fftfreq(len(spectrum_double), d=1/sample_rate)
-	
-	print(f"Sample rate: {sample_rate}")
-	
-	# Get single-ended results
-	R = 50
-	freq = freq_double[:len(freq_double)//2]
-	spectrum_W = (np.abs(spectrum_double[:len(freq_double)//2])**2) / (R * sample_rate) #len(v_si))
-	spectrum = 10 * np.log10(spectrum_W*1e3)
+	freq, spectrum = run_fft_windowed(t_si, v_si)
 	
 	print(spectrum)
 	
