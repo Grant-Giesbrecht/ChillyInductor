@@ -1,5 +1,10 @@
 #!/usr/bin/env python
 
+# Suggested commands to run program
+#
+#
+#
+
 import matplotlib.pyplot as plt
 import pandas as pd
 import numpy as np
@@ -34,6 +39,8 @@ parser.add_argument('--scale', help='Scale factor for comparison file.', type=fl
 
 parser.add_argument('--tmin', help='Set min time (ns)', type=float)
 parser.add_argument('--tmax', help='Set max time (ns)', type=float)
+parser.add_argument('--ymin', help='Set min y (V)', type=float)
+parser.add_argument('--ymax', help='Set max y (V)', type=float)
 parser.add_argument('--shortlegend', help='Abbreviate legend', action='store_true')
 parser.add_argument('--flip', help='Flip plot order', action='store_true')
 parser.add_argument('--path', help='Specify path to append to all provided filenames, both for reading and saving.')
@@ -42,9 +49,13 @@ parser.add_argument('--title', help='Specify graph title')
 parser.add_argument('--figsizex', help='Specify figure x-size. Default=8.', type=float, default=8)
 parser.add_argument('--figsizey', help='Specify figure y-size. Default=8.', type=float, default=8)
 parser.add_argument('--reset0t', help='Reset time=0 to correspond with t-min.', action='store_true')
+parser.add_argument('--shaderegion', help='Shade a region thats set with hardcoded values..', action='store_true')
 args = parser.parse_args()
 
-
+COLOR_TRAD = (0.3, 0.3, 0.3)
+COLOR_DOUB = (0, 119/255, 179/255) # From TQE template section header color
+COLOR_TRIPLE = (0, 128/255, 35/255) # From RB schema figure
+ERROR_ALPHA = 1
 
 # Read file
 try:
@@ -207,14 +218,14 @@ if args.flip:
 	if df3 is not None:
 		ax1a.plot(t3-tshift, v3, linestyle='-', color=color3, alpha=ALPHA, label=label_3)
 	if df2 is not None:
-		ax1a.plot(t2-tshift, v2, linestyle='-', color=color2, alpha=ALPHA, label=label_2)
-	ax1a.plot(tc-tshift, vc, linestyle='-', color=(0.65, 0, 0), alpha=ALPHA, label=label_c)
-	ax1a.plot(t-tshift, v, linestyle='-', color=(0, 0, 0.65), alpha=ALPHA, label=label_0)
+		ax1a.plot(t2-tshift, v2, linestyle='-', color=COLOR_TRIPLE, alpha=ALPHA, label=label_2)
+	ax1a.plot(tc-tshift, vc, linestyle='-', color=COLOR_DOUB, alpha=ALPHA, label=label_c)
+	ax1a.plot(t-tshift, v, linestyle='-', color=COLOR_TRAD, alpha=ALPHA, label=label_0)
 else:
-	ax1a.plot(t-tshift, v, linestyle='-', color=(0, 0, 0.65), alpha=ALPHA, label=label_0)
-	ax1a.plot(tc-tshift, vc, linestyle='-', color=(0.65, 0, 0), alpha=ALPHA, label=label_c)
+	ax1a.plot(t-tshift, v, linestyle='-', color=COLOR_TRAD, alpha=ALPHA, label=label_0)
+	ax1a.plot(tc-tshift, vc, linestyle='-', color=COLOR_DOUB, alpha=ALPHA, label=label_c)
 	if df2 is not None:
-		ax1a.plot(t2-tshift, v2, linestyle='-', color=color2, alpha=ALPHA, label=label_2)
+		ax1a.plot(t2-tshift, v2, linestyle='-', color=COLOR_TRIPLE, alpha=ALPHA, label=label_2)
 	if df3 is not None:
 		ax1a.plot(t3-tshift, v3, linestyle='-', color=color3, alpha=ALPHA, label=label_3)
 	if df4 is not None:
@@ -224,12 +235,29 @@ ax1a.set_xlabel("Time (ns))")
 ax1a.set_ylabel("Voltage (mV)")
 ax1a.grid(True)
 
+if args.shaderegion:
+	
+	low = -10
+	high = 4
+	
+	start = -1390-tshift
+	stop = -1380-tshift
+	
+	ax1a.fill_between([start, stop], [low, low], [high, high], color='skyblue', alpha=0.2, label='Zoom region')
+
 if args.tmin is not None:
 	xl = ax1a.get_xlim()
 	ax1a.set_xlim([args.tmin-tshift, xl[1]])
 if args.tmax is not None:
 	xl = ax1a.get_xlim()
 	ax1a.set_xlim([xl[0], args.tmax-tshift])
+	
+if args.ymin is not None:
+	xl = ax1a.get_ylim()
+	ax1a.set_ylim([args.ymin, xl[1]])
+if args.ymax is not None:
+	xl = ax1a.get_ylim()
+	ax1a.set_ylim([xl[0], args.ymax])
 
 mplcursors.cursor(multiple=True)
 
