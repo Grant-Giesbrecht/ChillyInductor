@@ -149,12 +149,6 @@ def hybrid_plot(t_si, v_si, freq, spectrum, fignum:int=1):
 	
 	return axa, axb
 
-file_trad = os.path.join("G:\\", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-D Med Trace Campaign", "Time Domain Measurements", "C1RP23Dset2_f07_00000.txt")
-
-file_doubler = os.path.join("G:\\", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-D Med Trace Campaign", "Time Domain Measurements", "C1RP23Dset2_f10_00000.txt")
-
-file_tripler = os.path.join("G:\\", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-D Med Trace Campaign", "Time Domain Measurements", "C1RP23Dset2_f14_00000.txt")
-
 def full_analysis(params:LoadParameters, fignum:int=1, title:str=None):
 	
 	if title is None:
@@ -176,23 +170,11 @@ def full_analysis(params:LoadParameters, fignum:int=1, title:str=None):
 	
 	return result
 
-p_trad = LoadParameters(file_trad)
-p_trad.t_start = -1435*1e-9
-p_trad.t_end = -1310*1e-9
-r_trad = full_analysis(p_trad, fignum=1)
-
-p_tradfull = LoadParameters(file_trad)
-# p_trad.t_start = -1435*1e-9
-# p_trad.t_end = -1310*1e-9
-r_tradfull = full_analysis(p_tradfull, fignum=2)
-
-p_tradmulti = LoadParameters(file_trad)
-p_tradmulti.t_start = -1435*1e-9
-p_tradmulti.t_end = 0
-r_tradmulti = full_analysis(p_tradmulti, fignum=3)
-
-
-
-plt.show()
-
-
+def plot_spectrum_overlay(result_list, fignum):
+	
+	fig1 = plt.figure(fignum)
+	gs1 = fig1.add_gridspec(1, 1)
+	axa = fig1.add_subplot(gs1[0, 0])
+	
+	for res in result_list:
+		plot_spectrum(res.freqs, res.spectrum, ax=axa)
