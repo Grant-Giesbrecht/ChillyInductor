@@ -24,5 +24,4 @@ r_trip = full_analysis(p_trip, fignum=3)
 
 plot_spectrum_overlay([r_trad, r_doub, r_trip], fignum=4)
 
-
 plt.show()
