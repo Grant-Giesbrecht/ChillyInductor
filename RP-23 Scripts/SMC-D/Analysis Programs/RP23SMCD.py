@@ -178,3 +178,5 @@ def plot_spectrum_overlay(result_list, fignum):
 	
 	for res in result_list:
 		plot_spectrum(res.freqs, res.spectrum, ax=axa)
+	
+	return fig1, axa

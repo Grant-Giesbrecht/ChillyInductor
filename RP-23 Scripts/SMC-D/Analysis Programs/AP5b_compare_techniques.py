@@ -22,6 +22,7 @@ p_trip.t_start = -1600*1e-9
 p_trip.t_end = -100*1e-9
 r_trip = full_analysis(p_trip, fignum=3)
 
-plot_spectrum_overlay([r_trad, r_doub, r_trip], fignum=4)
+fig4, ax4a = plot_spectrum_overlay([r_trad, r_doub, r_trip], fignum=4)
+ax4a.legend(["Traditional", "Doubler", "Tripler"])
 
 plt.show()

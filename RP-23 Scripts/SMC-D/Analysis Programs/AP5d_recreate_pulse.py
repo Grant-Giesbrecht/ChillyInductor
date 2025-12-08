@@ -17,7 +17,8 @@ p_doub.t_start = -1600*1e-9
 p_doub.t_end = -100*1e-9
 r_doub = full_analysis(p_doub, fignum=2)
 
-plot_spectrum_overlay([r_trad, r_doub], fignum=4)
+fig4, ax4a = plot_spectrum_overlay([r_trad, r_doub], fignum=4)
+ax4a.legend(["Traditional", "Doubler"])
 
 
 
