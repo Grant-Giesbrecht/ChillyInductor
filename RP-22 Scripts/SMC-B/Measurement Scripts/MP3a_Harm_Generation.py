@@ -47,7 +47,8 @@ THRESHOLD_NORMAL_V = 0.25
 parser = argparse.ArgumentParser()
 parser.add_argument('-d', '--detail', help="Show detailed log messages.", action='store_true')
 parser.add_argument('--loglevel', help="Set the logging display level.", choices=['LOWDEBUG', 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], type=str.upper)
-parser.add_argument('--tempwait', help="Set the logging display level.", type=float)
+parser.add_argument('--tempwait', help="Wait to begin sweep until temperature stabiliizes at this level.", type=float)
+parser.add_argument('--timewaitmin', help="Wait this long after starting to begin sweep in minutes.", type=float)
 parser.add_argument('--email', help="Send periodic status updates via email to the following email address.")
 args = parser.parse_args()
 
@@ -214,6 +215,8 @@ a = input("Press enter when ready:")
 ##======================================================
 # Wait for starting temperature (if requested)
 
+t_start = time.time()
+
 if args.tempwait is not None:
 	
 	while True:
@@ -228,6 +231,16 @@ if args.tempwait is not None:
 		
 		log.debug(f"Temperature (>{t_meas} K<) is above starting threshold (>:a{args.tempwait} K<).")
 		time.sleep(TEMPWAIT_PERIOD_S)
+
+if args.timewaitmin is not None:
+	
+	# Get time in seconds to wait
+	wait_time_s = args.timewaitmin*60
+	
+	# Loop until condition is met
+	while time.time() - t_start < wait_time_s:
+		time.sleep(1)
+
 ##======================================================
 # Begin logging data
 
