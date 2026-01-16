@@ -66,20 +66,24 @@ def rounding_bin(x:list, y:list, step:float=0.2, tol:float=0.05):
 	return (x_out, y_out, used_x_bins, y_means, y_stds)
 			
 
-# datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R3C4*B', 'Track 1 4mm'])
-datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 1 4mm'])
-# datapath = "C:\\Users\\Grant Giesbrecht\\Documents\\GitHub\\ChillyInductor\\RP-22 Scripts\\SMC-B\\Measurement Scripts\\data"
-if datapath is None:
-	print(f"{Fore.RED}Failed to find data location{Style.RESET_ALL}")
-	sys.exit()
-else:
-	print(f"{Fore.GREEN}Located data directory at: {Fore.LIGHTBLACK_EX}{datapath}{Style.RESET_ALL}")
-# filename = "RP22B_MS2_28Jul2024_r3_autosave.hdf"
-filename = "RP22B_MS2_30July2024_r3.hdf"
+# # datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R3C4*B', 'Track 1 4mm'])
+# datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 1 4mm'])
+# # datapath = "C:\\Users\\Grant Giesbrecht\\Documents\\GitHub\\ChillyInductor\\RP-22 Scripts\\SMC-B\\Measurement Scripts\\data"
+# if datapath is None:
+# 	print(f"{Fore.RED}Failed to find data location{Style.RESET_ALL}")
+# 	sys.exit()
+# else:
+# 	print(f"{Fore.GREEN}Located data directory at: {Fore.LIGHTBLACK_EX}{datapath}{Style.RESET_ALL}")
+# # filename = "RP22B_MS2_28Jul2024_r3_autosave.hdf"
+# filename = "RP22B_MS2_30July2024_r3.hdf"
+#
+#
+#
+# analysis_file = os.path.join(datapath, filename)
 
-
-
-analysis_file = os.path.join(datapath, filename)
+# filename = "RP24B_MS2_15Dec2025_R2C0W7BT3_r1.hdf"
+filename = "RP24B_MS2_15Jan2026_R3C1W7B_r1.hdf"
+analysis_file = os.path.join("C:\\", "Users", "gmg3", "Documents", "GitHub", "ChillyInductor", "RP-22 Scripts", "SMC-B", "Measurement Scripts", "data", filename)
 
 log = LogPile()
 
@@ -192,10 +196,10 @@ plt.grid(True)
 
 
 # Save pickled-figs
-pickle.dump(fig1, open(os.path.join("..", "Figures", f"AS3-fig1-{filename}.pklfig"), 'wb'))
-pickle.dump(fig2, open(os.path.join("..", "Figures", f"AS3-fig2-{filename}.pklfig"), 'wb'))
+# pickle.dump(fig1, open(os.path.join("..", "Figures", f"AS3-fig1-{filename}.pklfig"), 'wb'))
+# pickle.dump(fig2, open(os.path.join("..", "Figures", f"AS3-fig2-{filename}.pklfig"), 'wb'))
 
-fig4.savefig(os.path.join("saved_figures", "AS3_fig4.png"), dpi=500)
+# fig4.savefig(os.path.join("saved_figures", "AS3_fig4.png"), dpi=500)
 
 # # Save pickled-figs
 # pickle.dump(fig1, open(os.path.join("..", "Figures", "RP22B-AS1-MS1 24Jul2024-r1 fig1.pklfig"), 'wb'))

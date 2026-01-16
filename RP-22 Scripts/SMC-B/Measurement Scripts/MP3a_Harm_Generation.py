@@ -13,6 +13,11 @@ import datetime
 from pathlib import Path
 import argparse
 
+from stardust.io import loadsecure
+import yagmail
+
+email_file = os.path.join("C:\\", "Users", "gmg3", "emails.encr")
+
 # Set directories for data and sweep configuration
 CONF_DIRECTORY = "sweep_configs"
 # DATA_DIRECTORY = "data"
@@ -43,6 +48,7 @@ parser = argparse.ArgumentParser()
 parser.add_argument('-d', '--detail', help="Show detailed log messages.", action='store_true')
 parser.add_argument('--loglevel', help="Set the logging display level.", choices=['LOWDEBUG', 'DEBUG', 'INFO', 'WARNING', 'ERROR', 'CRITICAL'], type=str.upper)
 parser.add_argument('--tempwait', help="Set the logging display level.", type=float)
+parser.add_argument('--email', help="Send periodic status updates via email to the following email address.")
 args = parser.parse_args()
 
 # Initialize log
@@ -130,11 +136,28 @@ else:
 	exit()
 print("E", flush=True)
 
+# Configure email
+if args.email is not None:
+	email_password = input("Password for email file?")
+	
+	with open(email_file, 'r') as fh:
+		email_data = loadsecure(fh, email_password)
+		pwd = email_data[1]['password']
+	
+	try:
+		yag = yagmail.SMTP(email_data[0]['email'], pwd)
+	except:
+		log.critical(f"Failed to create email interface")
+		exit()
+
 ##======================================================
 # Get User Input re: sweep
 
 sweep_name = input("Sweep name: ")
 operator_notes = input("Operator notes: ")
+
+def send_email(yag, recip:str, message:str):
+	yag.send(recip, subject=f"Update: {sweep_name}", contents=message)
 
 ##======================================================
 # Configure MFLI
@@ -237,7 +260,10 @@ mfli.set_offset(0)
 
 # Scan over all frequencies
 abort = False
-for f_rf in freq_rf:
+for f_idx, f_rf in enumerate(freq_rf):
+	
+	if args.email is not None:
+		send_email(yag, args.email, f"({f_idx}/{len(freq_rf)}) Beginning measurement for frequency {f_rf}.")
 	
 	if abort:
 		break
@@ -437,8 +463,13 @@ mfli.set_output_enable(False)
 print(f"Saving data...")
 
 # Save data and log
-log.save_hdf(os.path.join(LOG_DIRECTORY, f"{sweep_name}.log.hdf"))
+final_log_file_path = os.path.join(LOG_DIRECTORY, f"{sweep_name}.log.hdf")
+log.save_hdf(final_log_file_path)
 
-dict_to_hdf(dataset, os.path.join(DATA_DIRECTORY, f"{sweep_name}.hdf"))
+final_datafile_path = os.path.join(DATA_DIRECTORY, f"{sweep_name}.hdf")
+dict_to_hdf(dataset, final_datafile_path)
 
 print(f" -> Data saved. Exiting.")
+
+if args.email is not None:
+	send_email(yag, args.email, "Sweep completed. Final data and logs attached.", attachments=[final_datafile_path, final_log_file_path])

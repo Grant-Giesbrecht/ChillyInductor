@@ -66,15 +66,17 @@ def rounding_bin(x:list, y:list, step:float=0.2, tol:float=0.05):
 	return (x_out, y_out, used_x_bins, y_means, y_stds)
 			
 
-datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R3C1*D', 'Track 3 454mm', 'cooldown'])
-if datapath is None:
-	print(f"{Fore.RED}Failed to find data location{Style.RESET_ALL}")
-	sys.exit()
-else:
-	print(f"{Fore.GREEN}Located data directory at: {Fore.LIGHTBLACK_EX}{datapath}{Style.RESET_ALL}")
-filename = "RP22B_MS2_t1_04Oct2024_R3C1T3_r1.hdf"
+# datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R3C1*D', 'Track 3 454mm', 'cooldown'])
+# if datapath is None:
+# 	print(f"{Fore.RED}Failed to find data location{Style.RESET_ALL}")
+# 	sys.exit()
+# else:
+# 	print(f"{Fore.GREEN}Located data directory at: {Fore.LIGHTBLACK_EX}{datapath}{Style.RESET_ALL}")
+# filename = "RP22B_MS2_t1_04Oct2024_R3C1T3_r1.hdf"
+#
+# analysis_file = os.path.join(datapath, filename)
 
-analysis_file = os.path.join(datapath, filename)
+analysis_file = os.path.join("C:\\", "Users", "gmg3", "Documents", "GitHub", "ChillyInductor", "RP-22 Scripts", "SMC-B", "Measurement Scripts", "data", "RP24B_MS2_15Dec2025_R2C0W7BT3_r1.hdf")
 
 log = LogPile()
 
