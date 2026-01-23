@@ -1018,9 +1018,11 @@ class HDF5EditorMainWindow(QMainWindow):
 					if not url.isLocalFile():
 						continue
 					p = url.toLocalFile().lower()
-					if p.endswith((".h5", ".hdf5", ".hdf", ".he5")):
-						event.acceptProposedAction()
-						return
+					event.acceptProposedAction()
+					return
+					# if p.endswith((".h5", ".hdf5", ".hdf", ".he5")):
+					# 	event.acceptProposedAction()
+					# 	return
 		except Exception:
 			pass
 		event.ignore()
@@ -1039,13 +1041,13 @@ class HDF5EditorMainWindow(QMainWindow):
 					continue
 				fn = url.toLocalFile()
 				low = fn.lower()
-				if low.endswith((".h5", ".hdf5", ".hdf", ".he5")):
-					try:
-						self._open_h5(fn)  # reuse your existing open logic
-					except Exception as e:
-						show_error(self, "Open failed", f"Could not open dropped file:\n{fn}", e)
-					event.acceptProposedAction()
-					return
+				# if low.endswith((".h5", ".hdf5", ".hdf", ".he5")):
+				try:
+					self._open_h5(fn)  # reuse your existing open logic
+				except Exception as e:
+					show_error(self, "Open failed", f"Could not open dropped file:\n{fn}", e)
+				event.acceptProposedAction()
+				return
 
 		except Exception as e:
 			show_error(self, "Drop failed", "Unexpected error handling dropped file.", e)
