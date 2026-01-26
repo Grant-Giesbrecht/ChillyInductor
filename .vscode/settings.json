@@ -4,6 +4,6 @@
 	],
 	"editor.mouseWheelScrollSensitivity": 2,
 	"editor.parameterHints.enabled": false,
-	"python-envs.defaultEnvManager": "ms-python.python:system",
+	"python-envs.defaultEnvManager": "ms-python.python:pyenv",
 	"python-envs.pythonProjects": []
 }

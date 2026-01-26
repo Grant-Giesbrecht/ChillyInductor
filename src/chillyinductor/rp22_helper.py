@@ -13,7 +13,7 @@ from colorama import Fore, Style
 from dataclasses import dataclass
 from mpl_toolkits.mplot3d import axes3d
 from pylogfile.base import *
-from ganymede import *
+# from ganymede import *
 import skrf
 
 def visualize_dataset_conditions(file:str):
@@ -579,6 +579,129 @@ def reform_dictlist(data:list):
 	
 	return newform
 
+import os
+import sys
+import re
+from pathlib import Path
+from typing import Optional, Dict, List, Tuple
+
+def _read_mountinfo() -> List[Dict[str, str]]:
+	"""
+	Parse /proc/self/mountinfo into records that include mount_point and source.
+	This is the most reliable way to enumerate mounts on Linux.
+	"""
+	out = []
+	try:
+		with open("/proc/self/mountinfo", "r", encoding="utf-8") as f:
+			for line in f:
+				# mountinfo format:
+				# id parent major:minor root mount_point opts ... - fstype source superopts
+				parts = line.strip().split(" - ", 1)
+				if len(parts) != 2:
+					continue
+				left, right = parts
+				l = left.split()
+				r = right.split()
+				if len(l) < 5 or len(r) < 2:
+					continue
+				mount_point = l[4]
+				fstype = r[0]
+				source = r[1]
+				out.append({"mount_point": mount_point, "fstype": fstype, "source": source})
+	except FileNotFoundError:
+		pass
+	return out
+
+def _find_mountpoint_for_device(dev_path: str) -> Optional[str]:
+	"""
+	Given /dev/sdX1 or similar, find its mountpoint (if mounted).
+	"""
+	dev_real = os.path.realpath(dev_path)
+	for rec in _read_mountinfo():
+		src = rec["source"]
+		# source might be /dev/sdX1, UUID=..., /dev/mapper/..., etc.
+		if src.startswith("/dev/") and os.path.realpath(src) == dev_real:
+			return rec["mount_point"]
+	return None
+
+def _linux_mountpoint_by_label(label: str) -> Optional[str]:
+	"""
+	Find mountpoint using /dev/disk/by-label/<label>.
+	Works for most removable drives when they have a filesystem label.
+	"""
+	by_label = Path("/dev/disk/by-label") / label
+	if by_label.exists():
+		dev = os.path.realpath(str(by_label))
+		mp = _find_mountpoint_for_device(dev)
+		if mp:
+			return mp
+	return None
+
+def _linux_mountpoint_by_mountdir_name(label: str) -> Optional[str]:
+	"""
+	Heuristic fallback: look for a mountpoint whose last path component equals the label
+	(common for udisks/systemd automounts: /run/media/user/LABEL).
+	"""
+	label_norm = label.strip()
+	for rec in _read_mountinfo():
+		mp = rec["mount_point"]
+		if os.path.basename(mp) == label_norm:
+			return mp
+	return None
+
+def _linux_mountpoint_by_common_roots(label: str) -> Optional[str]:
+	"""
+	Last-resort scan of common mount roots.
+	"""
+	user = os.environ.get("USER") or os.environ.get("LOGNAME") or ""
+	roots = [
+		Path("/run/media") / user,
+		Path("/media") / user,
+		Path("/mnt"),
+		Path("/media"),
+		Path("/Volumes"),  # some Linux setups
+	]
+	for root in roots:
+		p = root / label
+		if p.exists() and p.is_dir():
+			return str(p)
+	return None
+
+def find_unix_volume_mountpoint(unix_vol_name: str, print_details: bool=False) -> Optional[str]:
+	"""
+	Cross-unix resolver:
+	  - On macOS: /Volumes/<name>
+	  - On Linux: resolve by filesystem label or mount table.
+	"""
+	if sys.platform == "darwin":
+		p = os.path.join("/Volumes", unix_vol_name)
+		return p if os.path.isdir(p) else None
+
+	if sys.platform.startswith("linux"):
+		# Best → worst
+		mp = _linux_mountpoint_by_label(unix_vol_name)
+		if mp:
+			if print_details: print(f"Resolved mountpoint by label: {mp}")
+			return mp
+
+		mp = _linux_mountpoint_by_mountdir_name(unix_vol_name)
+		if mp:
+			if print_details: print(f"Resolved mountpoint by mountdir name: {mp}")
+			return mp
+
+		mp = _linux_mountpoint_by_common_roots(unix_vol_name)
+		if mp:
+			if print_details: print(f"Resolved mountpoint by common roots: {mp}")
+			return mp
+
+		if print_details:
+			print(f"Failed to resolve mountpoint for label '{unix_vol_name}' on Linux.")
+		return None
+
+	# other unix
+	return None
+
+
 def get_general_path(sub_dirs:list=[], check_drive_letters:list=None, unix_vol_name:str=None, dos_drive_letter:str="C:\\", dos_id_folder:bool=False, print_details:bool=False):
 	''' Returns the path to the directory. Defaults to main disk ('/' on unix and 'C:\\' on Windows). Can change to 
 	external volume by providing the volume name in unix systems, or the drive letter on DOS/Windows. DOS/Windows can
@@ -597,7 +720,7 @@ def get_general_path(sub_dirs:list=[], check_drive_letters:list=None, unix_vol_n
 	elif platform == "win32":
 		is_unix = False
 		
-	# Find drive
+		# Find drive
 	if is_unix:
 		if print_details:
 			print(f"get_general_path(): Identified system as UNIX")
@@ -605,7 +728,10 @@ def get_general_path(sub_dirs:list=[], check_drive_letters:list=None, unix_vol_n
 		if unix_vol_name is None:
 			path = '/'
 		else:
-			path = os.path.join('/', 'Volumes', f"{unix_vol_name}")
+			mp = find_unix_volume_mountpoint(unix_vol_name, print_details=print_details)
+			if mp is None:
+				return None
+			path = mp
 		
 	else:
 		if print_details:
@@ -648,7 +774,7 @@ def get_general_path(sub_dirs:list=[], check_drive_letters:list=None, unix_vol_n
 	for ad in sub_dirs:
 		if print_details:
 			print(f"path={path}, next sub dir={ad}")
-		path = wildcard_path(path, ad)
+		path = wildcard_path(path, ad, print_errors=print_details)
 	
 	return path
 
@@ -660,9 +786,12 @@ def get_datadir_path(rp:int, smc:str, sub_dirs:list=[], check_drive_letters:list
 	Return None if can't find path.
 	'''
 	
+	is_linux=False
+	
 	# Check OS
 	if platform == "linux" or platform == "linux2":
 		is_unix = True
+		is_linux=True
 	elif platform == "darwin":
 		is_unix = True
 	elif platform == "win32":
@@ -673,7 +802,10 @@ def get_datadir_path(rp:int, smc:str, sub_dirs:list=[], check_drive_letters:list
 	# Find drive
 	if is_unix:
 		
-		path = os.path.join('/', 'Volumes', 'M6 T7S', 'ARC0 PhD Data')
+		if is_linux:
+			path = os.path.join('/', 'run', 'media', 'grant', 'M6 T7S', 'ARC0 PhD Data')
+		else:
+			path = os.path.join('/', 'Volumes', 'M6 T7S', 'ARC0 PhD Data')
 		path = wildcard_path(path, f"RP-{rp}*")
 		path = wildcard_path(path, f"Data")
 		path = wildcard_path(path, f"SMC-{smc}*")

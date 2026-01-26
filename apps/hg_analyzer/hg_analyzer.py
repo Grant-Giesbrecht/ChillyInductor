@@ -446,6 +446,7 @@ class MasterData:
 		
 		# datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 1 4mm'])
 		datapath = get_datadir_path(rp=22, smc='B', sub_dirs=['*R4C4*C', 'Track 2 43mm'])
+		# datapath = "/run/media/grant/M6 T7S/ARC0 PhD Data/RP-22 Mixing + C2024 Upconv/Data/SMC-B C2024 Testing/Chip R4C4 Mod C/Track 2 43mm/"
 		# datapath = '/Volumes/M5 PERSONAL/data_transfer'
 		if datapath is None:
 			print(f"{Fore.RED}Failed to find data location{Style.RESET_ALL}")
