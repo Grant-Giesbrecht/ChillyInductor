@@ -1,13 +1,17 @@
+# Reads old graf files, checking out commit edf0db4105c74582138c86b138fc52fe127a71bf ("Update RTD") was successful.
+
 from graf.base import *
 
 plt.rcParams['font.family'] = 'Aptos'
 
+cc_path = os.path.join("G:\\", "ARC0 PhD Data", "Aux Tasks", "AT-1 Comps Prep", "Comparable conditions")
+
 # Read GrAF files
 graf_R4C1_cc = Graf()
-graf_R4C1_cc.load_hdf("C:\\Users\\grant\\Desktop\\Comparable conditions\\R4C1_CE2_ccond.graf")
+graf_R4C1_cc.load_hdf(f"{cc_path}\\R4C1_CE2_ccond.graf")
 
 graf_R3C1_cc = Graf()
-graf_R3C1_cc.load_hdf("C:\\Users\\grant\\Desktop\\Comparable conditions\\R3C1_CE2_ccond.graf")
+graf_R3C1_cc.load_hdf(f"{cc_path}\\R3C1_CE2_ccond.graf")
 
 graf_R3C1T3_cc = Graf()
 graf_R3C1T3_cc.load_hdf(os.path.join(".", "comparable_conditions", "R3C1T3_CE2.graf"))

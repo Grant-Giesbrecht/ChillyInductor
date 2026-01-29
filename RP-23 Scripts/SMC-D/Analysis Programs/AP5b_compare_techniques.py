@@ -1,4 +1,5 @@
 from RP23SMCD import *
+import mplcursors
 
 file_trad = os.path.join("G:\\", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-D Med Trace Campaign", "Time Domain Measurements", "C1RP23Dset2_f07_00000.txt")
 file_doubler = os.path.join("G:\\", "ARC0 PhD Data", "RP-23 Qubit Readout", "Data", "SMC-D Med Trace Campaign", "Time Domain Measurements", "C1RP23Dset2_f10_00000.txt")
@@ -24,5 +25,7 @@ r_trip = full_analysis(p_trip, fignum=3)
 
 fig4, ax4a = plot_spectrum_overlay([r_trad, r_doub, r_trip], fignum=4)
 ax4a.legend(["Traditional", "Doubler", "Tripler"])
+
+mplcursors.cursor(multiple=True)
 
 plt.show()

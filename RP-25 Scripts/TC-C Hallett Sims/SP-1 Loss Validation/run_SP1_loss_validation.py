@@ -36,7 +36,7 @@ def main():
 	t0 = time.time()
 	print(f"Running sequentially.")
 	
-	loss_per_meter = 10
+	loss_per_meter = 10 # In dB
 	
 	# Create HP Result object
 	hp_obj = HarmonicPowerResult(x_parameter="Total Length [m]")

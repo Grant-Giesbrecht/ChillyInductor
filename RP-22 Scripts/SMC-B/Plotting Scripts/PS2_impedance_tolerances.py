@@ -1,5 +1,5 @@
 import matplotlib.pyplot as plt
-
+import mplcursors as mpl
 plt.rcParams['font.family'] = 'Aptos'
 
 widths = [4.4, 3.7, 3.3, 3, 2.5]
@@ -24,5 +24,7 @@ plt.title("Chip Impedance Uncertainty")
 
 
 plt.savefig("PS2_fig1.png", dpi=500)
+
+mpl.cursor(multiple=True)
 
 plt.show()
