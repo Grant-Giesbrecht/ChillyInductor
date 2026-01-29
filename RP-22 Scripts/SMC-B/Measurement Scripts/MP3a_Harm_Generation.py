@@ -26,8 +26,11 @@ CONF_DIRECTORY = "sweep_configs"
 # DATA_DIRECTORY = "C:\\Users\\gmg3\\Mega\\remote_data\\data"
 # LOG_DIRECTORY = "C:\\Users\\gmg3\\Mega\\remote_data\\logs"
 
-DATA_DIRECTORY = "C:\\Users\\gmg3\\Desktop\\Files\\sweep_data"
-LOG_DIRECTORY = "C:\\Users\\gmg3\\Desktop\\Files\\sweep_logs"
+# DATA_DIRECTORY = "C:\\Users\\gmg3\\Desktop\\Files\\sweep_data"
+# LOG_DIRECTORY = "C:\\Users\\gmg3\\Desktop\\Files\\sweep_logs"
+
+DATA_DIRECTORY = os.path.join("C:\\", "Users", "gmg3", "OneDrive - UCB-O365", "remote_data", "data")
+LOG_DIRECTORY = os.path.join("C:\\", "Users", "gmg3", "OneDrive - UCB-O365", "remote_data", "logs")
 
 # Set autosave period in seconds
 TIME_AUTOSAVE_S = 600

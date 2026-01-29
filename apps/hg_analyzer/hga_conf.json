@@ -71,7 +71,13 @@
 			"chip_name": "R2C0W7B",
 			"track": "Track 3",
 			"path": ["ARC0*", "RP-24*", "Data", "SMC-B*", "*R2C0W7B*", "Trace 3*"]
+		},
+		{
+			"chip_name": "R3C1W7B",
+			"track": "Track 3",
+			"path": ["ARC0*", "RP-24*", "Data", "SMC-B*", "*R3C1W7B*", "Trace 3*"]
 		}
+		
 	],
 	"sparam_sources": [
 		{
