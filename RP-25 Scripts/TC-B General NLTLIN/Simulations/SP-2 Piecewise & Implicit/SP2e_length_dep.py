@@ -100,7 +100,7 @@ def harmonic_power_from_psd(v: np.ndarray, dt: float, freqs: np.ndarray, psd: np
 	k0 = int(np.argmin(np.abs(freqs - f_target)))
 	k_lo = max(0, k0 - bw_bins)
 	k_hi = min(len(freqs)-1, k0 + bw_bins)
-	v2 = np.trapz(psd[k_lo:k_hi+1], dx=df)  # integrate PSD over band -> V^2
+	v2 = np.trapezoid(psd[k_lo:k_hi+1], dx=df)  # integrate PSD over band -> V^2
 	P = v2 / RL                             # watts (since V_rms^2/R)
 	return P
 
