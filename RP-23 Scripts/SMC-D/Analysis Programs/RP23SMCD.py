@@ -130,8 +130,10 @@ def plot_spectrum(freq, spec, fignum:int=1, ax=None):
 		gs1 = fig1.add_gridspec(1, 1)
 		ax = fig1.add_subplot(gs1[0, 0])
 	
-	ax.plot(freq/1e9, spec, linestyle=':', marker='.')
-	ax.set_xlabel("Frequency (GHz)")
+	# ax.plot(freq/1e9, spec, linestyle=':', marker='.')
+	ax.plot(freq/1e6, spec, linestyle='-')
+	# ax.set_xlabel("Frequency (GHz)")
+	ax.set_xlabel("Frequency (MHz)")
 	ax.set_ylabel("PSD (dBm)")
 	ax.grid(True)
 	
