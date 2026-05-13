@@ -20,8 +20,9 @@ import numpy as np
 import h5py
 
 from PyQt6.QtCore import (
-	Qt, QAbstractTableModel, QModelIndex, QVariant, QObject, pyqtSignal
+	Qt, QAbstractTableModel, QModelIndex, QVariant, QObject, pyqtSignal, QEvent
 )
+from PyQt6.QtGui import QFileOpenEvent
 from PyQt6.QtGui import QAction
 from PyQt6.QtWidgets import (
 	QApplication, QMainWindow, QFileDialog, QMessageBox,
@@ -1064,7 +1065,7 @@ class HDF5EditorMainWindow(QMainWindow):
 
 	def open_file(self):
 		fn, _ = QFileDialog.getOpenFileName(
-			self, "Open HDF5 file", "", "HDF5 Files (*.h5 *.hdf5 *.hdf *.he5);;All Files (*)"
+			self, "Open HDF5 file", "", "HDF5 Files (*.h5 *.hdf5 *.hdf *.he5 *.tome);;All Files (*)"
 		)
 		if not fn:
 			return
@@ -1481,8 +1482,24 @@ class HDF5EditorMainWindow(QMainWindow):
 		super().closeEvent(event)
 
 
+class HDF5App(QApplication):
+	def event(self, e: QEvent) -> bool:
+		if isinstance(e, QFileOpenEvent):
+			path = e.file()
+			if path:
+				for w in self.topLevelWidgets():
+					if isinstance(w, HDF5EditorMainWindow):
+						try:
+							w._open_h5(path)
+						except Exception as ex:
+							show_error(w, "Open failed", f"Could not open file:\n{path}", ex)
+						break
+			return True
+		return super().event(e)
+
+
 def main():
-	app = QApplication(sys.argv)
+	app = HDF5App(sys.argv)
 	win = HDF5EditorMainWindow()
 	win.show()
 	sys.exit(app.exec())
