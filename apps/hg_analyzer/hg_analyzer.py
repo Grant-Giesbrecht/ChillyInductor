@@ -4,9 +4,10 @@ import matplotlib
 import copy
 from constellation.base import interpret_range
 import ctypes
-from jarnsaxa import *
+# from jarnsaxa import *
 matplotlib.use('qtagg')
 from skrf import Network
+from stardust.units import lin_to_dB
 
 from matplotlib.backends.backend_qtagg import FigureCanvasQTAgg as FigureCanvas
 from pylogfile.base import *
@@ -22,7 +23,7 @@ from matplotlib.figure import Figure
 import matplotlib.pyplot as plt
 from chillyinductor.rp22_helper import *
 from colorama import Fore, Style
-from ganymede import *
+# from ganymede import *
 from graf.base import *
 from pylogfile.base import *
 import sys
@@ -3462,4 +3463,3 @@ app.exec()
 
 #TODO: When bias is set to show requested, the fixed scale doesnt work. Look at max-CE2 in 8Aug dataset.
 #TODO: When you turn off the filter, it loads the wrong types of datasets and crashes!
-

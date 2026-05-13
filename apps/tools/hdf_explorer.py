@@ -10,6 +10,7 @@ Additions:
 
 from __future__ import annotations
 
+import os
 import sys
 import traceback
 from dataclasses import dataclass
@@ -859,6 +860,7 @@ class HDF5EditorMainWindow(QMainWindow):
 
 		self._h5: Optional[h5py.File] = None
 		self._filename: Optional[str] = None
+		self._open_files: Dict[str, h5py.File] = {}
 
 		self.undo = UndoManager(limit=1000)
 		self.undo.changed.connect(self._update_undo_button)
@@ -869,15 +871,18 @@ class HDF5EditorMainWindow(QMainWindow):
 		# Actions
 		self.act_open = QAction("Open…", self)
 		self.act_close = QAction("Close", self)
+		self.act_close_all = QAction("Close All", self)
 		self.act_exit = QAction("Exit", self)
 
 		self.act_open.triggered.connect(self.open_file)
-		self.act_close.triggered.connect(self.close_file)
+		self.act_close.triggered.connect(self._close_active_file)
+		self.act_close_all.triggered.connect(self.close_file)
 		self.act_exit.triggered.connect(self.close)
 
 		menu = self.menuBar().addMenu("File")
 		menu.addAction(self.act_open)
 		menu.addAction(self.act_close)
+		menu.addAction(self.act_close_all)
 		menu.addSeparator()
 		menu.addAction(self.act_exit)
 
@@ -1069,15 +1074,59 @@ class HDF5EditorMainWindow(QMainWindow):
 			show_error(self, "Open failed", f"Could not open file:\n{fn}", e)
 
 	def _open_h5(self, filename: str):
-		self.close_file()
+		if filename in self._open_files:
+			return
 
-		# Open read/write
-		self._h5 = h5py.File(filename, "r+")
+		h5 = h5py.File(filename, "r+")
+		self._open_files[filename] = h5
+		self._h5 = h5
 		self._filename = filename
-		self.setWindowTitle(f"HDF5 Viewer/Editor - {filename}")
+		self.setWindowTitle(f"HDF5 Viewer/Editor - {os.path.basename(filename)}")
 		self.info.setText(f"Opened: {filename}")
 		self.undo.clear()
-		self._populate_tree()
+		self._add_file_to_tree(filename)
+
+	def _close_active_file(self):
+		if self._filename is None or self._filename not in self._open_files:
+			return
+		filename = self._filename
+		h5 = self._open_files.pop(filename)
+		try:
+			h5.flush()
+		except Exception:
+			pass
+		try:
+			h5.close()
+		except Exception:
+			pass
+
+		# Remove the corresponding top-level tree item
+		self.tree.blockSignals(True)
+		for i in range(self.tree.topLevelItemCount()):
+			item = self.tree.topLevelItem(i)
+			data = item.data(0, Qt.ItemDataRole.UserRole) if item else None
+			if isinstance(data, tuple) and data == ("__file__", filename):
+				self.tree.takeTopLevelItem(i)
+				break
+		self.tree.blockSignals(False)
+
+		self.dataset_view.setModel(None)
+		self._current_dataset_model = None
+		self.attr_editor.set_target(None, None)
+		self.undo.clear()
+
+		# Switch active file to another open file, if any
+		if self._open_files:
+			self._filename = next(iter(self._open_files))
+			self._h5 = self._open_files[self._filename]
+			self.info.setText(f"Active: {self._filename}")
+		else:
+			self._h5 = None
+			self._filename = None
+			self.info.setText("Open an HDF5 file to begin.")
+			self.setWindowTitle("HDF5 Viewer/Editor (PyQt6)")
+
+		self._apply_lock_ui()
 
 	def close_file(self):
 		# UI reset
@@ -1091,15 +1140,16 @@ class HDF5EditorMainWindow(QMainWindow):
 		self.info.setText("Open an HDF5 file to begin.")
 		self.undo.clear()
 
-		if self._h5 is not None:
+		for h5 in self._open_files.values():
 			try:
-				self._h5.flush()
+				h5.flush()
 			except Exception:
 				pass
 			try:
-				self._h5.close()
+				h5.close()
 			except Exception:
 				pass
+		self._open_files.clear()
 		self._h5 = None
 		self._filename = None
 		self.setWindowTitle("HDF5 Viewer/Editor (PyQt6)")
@@ -1108,17 +1158,17 @@ class HDF5EditorMainWindow(QMainWindow):
 
 	# ---- Tree population ----
 
-	def _populate_tree(self):
-		self.tree.clear()
-		if self._h5 is None:
+	def _add_file_to_tree(self, filename: str):
+		h5 = self._open_files.get(filename)
+		if h5 is None:
 			return
-
+		display_name = os.path.basename(filename)
 		try:
-			root_item = QTreeWidgetItem(["/", "Group", "", ""])
-			root_item.setData(0, Qt.ItemDataRole.UserRole, "/")
+			root_item = QTreeWidgetItem([display_name, "File", "", ""])
+			root_item.setData(0, Qt.ItemDataRole.UserRole, ("__file__", filename))
 			self.tree.addTopLevelItem(root_item)
 
-			self._populate_children(root_item, self._h5["/"])
+			self._populate_children(root_item, h5["/"], filename)
 			root_item.setExpanded(True)
 
 			self.tree.resizeColumnToContents(0)
@@ -1126,7 +1176,7 @@ class HDF5EditorMainWindow(QMainWindow):
 		except Exception as e:
 			show_error(self, "Tree build failed", "Could not populate HDF5 tree.", e)
 
-	def _populate_children(self, parent_item: QTreeWidgetItem, group: h5py.Group):
+	def _populate_children(self, parent_item: QTreeWidgetItem, group: h5py.Group, file_key: str):
 		try:
 			names = sorted(group.keys())
 		except Exception as e:
@@ -1137,20 +1187,17 @@ class HDF5EditorMainWindow(QMainWindow):
 				obj = group[name]
 				path = obj.name
 			except Exception:
-				# Keep going even if one entry is problematic
-				it = QTreeWidgetItem([f"{group.name}/{name}", "Unreadable", "", ""])
+				it = QTreeWidgetItem([name, "Unreadable", "", ""])
 				parent_item.addChild(it)
 				continue
 
 			if isinstance(obj, h5py.Group):
-				it = QTreeWidgetItem([path, "Group", "", ""])
-				it.setData(0, Qt.ItemDataRole.UserRole, path)
+				it = QTreeWidgetItem([name, "Group", "", ""])
+				it.setData(0, Qt.ItemDataRole.UserRole, (file_key, path))
 				parent_item.addChild(it)
-				# recurse
 				try:
-					self._populate_children(it, obj)
+					self._populate_children(it, obj, file_key)
 				except Exception:
-					# don't crash on a bad subgroup
 					pass
 
 			elif isinstance(obj, h5py.Dataset):
@@ -1160,33 +1207,47 @@ class HDF5EditorMainWindow(QMainWindow):
 				except Exception:
 					shape = "?"
 					dtype = "?"
-				it = QTreeWidgetItem([path, "Dataset", shape, dtype])
-				it.setData(0, Qt.ItemDataRole.UserRole, path)
+				it = QTreeWidgetItem([name, "Dataset", shape, dtype])
+				it.setData(0, Qt.ItemDataRole.UserRole, (file_key, path))
 				parent_item.addChild(it)
 
 			else:
-				it = QTreeWidgetItem([path, type(obj).__name__, "", ""])
-				it.setData(0, Qt.ItemDataRole.UserRole, path)
+				it = QTreeWidgetItem([name, type(obj).__name__, "", ""])
+				it.setData(0, Qt.ItemDataRole.UserRole, (file_key, path))
 				parent_item.addChild(it)
 
 	# ---- Selection handling ----
 
 	def _on_tree_selection(self):
-		if self._h5 is None:
-			return
-
 		items = self.tree.selectedItems()
 		if not items:
 			return
 
 		item = items[0]
-		path = item.data(0, Qt.ItemDataRole.UserRole)
-		if not path:
+		data = item.data(0, Qt.ItemDataRole.UserRole)
+		if not data:
 			return
+
+		# File root item selected
+		if isinstance(data, tuple) and data[0] == "__file__":
+			filename = data[1]
+			self.info.setText(f"File: {filename}")
+			self.dataset_view.setModel(None)
+			self._current_dataset_model = None
+			self.attr_editor.set_target(None, None)
+			self._apply_lock_ui()
+			return
+
+		file_key, path = data
+		h5 = self._open_files.get(file_key)
+		if h5 is None:
+			return
+		self._h5 = h5
+		self._filename = file_key
 
 		# Open object safely
 		try:
-			obj = self._h5[path]  # type: ignore[index]
+			obj = h5[path]  # type: ignore[index]
 		except Exception as e:
 			show_error(self, "Selection error", f"Could not open selected HDF5 object:\n{path}", e)
 			return
@@ -1406,13 +1467,14 @@ class HDF5EditorMainWindow(QMainWindow):
 		self._apply_lock_ui()
 
 	def _refresh_if_selected(self, path: str):
-		# If the currently selected item is path, reload attr editor
 		items = self.tree.selectedItems()
 		if not items:
 			return
-		cur_path = items[0].data(0, Qt.ItemDataRole.UserRole)
-		if cur_path == path:
-			self.attr_editor.reload()
+		data = items[0].data(0, Qt.ItemDataRole.UserRole)
+		if isinstance(data, tuple) and data[0] != "__file__":
+			cur_path = data[1]
+			if cur_path == path:
+				self.attr_editor.reload()
 
 	def closeEvent(self, event):
 		self.close_file()

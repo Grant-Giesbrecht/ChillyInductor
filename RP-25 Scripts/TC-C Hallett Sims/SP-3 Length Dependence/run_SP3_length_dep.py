@@ -6,7 +6,7 @@ import mplcursors
 
 from hallett.nltsim.core import *
 from hallett.nltsim.analysis import *
-from system_SP2 import *
+from system_SP3 import *
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--f0", type=float, default=4e9, help="Stimulus frequency [Hz]")
@@ -74,9 +74,9 @@ def main():
 	plt.plot(total_lenths, hp_obj.h2, marker='x', label='2nd harmonic, Explicit', color=c_2h, linestyle='--')
 	plt.plot(total_lenths, hp_obj.h3, marker='x', label='3rd harmonic, Explicit', color=c_3h, linestyle='--')
 	
-	plt.xlabel("Total Length (V)")
+	plt.xlabel("Device Length (m)")
 	plt.ylabel("Power at load (dBm)")
-	plt.title(f"FDTD Simulation, Explicit vs Implicit Updates")
+	plt.title(f"Length Dependence Estimates")
 	plt.grid(True, alpha=0.3)
 	plt.legend()
 	plt.tight_layout()
