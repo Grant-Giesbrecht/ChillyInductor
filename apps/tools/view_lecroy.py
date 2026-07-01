@@ -21,6 +21,7 @@ parser.add_argument('--f1', help='Plot F1 file over FFT', action='store_true')
 parser.add_argument('-z', '--zerocross', help='Zero-crossing analysis', action='store_true')
 parser.add_argument('--zcmin', help='Zero-crossing analysis plot, minimum Y value', type=float)
 parser.add_argument('--zcmax', help='Zero-crossing analysis plot, maximum Y value', type=float)
+parser.add_argument('--graf', help='Save to a graf', type=float)
 args = parser.parse_args()
 
 

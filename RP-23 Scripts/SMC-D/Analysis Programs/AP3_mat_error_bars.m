@@ -1,3 +1,5 @@
+close all
+
 % filename = clipboard('paste');
 % load(filename);
 data_raw = XX;
@@ -23,14 +25,22 @@ stdVals  = std(data_mapped, 0, 1);
 x = x(:);
 y = data_mapped(:);
 
+sdm = size(data_mapped);
+std_denominator = sqrt(sdm(1));
+
 % Make the scatter plot
 fig1= figure(1);
 hold off;
 % scatter(x, y, 'Marker', '.');
-scatter(x, y, 'filled', 'MarkerFaceAlpha', 0.3);
+
+%THIS WAS COMMENTED OUT FOR THE REVIEWER REQUESTED NEW FIG 6
+% scatter(x, y, 'filled', 'MarkerFaceAlpha', 0.3);
+
 hold on;
-errorbar(sequence, meanVals, stdVals, 'k', 'LineWidth', 1.5, 'CapSize', 6);
+errorbar(sequence, meanVals, stdVals/std_denominator, 'k', 'LineWidth', 1.5, 'CapSize', 6);
 plot(sequence, meanVals, 'r.-', 'LineWidth', 1.5, 'MarkerSize', 15);
+
+ylim([0.2, 1]);
 
 fit_x_vals = linspace(0, max(sequence), 101);
 plot(fit_x_vals, fitresult(fit_x_vals), 'LineStyle', '-', 'LineWidth', 0.5, 'Color', [0.75, 0.2, 0.2]);
@@ -41,4 +51,6 @@ ylabel('Visibility');
 title('Scatter plot of repeated measurements');
 grid on;
 
-AP4_per_trace_error_per_gate
+
+
+% AP4_per_trace_error_per_gate

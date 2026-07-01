@@ -116,7 +116,7 @@ def process_bias_value(vb:float, phys_length):
 
 def main():
 	
-	# ???
+	# Changed to 5e-5 in the command line for the fine time step sweep used in SP3f_thesis
 	if args.dx_ref is None:
 		args.dx_ref = 5e-4
 	
