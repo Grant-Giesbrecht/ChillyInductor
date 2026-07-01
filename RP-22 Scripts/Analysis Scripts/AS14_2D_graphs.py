@@ -136,7 +136,7 @@ x,y_peak_rf3, _ = dfplot2d(df_mix, xparam='Ibias_mA', yparam='peak_rf3', fixedpa
 
 # fixedparam={'freq_rf_GHz':(f_RF_GHz, 0, 0.01), 'freq_lo_GHz': (f_LO_GHz, 0, 0.005), 'Ibias_mA': (0.64, 0, 0.1)}
 
-plt.style.use("C:\\Users\\grant\\Documents\\GitHub\\ChillyInductor\\src\\custom.mplstyle.py")
+# plt.style.use("C:\\Users\\grant\\Documents\\GitHub\\ChillyInductor\\src\\custom.mplstyle.py")
 plt.style.use('classic')
 # plt.rcParams.update(plt.rcParamsDefault)
 # plt.style.use('ggplot')
@@ -174,4 +174,3 @@ plt.ylabel("Peak Height (W)")
 plt.grid(True)
 plt.legend()
 plt.show()
-	

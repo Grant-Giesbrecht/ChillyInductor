@@ -6,7 +6,7 @@ import mplcursors
 
 from hallett.nltsim.core import *
 from hallett.nltsim.analysis import *
-from system_SP2 import *
+from system_SP3 import *
 
 parser = argparse.ArgumentParser()
 parser.add_argument("--f0", type=float, default=4e9, help="Stimulus frequency [Hz]")
@@ -21,6 +21,8 @@ parser.add_argument("--tail", type=float, default=1.5e-9, help="Analyze only las
 parser.add_argument("--bw_bins", type=int, default=3, help="Half-width in FFT bins for harmonic integration")
 parser.add_argument("--Vbias", type=float, default=0, help="Applied bias voltage.")
 
+SIMULATION_NAME = "RP25_TCC_SP3b"
+
 args = parser.parse_args()
 
 # ---------------------------- Main ----------------------------
@@ -30,7 +32,7 @@ def main():
 	if args.dx_ref is None:
 		args.dx_ref = 5e-4
 	
-	total_lenths = np.linspace(args.Lmin, args.Lmax, args.num_sweep)
+	bias_sweep_vals = np.linspace(0, 10, 21)
 	
 	t0 = time.time()
 	print(f"Running sequentially.")
@@ -44,18 +46,18 @@ def main():
 	result_group = SimulationResultGroup()
 	
 	# Scan over all lengths
-	for tot_len in total_lenths:
+	for sweep_param in bias_sweep_vals:
 		
 		# Define system parameters
-		fdtd_params_exp= define_system(tot_len, args.f0, args.V0, args.T, args.dx_ref, False, V_bias=args.Vbias, LPM=loss_per_meter)
+		fdtd_params_exp= define_system(0.5, args.f0, args.V0, args.T, args.dx_ref, False, V_bias=sweep_param, LPM=loss_per_meter)
 		
 		# Create and run simulator
 		fdtd_exp_sim = FiniteDiffSim(fdtd_params_exp) # Create sim
 		fdtd_exp_out = fdtd_exp_sim.run() # run
 		
 		# Measure harmonic content at load, and add to HP_OBJ
-		harm_powers = load_harmonics_probe(fdtd_exp_out, args.f0, args.tail, args.bw_bins, 3, x_parameter="Device Length", x_values=total_lenths)
-		hp_obj.append_point(harm_powers, tot_len, fdtd_exp_sim.id)
+		harm_powers = load_harmonics_probe(fdtd_exp_out, args.f0, args.tail, args.bw_bins, 3, x_parameter="Device Length", x_values=bias_sweep_vals)
+		hp_obj.append_point(harm_powers, sweep_param, fdtd_exp_sim.id)
 		
 		# Add simulation to result group
 		result_group.add_simulation(fdtd_exp_sim)
@@ -70,13 +72,13 @@ def main():
 	
 	plt.figure(1, figsize=(8,5))
 	
-	plt.plot(total_lenths, hp_obj.f0, marker='x', label='Fundamental, Explicit', color=c_fund, linestyle='--')
-	plt.plot(total_lenths, hp_obj.h2, marker='x', label='2nd harmonic, Explicit', color=c_2h, linestyle='--')
-	plt.plot(total_lenths, hp_obj.h3, marker='x', label='3rd harmonic, Explicit', color=c_3h, linestyle='--')
+	plt.plot(bias_sweep_vals, hp_obj.f0, marker='x', label='Fundamental, Explicit', color=c_fund, linestyle='--')
+	plt.plot(bias_sweep_vals, hp_obj.h2, marker='x', label='2nd harmonic, Explicit', color=c_2h, linestyle='--')
+	plt.plot(bias_sweep_vals, hp_obj.h3, marker='x', label='3rd harmonic, Explicit', color=c_3h, linestyle='--')
 	
-	plt.xlabel("Total Length (V)")
+	plt.xlabel("Bias Voltage (V)")
 	plt.ylabel("Power at load (dBm)")
-	plt.title(f"FDTD Simulation, Explicit vs Implicit Updates")
+	plt.title(f"Length Dependence Estimates")
 	plt.grid(True, alpha=0.3)
 	plt.legend()
 	plt.tight_layout()
@@ -85,7 +87,7 @@ def main():
 	
 	result_group.print_summary()
 	
-	result_group.save("sim_result_test.nltsim")
+	result_group.save(f"{SIMULATION_NAME}_result.nltsim")
 	
 	plt.show()
 
